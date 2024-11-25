@@ -31,7 +31,7 @@ const pulse = keyframes`
 
 // Styled components
 const HeroBox = styled(Box)(({ theme }) => ({
-  background: `linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)`,
+  background: `linear-gradient(135deg, #8B4513 0%, #A0522D 100%)`, // Brown background
   color: 'white',
   padding: '120px 0',
   position: 'relative',
@@ -61,7 +61,7 @@ const StyledButton = styled(Button)`
   border-radius: 30px;
   transition: all 0.3s ease;
   background: rgba(255, 255, 255, 0.9);
-  color: #2e7d32;
+  color: #8B4513;
 
   &:hover {
     background: white;
@@ -88,15 +88,14 @@ const HeroSection: React.FC = () => {
             fontWeight: 700,
             marginBottom: 4,
             textShadow: '2px 2px 4px rgba(0,0,0,0.2)',
+            color: '#4caf50', // Green text
           }}
         >
           Welcome to{' '}
           <Box
             component="span"
             sx={{
-              background: 'linear-gradient(45deg, #81c784, #4caf50)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              color: '#4caf50', // Green text
               animation: `${pulse} 2s infinite ease-in-out`,
               display: 'inline-block',
             }}
@@ -114,6 +113,7 @@ const HeroSection: React.FC = () => {
             maxWidth: '800px',
             margin: '0 auto 40px',
             lineHeight: 1.6,
+            color: 'white', // White text
           }}
         >
           Discover the future of sustainable growing with our innovative hydroponic systems and supplies
@@ -131,7 +131,7 @@ const HeroSection: React.FC = () => {
             borderRadius: '30px',
             transition: 'all 0.3s ease',
             background: 'rgba(255, 255, 255, 0.9)',
-            color: '#2e7d32',
+            color: '#8B4513',
             '&:hover': {
               background: 'white',
               transform: 'translateY(-2px)',
