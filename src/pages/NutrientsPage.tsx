@@ -1,12 +1,6 @@
 // src/pages/NutrientsPage.tsx
 import React from 'react';
-import { 
-  Container, 
-  Grid, 
-  Typography, 
-  Box,
-  Chip
-} from '@mui/material';
+import { Container, Grid, Typography, Box, Chip } from '@mui/material';
 import ProductCard from '../components/ProductCard';
 import { Product, NutrientProduct } from '../types/types';
 import { Science, Spa, WaterDrop } from '@mui/icons-material';
@@ -14,13 +8,15 @@ import { Science, Spa, WaterDrop } from '@mui/icons-material';
 interface Props {
   products: Product[];
   onAddToCart: (product: Product) => void;
+  onEdit: (product: Product) => void;
+  onFavorite: (product: Product) => void;
 }
 
 const isNutrientProduct = (product: Product): product is NutrientProduct => {
   return product.type === 'nutrient';
 };
 
-const NutrientsPage: React.FC<Props> = ({ products, onAddToCart }) => {
+const NutrientsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite }) => {
   const nutrientProducts = products.filter(isNutrientProduct);
 
   return (
@@ -43,7 +39,12 @@ const NutrientsPage: React.FC<Props> = ({ products, onAddToCart }) => {
       <Grid container spacing={4}>
         {nutrientProducts.map((product) => (
           <Grid item key={product.id} xs={12} sm={6} md={4}>
-            <ProductCard product={product} onAddToCart={onAddToCart} />
+            <ProductCard 
+              product={product} 
+              onAddToCart={onAddToCart} 
+              onEdit={onEdit} 
+              onFavorite={onFavorite} 
+            />
           </Grid>
         ))}
       </Grid>

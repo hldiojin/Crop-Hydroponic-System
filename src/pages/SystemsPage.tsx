@@ -1,11 +1,6 @@
+// src/pages/SystemsPage.tsx
 import React from 'react';
-import { 
-  Container, 
-  Grid, 
-  Typography, 
-  Box,
-  Chip
-} from '@mui/material';
+import { Container, Grid, Typography, Box, Chip } from '@mui/material';
 import ProductCard from '../components/ProductCard';
 import { Product, SystemProduct } from '../types/types';
 import { Memory, Power, Settings } from '@mui/icons-material';
@@ -13,13 +8,15 @@ import { Memory, Power, Settings } from '@mui/icons-material';
 interface Props {
   products: Product[];
   onAddToCart: (product: Product) => void;
+  onEdit: (product: Product) => void;
+  onFavorite: (product: Product) => void;
 }
 
 const isSystemProduct = (product: Product): product is SystemProduct => {
   return product.type === 'system';
 };
 
-const SystemsPage: React.FC<Props> = ({ products, onAddToCart }) => {
+const SystemsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite }) => {
   const systemProducts = products.filter(isSystemProduct);
 
   return (
@@ -42,7 +39,12 @@ const SystemsPage: React.FC<Props> = ({ products, onAddToCart }) => {
       <Grid container spacing={4}>
         {systemProducts.map((product) => (
           <Grid item key={product.id} xs={12} sm={6} md={4}>
-            <ProductCard product={product} onAddToCart={onAddToCart} />
+            <ProductCard 
+              product={product} 
+              onAddToCart={onAddToCart} 
+              onEdit={onEdit} 
+              onFavorite={onFavorite} 
+            />
           </Grid>
         ))}
       </Grid>

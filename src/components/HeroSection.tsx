@@ -53,26 +53,13 @@ const AnimatedTypography = styled(Typography)`
   animation: ${fadeIn} 1s ease-out;
 `;
 
-const StyledButton = styled(Button)`
-  animation: ${fadeIn} 1s ease-out 0.5s backwards;
-  padding: 12px 36px;
-  font-size: 1.1rem;
-  text-transform: none;
-  border-radius: 30px;
-  transition: all 0.3s ease;
-  background: rgba(255, 255, 255, 0.9);
-  color: #8B4513;
-
-  &:hover {
-    background: white;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-  }
-`;
-
 const HeroContent = styled(Container)`
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 `;
 
 const HeroSection: React.FC = () => {
@@ -119,28 +106,30 @@ const HeroSection: React.FC = () => {
           Discover the future of sustainable growing with our innovative hydroponic systems and supplies
         </AnimatedTypography>
 
-        <Button
-          variant="contained"
-          component={Link}
-          to="/plants"
-          sx={{
-            animation: `${fadeIn} 1s ease-out 0.5s backwards`,
-            padding: '12px 36px',
-            fontSize: '1.1rem',
-            textTransform: 'none',
-            borderRadius: '30px',
-            transition: 'all 0.3s ease',
-            background: 'rgba(255, 255, 255, 0.9)',
-            color: '#8B4513',
-            '&:hover': {
-              background: 'white',
-              transform: 'translateY(-2px)',
-              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
-            },
-          }}
-        >
-          Explore Our Products
-        </Button>
+        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+          <Button
+            variant="contained"
+            component={Link}
+            to="/plants"
+            sx={{
+              animation: `${fadeIn} 1s ease-out 0.5s backwards`,
+              padding: '12px 36px',
+              fontSize: '1.1rem',
+              textTransform: 'none',
+              borderRadius: '30px',
+              transition: 'all 0.3s ease',
+              background: 'rgba(255, 255, 255, 0.9)',
+              color: '#8B4513',
+              '&:hover': {
+                background: 'white',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
+              },
+            }}
+          >
+            Explore Our Products
+          </Button>
+        </Box>
       </HeroContent>
     </HeroBox>
   );

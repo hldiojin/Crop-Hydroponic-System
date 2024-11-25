@@ -1,28 +1,22 @@
 // src/pages/PlantsPage.tsx
 import React from 'react';
-import { 
-  Container, 
-  Grid, 
-  Typography, 
-  Box,
-  Chip
-} from '@mui/material';
-import { LocalFlorist } from '@mui/icons-material';
+import { Container, Grid, Typography, Box, Chip } from '@mui/material';
 import ProductCard from '../components/ProductCard';
 import { Product, PlantProduct } from '../types/types';
+import { LocalFlorist } from '@mui/icons-material';
 
 interface Props {
   products: Product[];
   onAddToCart: (product: Product) => void;
+  onEdit: (product: Product) => void;
+  onFavorite: (product: Product) => void;
 }
 
-// Type guard for PlantProduct
 const isPlantProduct = (product: Product): product is PlantProduct => {
   return product.type === 'plant';
 };
 
-const PlantsPage: React.FC<Props> = ({ products, onAddToCart }) => {
-  // Filter for plant products only
+const PlantsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite }) => {
   const plantProducts = products.filter(isPlantProduct);
 
   return (
@@ -45,7 +39,12 @@ const PlantsPage: React.FC<Props> = ({ products, onAddToCart }) => {
       <Grid container spacing={4}>
         {plantProducts.map((product) => (
           <Grid item key={product.id} xs={12} sm={6} md={4}>
-            <ProductCard product={product} onAddToCart={onAddToCart} />
+            <ProductCard 
+              product={product} 
+              onAddToCart={onAddToCart} 
+              onEdit={onEdit} 
+              onFavorite={onFavorite} 
+            />
           </Grid>
         ))}
       </Grid>
