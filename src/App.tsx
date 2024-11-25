@@ -1,7 +1,7 @@
 // src/App.tsx
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { CssBaseline, ThemeProvider, createTheme, Box } from '@mui/material';
 import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
 import Footer from './components/Footer';
@@ -78,54 +78,78 @@ const App: React.FC = () => {
       <BrowserRouter>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <Navbar cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)} />
-          <HeroSection />
-          <Routes>
-            <Route path="/" element={<ProductList products={products} onAddToCart={handleAddToCart} />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route
-              path="/product/:id"
-              element={<ProductDetail products={products} onAddToCart={handleAddToCart} />}
-            />
-            <Route
-              path="/cart"
-              element={
-                <ProtectedRoute>
-                  <CartPage
-                    cart={cart}
-                    updateQuantity={handleUpdateQuantity}
-                    removeFromCart={handleRemoveFromCart}
-                  />
-                </ProtectedRoute>
-              }
-            />
-            <Route 
-              path="/plants" 
-              element={<PlantsPage 
-                products={products.filter(p => p.type === 'plant')} 
-                onAddToCart={handleAddToCart} 
-              />} 
-            />
-            <Route 
-              path="/systems" 
-              element={<SystemsPage 
-                products={products.filter(p => p.type === 'system')} 
-                onAddToCart={handleAddToCart} 
-              />} 
-            />
-            <Route 
-              path="/nutrients" 
-              element={<NutrientsPage 
-                products={products.filter(p => p.type === 'nutrient')} 
-                onAddToCart={handleAddToCart} 
-              />} 
-            />
-          </Routes>
-          <Footer />
+          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            <Navbar cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)} />
+            <Box sx={{ flex: '1 0 auto' }}>
+              <MainContent 
+                handleAddToCart={handleAddToCart}
+                handleUpdateQuantity={handleUpdateQuantity}
+                handleRemoveFromCart={handleRemoveFromCart}
+                cart={cart}
+              />
+            </Box>
+            <Footer />
+          </Box>
         </ThemeProvider>
       </BrowserRouter>
     </AuthProvider>
+  );
+};
+
+const MainContent: React.FC<{
+  handleAddToCart: (product: Product) => void;
+  handleUpdateQuantity: (id: number, change: number) => void;
+  handleRemoveFromCart: (id: number) => void;
+  cart: CartItem[];
+}> = ({ handleAddToCart, handleUpdateQuantity, handleRemoveFromCart, cart }) => {
+  const location = useLocation();
+
+  return (
+    <>
+      {location.pathname === '/' && <HeroSection />}
+      <Routes>
+        <Route path="/" element={<ProductList products={products} onAddToCart={handleAddToCart} />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/product/:id"
+          element={<ProductDetail products={products} onAddToCart={handleAddToCart} />}
+        />
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute>
+              <CartPage
+                cart={cart}
+                updateQuantity={handleUpdateQuantity}
+                removeFromCart={handleRemoveFromCart}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route 
+          path="/plants" 
+          element={<PlantsPage 
+            products={products.filter(p => p.type === 'plant')} 
+            onAddToCart={handleAddToCart} 
+          />} 
+        />
+        <Route 
+          path="/systems" 
+          element={<SystemsPage 
+            products={products.filter(p => p.type === 'system')} 
+            onAddToCart={handleAddToCart} 
+          />} 
+        />
+        <Route 
+          path="/nutrients" 
+          element={<NutrientsPage 
+            products={products.filter(p => p.type === 'nutrient')} 
+            onAddToCart={handleAddToCart} 
+          />} 
+        />
+      </Routes>
+    </>
   );
 };
 

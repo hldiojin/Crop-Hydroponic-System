@@ -1,6 +1,5 @@
 // src/context/AuthContext.tsx
 import React, { createContext, useContext, useState } from 'react';
-import api from '../services/api';
 import { User, LoginForm, RegisterForm } from '../types/types';
 
 interface AuthContextType {
@@ -26,22 +25,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
 
   const login = async (data: LoginForm) => {
-    const response = await api.post('/login', data);
-    setUser(response.data.user);
-    setToken(response.data.token);
-    localStorage.setItem('token', response.data.token);
+    // Mock login process
+    const mockUser = { id: '1', email: data.email, name: 'Test User' };
+    const mockToken = 'mock-token';
+    setUser(mockUser);
+    setToken(mockToken);
+    localStorage.setItem('user', JSON.stringify(mockUser));
+    localStorage.setItem('token', mockToken);
   };
 
   const register = async (data: RegisterForm) => {
-    const response = await api.post('/register', data);
-    setUser(response.data.user);
-    setToken(response.data.token);
-    localStorage.setItem('token', response.data.token);
+    // Mock registration process
+    const mockUser = { id: '1', email: data.email, name: data.name };
+    const mockToken = 'mock-token';
+    setUser(mockUser);
+    setToken(mockToken);
+    localStorage.setItem('user', JSON.stringify(mockUser));
+    localStorage.setItem('token', mockToken);
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
+    localStorage.removeItem('user');
     localStorage.removeItem('token');
   };
 
