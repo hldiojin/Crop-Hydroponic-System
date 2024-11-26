@@ -98,7 +98,19 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
 
   return (
     <>
-      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }} elevation={6}>
+      <Card 
+        sx={{ 
+          height: '100%', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          transition: 'transform 0.3s, box-shadow 0.3s',
+          '&:hover': {
+            transform: 'scale(1.05)',
+            boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
+          }
+        }} 
+        elevation={6}
+      >
         <CardMedia
           component="img"
           height="200"

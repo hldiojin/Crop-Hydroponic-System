@@ -103,7 +103,6 @@ export const products: Product[] = [
     features: ["Climate control", "Automated watering", "LED grow lights"],
     powerConsumption: "60W"
   },
-  // Nutrients
   {
     id: 9,
     type: 'nutrient',

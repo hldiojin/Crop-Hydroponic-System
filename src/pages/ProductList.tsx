@@ -3,7 +3,7 @@ import React from 'react';
 import { Grid, Container, Typography } from '@mui/material';
 import ProductCard from '../components/ProductCard';
 import { Product } from '../types/types';
-
+import './ProductList.css';
 interface Props {
   products: Product[];
   onAddToCart: (product: Product) => void;
@@ -13,9 +13,9 @@ interface Props {
 
 const ProductList: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite }) => {
   return (
-    <Container sx={{ py: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Our Products
+    <Container className='container' sx={{ py: 4 }}>
+      <Typography className='tittle' variant="h4" gutterBottom>
+        OUR PRODUCTS
       </Typography>
       <Grid container spacing={4}>
         {products.map((product) => (
