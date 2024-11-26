@@ -49,7 +49,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
 
   if (!product) {
     return (
-      <Container>
+      <Container sx={{ marginTop: '100px' }}>
         <Typography variant="h5" sx={{ mt: 4 }}>Product not found</Typography>
       </Container>
     );
@@ -184,7 +184,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
   };
 
   return (
-    <Container sx={{ py: 4 }}>
+    <Container sx={{ py: 4, marginTop: '100px' }}>
       <Grid container spacing={4}>
         <Grid item xs={12} md={6}>
           <Card elevation={3}>

@@ -31,7 +31,7 @@ const pulse = keyframes`
 
 // Styled components
 const HeroBox = styled(Box)(({ theme }) => ({
-  background: `linear-gradient(135deg, #8B4513 0%, #A0522D 100%)`, // Brown background
+  background: `linear-gradient(135deg, #8B4513 0%, #A0522D 100%)`,
   color: 'white',
   padding: '120px 0',
   position: 'relative',
@@ -43,7 +43,7 @@ const HeroBox = styled(Box)(({ theme }) => ({
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'url("/images/hero-pattern.png")', // Add a subtle pattern
+    background: 'url("/images/hero-pattern.png")',
     opacity: 0.1,
     zIndex: 1,
   },
@@ -70,19 +70,19 @@ const HeroSection: React.FC = () => {
           variant="h1"
           gutterBottom
           sx={{
-            fontSize: { xs: '2.5rem', md: '4rem' },
+            fontSize: { xs: '3.5rem', md: '6rem' },
             fontFamily: "'Playfair Display', serif",
             fontWeight: 700,
             marginBottom: 4,
             textShadow: '2px 2px 4px rgba(0,0,0,0.2)',
-            color: '#4caf50', // Green text
+            color: '#4caf50',
           }}
         >
           Welcome to{' '}
           <Box
             component="span"
             sx={{
-              color: '#4caf50', // Green text
+              color: '#4caf50',
               animation: `${pulse} 2s infinite ease-in-out`,
               display: 'inline-block',
             }}
@@ -100,7 +100,12 @@ const HeroSection: React.FC = () => {
             maxWidth: '800px',
             margin: '0 auto 40px',
             lineHeight: 1.6,
-            color: 'white', // White text
+            color: 'white',
+            fontFamily: "'Roboto Slab', serif",
+            fontSize: { xs: '1.2rem', md: '1.5rem' },
+            letterSpacing: '0.5px',
+            textTransform: 'none',
+            fontStyle: 'italic',
           }}
         >
           Discover the future of sustainable growing with our innovative hydroponic systems and supplies

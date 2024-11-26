@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { CssBaseline, ThemeProvider, createTheme, Box } from '@mui/material';
+import { CssBaseline, ThemeProvider, createTheme, Box, GlobalStyles } from '@mui/material';
 import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
 import Footer from './components/Footer';
@@ -15,7 +15,8 @@ import ProductDetail from './pages/ProductDetail';
 import PlantsPage from './pages/PlantsPage';
 import SystemsPage from './pages/SystemsPage';
 import NutrientsPage from './pages/NutrientsPage';
-import { products as initialProducts } from './data/products'; // Ensure this import is correct
+import ProfilePage from './pages/ProfilePage';
+import { products as initialProducts } from './data/products'; 
 
 const theme = createTheme({
   palette: {
@@ -91,6 +92,7 @@ const App: React.FC = () => {
       <BrowserRouter>
         <ThemeProvider theme={theme}>
           <CssBaseline />
+          <GlobalStyles styles={{ '.css-j4unr3': { marginTop: '100px' } }} />
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
             <Navbar cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)} />
             <Box sx={{ flex: '1 0 auto' }}>
@@ -172,6 +174,14 @@ const MainContent: React.FC<{
             onEdit={handleEditProduct}
             onFavorite={handleFavoriteProduct}
           />} 
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
         />
       </Routes>
     </>

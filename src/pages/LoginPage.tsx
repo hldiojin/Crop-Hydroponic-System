@@ -33,7 +33,7 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="sm">
+    <Container maxWidth="sm" sx={{ marginTop: '100px' }}>
       <Paper sx={{ p: 4, mt: 8 }}>
         <Typography variant="h4" gutterBottom>
           Login
@@ -65,7 +65,7 @@ const LoginPage: React.FC = () => {
           >
             Login
           </Button>
-          <Box sx={{ mt: 2, textAlign: 'center' }}>
+          <Box sx={{ mt: 2, textAlign: 'center', marginTop: '150px' }}>
             <Link to="/register">
               Don't have an account? Register
             </Link>

@@ -25,7 +25,7 @@ const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
+      console.error('Passwords do not match');
       return;
     }
     try {
@@ -37,7 +37,7 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="sm">
+    <Container maxWidth="sm" sx={{ marginTop: '100px' }}>
       <Paper sx={{ p: 4, mt: 8 }}>
         <Typography variant="h4" gutterBottom>
           Register
@@ -47,6 +47,7 @@ const RegisterPage: React.FC = () => {
             fullWidth
             margin="normal"
             label="Name"
+            type="text"
             required
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -86,7 +87,7 @@ const RegisterPage: React.FC = () => {
           >
             Register
           </Button>
-          <Box sx={{ mt: 2, textAlign: 'center' }}>
+          <Box sx={{ mt: 2, textAlign: 'center', marginTop: '150px' }}>
             <Link to="/login">
               Already have an account? Login
             </Link>

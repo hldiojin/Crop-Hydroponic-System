@@ -25,7 +25,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCar
 
   if (cart.length === 0) {
     return (
-      <Container sx={{ py: 4 }}>
+      <Container sx={{ py: 4, marginTop: '100px' }}>
         <Typography variant="h5" gutterBottom>
           Your cart is empty
         </Typography>
@@ -34,7 +34,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCar
   }
 
   return (
-    <Container sx={{ py: 4 }}>
+    <Container sx={{ py: 4, marginTop: '100px' }}>
       <Typography variant="h4" gutterBottom>
         Shopping Cart
       </Typography>
