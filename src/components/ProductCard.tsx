@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Card, 
   CardContent, 
@@ -28,6 +28,7 @@ import {
   Edit, 
   Star 
 } from '@mui/icons-material';
+import { useAuth } from '../context/AuthContext';
 import { Product } from '../types/types';
 
 interface Props {
@@ -35,19 +36,46 @@ interface Props {
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
+  favorites: number[]; // Add favorites prop
 }
 
-const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite }) => {
+const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite, favorites }) => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isFavorite, setIsFavorite] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editProduct, setEditProduct] = useState(product);
 
+  useEffect(() => {
+    setIsFavorite(favorites.includes(product.id));
+  }, [favorites, product.id]);
+
   const handleFavoriteClick = () => {
-    setIsFavorite(!isFavorite);
+    if (!isAuthenticated) {
+      navigate('/login', { 
+        state: { 
+          from: location,
+          action: 'favorite',
+          productId: product.id 
+        } 
+      });
+      return;
+    }
     onFavorite(product);
   };
 
   const handleEditOpen = () => {
+    if (!isAuthenticated) {
+      navigate('/login', { 
+        state: { 
+          from: location,
+          action: 'edit',
+          productId: product.id 
+        } 
+      });
+      return;
+    }
     setEditOpen(true);
   };
 

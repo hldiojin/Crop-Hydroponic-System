@@ -1,6 +1,6 @@
 // src/pages/ProductDetail.tsx
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
   Grid,
@@ -12,6 +12,8 @@ import {
   Button,
   Paper,
   Divider,
+  Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
   Timer,
@@ -21,12 +23,16 @@ import {
   ShoppingCart,
   Memory,
   Power,
+  Star,
 } from '@mui/icons-material';
+import { useAuth } from '../context/AuthContext';
 import { Product, PlantProduct, SystemProduct, NutrientProduct } from '../types/types';
 
 interface ProductDetailProps {
   products: Product[];
   onAddToCart: (product: Product) => void;
+  onFavorite: (product: Product) => void;
+  favorites: number[]; 
 }
 
 // Type guards
@@ -42,10 +48,36 @@ const isNutrientProduct = (product: Product): product is NutrientProduct => {
   return product.type === 'nutrient';
 };
 
-const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) => {
+const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart, onFavorite, favorites }) => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+  const [isFavorite, setIsFavorite] = useState(false);
   const product = products.find(p => p.id === Number(id));
+
+  useEffect(() => {
+    if (product) {
+      setIsFavorite(favorites.includes(product.id));
+    }
+  }, [product, favorites]);
+
+  const handleFavoriteClick = () => {
+    if (!isAuthenticated) {
+      navigate('/login', { 
+        state: { 
+          from: location,
+          action: 'favorite',
+          productId: product?.id 
+        } 
+      });
+      return;
+    }
+    setIsFavorite(!isFavorite);
+    if (product) {
+      onFavorite(product);
+    }
+  };
 
   if (!product) {
     return (
@@ -199,46 +231,61 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart }) 
         </Grid>
         
         <Grid item xs={12} md={6}>
-          <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h4" gutterBottom>
               {product.name}
             </Typography>
-            
-            {renderSpecifications()}
-            
-            <Typography variant="h5" color="primary" sx={{ my: 2 }}>
-              ${product.price}
-            </Typography>
-
-            <Divider sx={{ my: 3 }} />
-
-            <Typography variant="h6" gutterBottom>
-              Description
-            </Typography>
-            <Typography variant="body1" paragraph>
-              {product.description}
-            </Typography>
-
-            <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<ShoppingCart />}
-                onClick={() => {
-                  onAddToCart(product);
-                  navigate('/cart');
+            <Tooltip title="Favorite">
+              <IconButton 
+                onClick={handleFavoriteClick}
+                color={isFavorite ? "secondary" : "default"}
+                sx={{ 
+                  width: 50, 
+                  height: 50,
+                  '&:hover': {
+                    transform: 'scale(1.1)',
+                  }
                 }}
               >
-                Add to Cart
-              </Button>
-              <Button
-                variant="outlined"
-                size="large"
-                onClick={() => navigate('/')}
-              >
-                Continue Shopping
-              </Button>
-            </Box>
+                <Star sx={{ fontSize: 30 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          
+          {renderSpecifications()}
+          
+          <Typography variant="h5" color="primary" sx={{ my: 2 }}>
+            ${product.price}
+          </Typography>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="h6" gutterBottom>
+            Description
+          </Typography>
+          <Typography variant="body1" paragraph>
+            {product.description}
+          </Typography>
+
+          <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<ShoppingCart />}
+              onClick={() => {
+                onAddToCart(product);
+                navigate('/cart');
+              }}
+            >
+              Add to Cart
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={() => navigate('/')}
+            >
+              Continue Shopping
+            </Button>
           </Box>
         </Grid>
       </Grid>

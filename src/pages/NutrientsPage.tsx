@@ -10,13 +10,14 @@ interface Props {
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
+  favorites: number[]; // Add favorites prop
 }
 
 const isNutrientProduct = (product: Product): product is NutrientProduct => {
   return product.type === 'nutrient';
 };
 
-const NutrientsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite }) => {
+const NutrientsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite, favorites }) => {
   const nutrientProducts = products.filter(isNutrientProduct);
 
   return (
@@ -44,6 +45,7 @@ const NutrientsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavor
               onAddToCart={onAddToCart} 
               onEdit={onEdit} 
               onFavorite={onFavorite} 
+              favorites={favorites} // Pass favorites prop
             />
           </Grid>
         ))}

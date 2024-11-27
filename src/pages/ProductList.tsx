@@ -3,15 +3,16 @@ import React from 'react';
 import { Grid, Container, Typography } from '@mui/material';
 import ProductCard from '../components/ProductCard';
 import { Product } from '../types/types';
-import './ProductList.css';
+
 interface Props {
   products: Product[];
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
+  favorites: number[]; // Add favorites prop
 }
 
-const ProductList: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite }) => {
+const ProductList: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite, favorites }) => {
   return (
     <Container className='container' sx={{ py: 4 }}>
       <Typography className='tittle' variant="h4" gutterBottom>
@@ -25,6 +26,7 @@ const ProductList: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorit
               onAddToCart={onAddToCart} 
               onEdit={onEdit} 
               onFavorite={onFavorite} 
+              favorites={favorites} // Pass favorites prop
             />
           </Grid>
         ))}

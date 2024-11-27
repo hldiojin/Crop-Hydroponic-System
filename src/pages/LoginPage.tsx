@@ -25,8 +25,13 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     try {
       await login(formData);
-      const from = location.state?.from?.pathname || '/';
-      navigate(from);
+      
+      if (location.state?.action === 'favorite') {
+        navigate(location.state.from.pathname);
+      } else {
+        const from = location.state?.from?.pathname || '/';
+        navigate(from);
+      }
     } catch (error) {
       console.error('Login failed', error);
     }

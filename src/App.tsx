@@ -16,7 +16,8 @@ import PlantsPage from './pages/PlantsPage';
 import SystemsPage from './pages/SystemsPage';
 import NutrientsPage from './pages/NutrientsPage';
 import ProfilePage from './pages/ProfilePage';
-import { products as initialProducts } from './data/products'; 
+import { products as initialProducts } from './data/products';
+import FavoritePage from './pages/FavoritePage';
 
 const theme = createTheme({
   palette: {
@@ -43,6 +44,7 @@ const theme = createTheme({
 const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [favorites, setFavorites] = useState<number[]>([]); // Array to store favorite product IDs
 
   const handleAddToCart = (product: Product) => {
     setCart(prevCart => {
@@ -83,8 +85,13 @@ const App: React.FC = () => {
   };
 
   const handleFavoriteProduct = (product: Product) => {
-    console.log('Favorite product:', product);
-    // Implement favorite functionality here
+    setFavorites(prevFavorites => {
+      if (prevFavorites.includes(product.id)) {
+        return prevFavorites.filter(id => id !== product.id);
+      } else {
+        return [...prevFavorites, product.id];
+      }
+    });
   };
 
   return (
@@ -96,7 +103,7 @@ const App: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
             <Navbar cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)} />
             <Box sx={{ flex: '1 0 auto' }}>
-              <MainContent 
+              <MainContent
                 handleAddToCart={handleAddToCart}
                 handleUpdateQuantity={handleUpdateQuantity}
                 handleRemoveFromCart={handleRemoveFromCart}
@@ -104,6 +111,7 @@ const App: React.FC = () => {
                 handleFavoriteProduct={handleFavoriteProduct}
                 cart={cart}
                 products={products}
+                favorites={favorites} // Pass favorites state
               />
             </Box>
             <Footer />
@@ -122,19 +130,20 @@ const MainContent: React.FC<{
   handleFavoriteProduct: (product: Product) => void;
   cart: CartItem[];
   products: Product[];
-}> = ({ handleAddToCart, handleUpdateQuantity, handleRemoveFromCart, handleEditProduct, handleFavoriteProduct, cart, products }) => {
+  favorites: number[]; // Add favorites prop
+}> = ({ handleAddToCart, handleUpdateQuantity, handleRemoveFromCart, handleEditProduct, handleFavoriteProduct, cart, products, favorites }) => {
   const location = useLocation();
 
   return (
     <>
       {location.pathname === '/' && <HeroSection />}
       <Routes>
-        <Route path="/" element={<ProductList products={products} onAddToCart={handleAddToCart} onEdit={handleEditProduct} onFavorite={handleFavoriteProduct} />} />
+        <Route path="/" element={<ProductList products={products} onAddToCart={handleAddToCart} onEdit={handleEditProduct} onFavorite={handleFavoriteProduct} favorites={favorites} />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route
           path="/product/:id"
-          element={<ProductDetail products={products} onAddToCart={handleAddToCart} />}
+          element={<ProductDetail products={products} onAddToCart={handleAddToCart} onFavorite={handleFavoriteProduct} favorites={favorites} />}
         />
         <Route
           path="/cart"
@@ -148,32 +157,35 @@ const MainContent: React.FC<{
             </ProtectedRoute>
           }
         />
-        <Route 
-          path="/plants" 
-          element={<PlantsPage 
-            products={products.filter(p => p.type === 'plant')} 
-            onAddToCart={handleAddToCart} 
+        <Route
+          path="/plants"
+          element={<PlantsPage
+            products={products.filter(p => p.type === 'plant')}
+            onAddToCart={handleAddToCart}
             onEdit={handleEditProduct}
             onFavorite={handleFavoriteProduct}
-          />} 
+            favorites={favorites}
+          />}
         />
-        <Route 
-          path="/systems" 
-          element={<SystemsPage 
-            products={products.filter(p => p.type === 'system')} 
-            onAddToCart={handleAddToCart} 
+        <Route
+          path="/systems"
+          element={<SystemsPage
+            products={products.filter(p => p.type === 'system')}
+            onAddToCart={handleAddToCart}
             onEdit={handleEditProduct}
             onFavorite={handleFavoriteProduct}
-          />} 
+            favorites={favorites}
+          />}
         />
-        <Route 
-          path="/nutrients" 
-          element={<NutrientsPage 
-            products={products.filter(p => p.type === 'nutrient')} 
-            onAddToCart={handleAddToCart} 
+        <Route
+          path="/nutrients"
+          element={<NutrientsPage
+            products={products.filter(p => p.type === 'nutrient')}
+            onAddToCart={handleAddToCart}
             onEdit={handleEditProduct}
             onFavorite={handleFavoriteProduct}
-          />} 
+            favorites={favorites}
+          />}
         />
         <Route
           path="/profile"
@@ -181,6 +193,19 @@ const MainContent: React.FC<{
             <ProtectedRoute>
               <ProfilePage />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/favorites"
+          element={
+            <ProtectedRoute>
+              <FavoritePage
+                products={products}
+                favorites={favorites}
+                onRemoveFavorite={handleFavoriteProduct}
+              />
+            </ProtectedRoute>
+
           }
         />
       </Routes>

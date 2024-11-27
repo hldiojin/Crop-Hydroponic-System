@@ -10,13 +10,14 @@ interface Props {
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
+  favorites: number[]; // Add favorites prop
 }
 
 const isSystemProduct = (product: Product): product is SystemProduct => {
   return product.type === 'system';
 };
 
-const SystemsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite }) => {
+const SystemsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite, favorites }) => {
   const systemProducts = products.filter(isSystemProduct);
 
   return (
@@ -44,6 +45,7 @@ const SystemsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorit
               onAddToCart={onAddToCart} 
               onEdit={onEdit} 
               onFavorite={onFavorite} 
+              favorites={favorites} // Pass favorites prop
             />
           </Grid>
         ))}
