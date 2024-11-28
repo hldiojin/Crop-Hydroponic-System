@@ -16,8 +16,10 @@ import PlantsPage from './pages/PlantsPage';
 import SystemsPage from './pages/SystemsPage';
 import NutrientsPage from './pages/NutrientsPage';
 import ProfilePage from './pages/ProfilePage';
-import { products as initialProducts } from './data/products';
 import FavoritePage from './pages/FavoritePage';
+import AdminDashboard from './pages/AdminDashboard';
+import { AdminRoute } from './components/AdminRoute';
+import { products as initialProducts } from './data/products'; 
 
 const theme = createTheme({
   palette: {
@@ -94,6 +96,10 @@ const App: React.FC = () => {
     });
   };
 
+  const handleLogout = () => {
+    setFavorites([]); 
+  };
+
   return (
     <AuthProvider>
       <BrowserRouter>
@@ -101,9 +107,12 @@ const App: React.FC = () => {
           <CssBaseline />
           <GlobalStyles styles={{ '.css-j4unr3': { marginTop: '100px' } }} />
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Navbar cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)} />
+            <Navbar 
+              cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)} 
+              onLogout={handleLogout} // Pass handleLogout to Navbar
+            />
             <Box sx={{ flex: '1 0 auto' }}>
-              <MainContent
+              <MainContent 
                 handleAddToCart={handleAddToCart}
                 handleUpdateQuantity={handleUpdateQuantity}
                 handleRemoveFromCart={handleRemoveFromCart}
@@ -111,7 +120,7 @@ const App: React.FC = () => {
                 handleFavoriteProduct={handleFavoriteProduct}
                 cart={cart}
                 products={products}
-                favorites={favorites} // Pass favorites state
+                favorites={favorites} 
               />
             </Box>
             <Footer />
@@ -157,35 +166,35 @@ const MainContent: React.FC<{
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/plants"
-          element={<PlantsPage
-            products={products.filter(p => p.type === 'plant')}
-            onAddToCart={handleAddToCart}
+        <Route 
+          path="/plants" 
+          element={<PlantsPage 
+            products={products.filter(p => p.type === 'plant')} 
+            onAddToCart={handleAddToCart} 
             onEdit={handleEditProduct}
             onFavorite={handleFavoriteProduct}
             favorites={favorites}
-          />}
+          />} 
         />
-        <Route
-          path="/systems"
-          element={<SystemsPage
-            products={products.filter(p => p.type === 'system')}
-            onAddToCart={handleAddToCart}
+        <Route 
+          path="/systems" 
+          element={<SystemsPage 
+            products={products.filter(p => p.type === 'system')} 
+            onAddToCart={handleAddToCart} 
             onEdit={handleEditProduct}
             onFavorite={handleFavoriteProduct}
             favorites={favorites}
-          />}
+          />} 
         />
-        <Route
-          path="/nutrients"
-          element={<NutrientsPage
-            products={products.filter(p => p.type === 'nutrient')}
-            onAddToCart={handleAddToCart}
+        <Route 
+          path="/nutrients" 
+          element={<NutrientsPage 
+            products={products.filter(p => p.type === 'nutrient')} 
+            onAddToCart={handleAddToCart} 
             onEdit={handleEditProduct}
             onFavorite={handleFavoriteProduct}
             favorites={favorites}
-          />}
+          />} 
         />
         <Route
           path="/profile"
@@ -203,9 +212,17 @@ const MainContent: React.FC<{
                 products={products}
                 favorites={favorites}
                 onRemoveFavorite={handleFavoriteProduct}
+                onAddToCart={handleAddToCart} // Pass onAddToCart prop
               />
             </ProtectedRoute>
-
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
           }
         />
       </Routes>

@@ -1,99 +1,59 @@
 // src/pages/RegisterPage.tsx
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import {
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Box,
-} from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { RegisterForm } from '../types/types';
+import { Container, TextField, Button, Typography, Box } from '@mui/material';
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
-  const [formData, setFormData] = useState<RegisterForm>({
+  const [formData, setFormData] = useState<{ name: string; email: string; password: string }>({
     name: '',
     email: '',
     password: '',
-    confirmPassword: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      console.error('Passwords do not match');
-      return;
-    }
-    try {
-      await register(formData);
-      navigate('/login');
-    } catch (error) {
-      console.error('Registration failed', error);
-    }
+    await register(formData);
+    navigate('/');
   };
 
   return (
-    <Container maxWidth="sm" sx={{ marginTop: '100px' }}>
-      <Paper sx={{ p: 4, mt: 8 }}>
+    <Container maxWidth="sm">
+      <Box sx={{ mt: 8 }}>
         <Typography variant="h4" gutterBottom>
           Register
         </Typography>
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+        <form onSubmit={handleSubmit}>
           <TextField
+            label="Name"
             fullWidth
             margin="normal"
-            label="Name"
-            type="text"
-            required
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           />
           <TextField
-            fullWidth
-            margin="normal"
             label="Email"
             type="email"
-            required
+            fullWidth
+            margin="normal"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           />
           <TextField
-            fullWidth
-            margin="normal"
             label="Password"
             type="password"
-            required
+            fullWidth
+            margin="normal"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           />
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Confirm Password"
-            type="password"
-            required
-            value={formData.confirmPassword}
-            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3 }}
-          >
+          <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>
             Register
           </Button>
-          <Box sx={{ mt: 2, textAlign: 'center', marginTop: '150px' }}>
-            <Link to="/login">
-              Already have an account? Login
-            </Link>
-          </Box>
-        </Box>
-      </Paper>
+        </form>
+      </Box>
     </Container>
   );
 };

@@ -1,4 +1,6 @@
+// src/components/Navbar.tsx
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -13,18 +15,18 @@ import {
   MenuItem,
   Divider,
 } from '@mui/material';
-import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart } from '@mui/icons-material';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useAuth } from '../context/AuthContext';
 
 interface NavbarProps {
   cartItemsCount: number;
+  onLogout: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ cartItemsCount }) => {
+const Navbar: React.FC<NavbarProps> = ({ cartItemsCount, onLogout }) => {
   const navigate = useNavigate();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, isAdmin } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -35,8 +37,9 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount }) => {
     setAnchorEl(null);
   };
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
     logout();
+    onLogout();
     handleMenuClose();
     navigate('/');
   };
@@ -130,13 +133,20 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount }) => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {isAuthenticated ? (
               <>
-                <IconButton onClick={handleMenuOpen} sx={{ color: '#2e7d32' }}>
+                <IconButton
+                  onClick={handleMenuOpen}
+                  sx={{
+                    color: '#2e7d32',
+                  }}
+                >
                   <Avatar
                     sx={{
                       width: 32,
                       height: 32,
                       bgcolor: '#2e7d32',
-                      '&:hover': { bgcolor: '#1b5e20' },
+                      '&:hover': {
+                        bgcolor: '#1b5e20',
+                      },
                     }}
                   >
                     {user?.name?.charAt(0) || <AccountCircleIcon />}
@@ -154,20 +164,6 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount }) => {
                     vertical: 'top',
                     horizontal: 'right',
                   }}
-                  PaperProps={{
-                    elevation: 0,
-                    sx: {
-                      overflow: 'visible',
-                      filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
-                      mt: 1.5,
-                      '& .MuiAvatar-root': {
-                        width: 32,
-                        height: 32,
-                        ml: -0.5,
-                        mr: 1,
-                      },
-                    },
-                  }}
                 >
                   <MenuItem component={Link} to="/profile" onClick={handleMenuClose}>
                     <Typography sx={{ color: '#2e7d32' }}>Profile</Typography>
@@ -175,11 +171,36 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount }) => {
                   <MenuItem component={Link} to="/favorites" onClick={handleMenuClose}>
                     <Typography sx={{ color: '#2e7d32' }}>Favorites</Typography>
                   </MenuItem>
+                  {isAdmin && (
+                    <MenuItem component={Link} to="/admin" onClick={handleMenuClose}>
+                      <Typography sx={{ color: '#2e7d32' }}>Admin Dashboard</Typography>
+                    </MenuItem>
+                  )}
                   <Divider />
-                  <MenuItem onClick={handleLogout}>
+                  <MenuItem onClick={handleLogoutClick}>
                     <Typography color="error">Logout</Typography>
                   </MenuItem>
                 </Menu>
+                <IconButton
+                  component={Link}
+                  to="/cart"
+                  sx={{
+                    color: '#2e7d32',
+                  }}
+                >
+                  <Badge
+                    badgeContent={cartItemsCount}
+                    color="error"
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        backgroundColor: '#2e7d32',
+                        color: 'white',
+                      },
+                    }}
+                  >
+                    <ShoppingCart />
+                  </Badge>
+                </IconButton>
               </>
             ) : (
               <>
@@ -213,29 +234,6 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount }) => {
                 </Button>
               </>
             )}
-            <IconButton
-              component={Link}
-              to="/cart"
-              sx={{
-                color: '#2e7d32',
-                '&:hover': {
-                  backgroundColor: 'rgba(46, 125, 50, 0.08)',
-                },
-              }}
-            >
-              <Badge
-                badgeContent={cartItemsCount}
-                color="error"
-                sx={{
-                  '& .MuiBadge-badge': {
-                    backgroundColor: '#2e7d32',
-                    color: 'white',
-                  },
-                }}
-              >
-                <ShoppingCart />
-              </Badge>
-            </IconButton>
           </Box>
         </Toolbar>
       </Container>

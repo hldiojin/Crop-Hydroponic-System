@@ -1,22 +1,14 @@
 // src/pages/LoginPage.tsx
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import {
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Box,
-} from '@mui/material';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LoginForm } from '../types/types';
+import { Container, TextField, Button, Typography, Box } from '@mui/material';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
-  const [formData, setFormData] = useState<LoginForm>({
+  const [formData, setFormData] = useState<{ email: string; password: string }>({
     email: '',
     password: '',
   });
@@ -25,58 +17,40 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     try {
       await login(formData);
-      
-      if (location.state?.action === 'favorite') {
-        navigate(location.state.from.pathname);
-      } else {
-        const from = location.state?.from?.pathname || '/';
-        navigate(from);
-      }
+      navigate(location.state?.from || '/', { replace: true });
     } catch (error) {
-      console.error('Login failed', error);
+      alert('Invalid email or password');
     }
   };
 
   return (
-    <Container maxWidth="sm" sx={{ marginTop: '100px' }}>
-      <Paper sx={{ p: 4, mt: 8 }}>
+    <Container maxWidth="sm">
+      <Box sx={{ mt: 8 }}>
         <Typography variant="h4" gutterBottom>
           Login
         </Typography>
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+        <form onSubmit={handleSubmit}>
           <TextField
-            fullWidth
-            margin="normal"
             label="Email"
             type="email"
-            required
+            fullWidth
+            margin="normal"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           />
           <TextField
-            fullWidth
-            margin="normal"
             label="Password"
             type="password"
-            required
+            fullWidth
+            margin="normal"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3 }}
-          >
+          <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>
             Login
           </Button>
-          <Box sx={{ mt: 2, textAlign: 'center', marginTop: '150px' }}>
-            <Link to="/register">
-              Don't have an account? Register
-            </Link>
-          </Box>
-        </Box>
-      </Paper>
+        </form>
+      </Box>
     </Container>
   );
 };

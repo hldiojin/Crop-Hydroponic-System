@@ -25,6 +25,7 @@ import {
   LocalFlorist,
   Memory,
   Power,
+  ShoppingCart,
 } from '@mui/icons-material';
 import { Product } from '../types/types';
 
@@ -32,9 +33,10 @@ interface Props {
   products: Product[];
   favorites: number[];
   onRemoveFavorite: (product: Product) => void;
+  onAddToCart: (product: Product) => void;
 }
 
-const FavoritePage: React.FC<Props> = ({ products, favorites, onRemoveFavorite }) => {
+const FavoritePage: React.FC<Props> = ({ products, favorites, onRemoveFavorite, onAddToCart }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const favoriteProducts = products.filter(product => favorites.includes(product.id));
@@ -59,15 +61,16 @@ const FavoritePage: React.FC<Props> = ({ products, favorites, onRemoveFavorite }
               sx={{ 
                 cursor: 'pointer',
                 transition: 'transform 0.3s',
-                '&:hover': { transform: 'scale(1.05)' }
+                '&:hover': { transform: 'scale(1.05)' },
+                position: 'relative',
               }}
-              onClick={() => handleProductClick(product)}
             >
               <CardMedia
                 component="img"
                 height="200"
                 image={product.image}
                 alt={product.name}
+                onClick={() => handleProductClick(product)}
               />
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -76,15 +79,28 @@ const FavoritePage: React.FC<Props> = ({ products, favorites, onRemoveFavorite }
                 <Typography variant="h6" color="primary">
                   ${product.price}
                 </Typography>
-                <IconButton 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveFavorite(product);
-                  }}
-                  sx={{ position: 'absolute', top: 8, right: 8 }}
-                >
-                  <DeleteIcon />
-                </IconButton>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<ShoppingCart />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddToCart(product);
+                    }}
+                    sx={{ flex: 1, mr: 1 }}
+                  >
+                    Add to Cart
+                  </Button>
+                  <IconButton 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveFavorite(product);
+                    }}
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
               </CardContent>
             </Card>
           </Grid>
@@ -143,7 +159,17 @@ const FavoritePage: React.FC<Props> = ({ products, favorites, onRemoveFavorite }
                 </Grid>
               </Grid>
             </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ p: 2 }}>
+              <Button 
+                variant="contained" 
+                startIcon={<ShoppingCart />}
+                onClick={() => {
+                  onAddToCart(selectedProduct);
+                  handleCloseDialog();
+                }}
+              >
+                Add to Cart
+              </Button>
               <Button onClick={handleCloseDialog}>Close</Button>
             </DialogActions>
           </>
