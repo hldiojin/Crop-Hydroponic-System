@@ -25,11 +25,13 @@ const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCar
 
   if (cart.length === 0) {
     return (
-      <Container sx={{ py: 4, marginTop: '100px' }}>
-        <Typography variant="h5" gutterBottom>
-          Your cart is empty
-        </Typography>
-      </Container>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <Container sx={{ py: 4, flexGrow: 1 }}>
+          <Typography variant="h5" gutterBottom>
+            Your cart is empty
+          </Typography>
+        </Container>
+      </Box>
     );
   }
 

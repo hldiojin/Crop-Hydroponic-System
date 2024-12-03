@@ -28,10 +28,11 @@ import {
   Edit,
   Delete,
 } from '@mui/icons-material';
+import Chat from '../components/Chat';
 
 const AdminDashboard: React.FC = () => {
   return (
-    <Box sx={{ backgroundColor: '#f5f5f5', minHeight: '100vh', pt: 8, pb: 4 }}>
+    <Box sx={{ backgroundColor: '#f5f5f5', minHeight: '100vh', pt: 12, pb: 4 }}>
       <Container maxWidth="xl">
         <Grid container spacing={3}>
           {/* Statistics Cards */}
@@ -188,6 +189,9 @@ const AdminDashboard: React.FC = () => {
             </Paper>
           </Grid>
         </Grid>
+        <Box sx={{ mt: 4 }}>
+          <Chat />
+        </Box>
       </Container>
     </Box>
   );

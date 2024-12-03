@@ -6,215 +6,227 @@ import {
   Typography,
   Box,
   Avatar,
-  Button,
-  TextField,
-  Grid,
-  Divider,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  TextField,
+  Button,
   Snackbar,
   Alert,
-  CircularProgress,
+  Card,
+  CardContent,
+  Fade,
+  Grid,
+  Divider,
 } from '@mui/material';
-import { Edit as EditIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Message as MessageIcon } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import Chat from '../components/Chat';
 
 const ProfilePage: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [editData, setEditData] = useState({
     name: user?.name || '',
     email: user?.email || '',
   });
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: 'success' | 'error';
-  }>({
+  const [showChat, setShowChat] = useState(false);
+  const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
-    severity: 'success'
+    severity: 'success' as 'success' | 'error',
   });
 
-  const handleEditClick = () => {
-    setEditData({
-      name: user?.name || '',
-      email: user?.email || '',
-    });
-    setIsEditing(true);
-  };
+  const handleEditClick = () => setIsEditing(true);
+  const handleChatToggle = () => setShowChat(!showChat);
 
-  const handleSave = async () => {
-    if (!editData.name.trim() || !editData.email.trim()) {
-      setSnackbar({
-        open: true,
-        message: 'Name and email are required',
-        severity: 'error'
-      });
-      return;
-    }
-
+  const handleSaveClick = async () => {
     try {
-      setIsSaving(true);
-      await updateProfile({
-        name: editData.name,
-        email: editData.email
-      });
-      
-      setSnackbar({
-        open: true,
-        message: 'Profile updated successfully!',
-        severity: 'success'
-      });
+      await updateProfile(editData);
+      setSnackbar({ open: true, message: 'Profile updated successfully', severity: 'success' });
       setIsEditing(false);
     } catch (error) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to update profile. Please try again.',
-        severity: 'error'
-      });
-    } finally {
-      setIsSaving(false);
+      setSnackbar({ open: true, message: 'Failed to update profile', severity: 'error' });
     }
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    setEditData({
-      name: user?.name || '',
-      email: user?.email || '',
-    });
-  };
-
-  const handleSnackbarClose = () => {
-    setSnackbar({ ...snackbar, open: false });
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 12, mb: 4 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-          <Avatar
-            sx={{
-              width: 100,
-              height: 100,
-              bgcolor: '#2e7d32',
-              fontSize: '2.5rem',
-              mr: 3,
-            }}
-          >
-            {user?.name?.charAt(0).toUpperCase()}
-          </Avatar>
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="h4" gutterBottom>
-              Profile
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Manage your account information
-            </Typography>
-          </Box>
-          <IconButton 
-            onClick={handleEditClick}
+    <Container maxWidth="lg" sx={{ mt: 12, mb: 4 }}>
+      <Grid container spacing={4}>
+        <Grid item xs={12} md={8}>
+          <Card 
+            elevation={0}
             sx={{ 
-              color: '#2e7d32',
-              '&:hover': {
-                backgroundColor: 'rgba(46, 125, 50, 0.08)'
-              }
+              background: 'rgba(255, 255, 255, 0.9)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: 4,
+              overflow: 'hidden',
+              position: 'relative',
             }}
           >
-            <EditIcon />
-          </IconButton>
-        </Box>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 150,
+                bgcolor: 'primary.main',
+                background: 'linear-gradient(120deg, #2e7d32 0%, #60ad5e 100%)',
+              }}
+            />
+            <CardContent sx={{ position: 'relative', pt: 12 }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-end', mb: 4 }}>
+                <Avatar
+                  sx={{
+                    width: 120,
+                    height: 120,
+                    border: '4px solid white',
+                    bgcolor: 'primary.main',
+                    fontSize: '3rem',
+                    boxShadow: 3,
+                  }}
+                >
+                  {user?.name?.charAt(0).toUpperCase()}
+                </Avatar>
+                <Box sx={{ ml: 3, flex: 1 }}>
+                  <Typography variant="h4" fontWeight="bold" gutterBottom>
+                    {user?.name}
+                  </Typography>
+                  <Typography variant="subtitle1" color="text.secondary">
+                    {user?.email}
+                  </Typography>
+                </Box>
+                <Box>
+                  <IconButton
+                    onClick={handleEditClick}
+                    sx={{
+                      bgcolor: 'background.paper',
+                      boxShadow: 2,
+                      '&:hover': { bgcolor: 'background.paper', transform: 'scale(1.1)' },
+                      transition: 'transform 0.2s',
+                    }}
+                  >
+                    <EditIcon color="primary" />
+                  </IconButton>
+                  <IconButton
+                    onClick={handleChatToggle}
+                    sx={{
+                      ml: 1,
+                      bgcolor: 'background.paper',
+                      boxShadow: 2,
+                      '&:hover': { bgcolor: 'background.paper', transform: 'scale(1.1)' },
+                      transition: 'transform 0.2s',
+                    }}
+                  >
+                    <MessageIcon color="primary" />
+                  </IconButton>
+                </Box>
+              </Box>
 
-        <Divider sx={{ my: 3 }} />
+              <Divider sx={{ my: 3 }} />
 
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Name
-            </Typography>
-            <Typography variant="body1">{user?.name}</Typography>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              Email
-            </Typography>
-            <Typography variant="body1">{user?.email}</Typography>
-          </Grid>
+              {isEditing ? (
+                <Fade in={isEditing}>
+                  <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <TextField
+                      label="Name"
+                      name="name"
+                      value={editData.name}
+                      onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                      fullWidth
+                      variant="outlined"
+                    />
+                    <TextField
+                      label="Email"
+                      name="email"
+                      value={editData.email}
+                      onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                      fullWidth
+                      variant="outlined"
+                    />
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
+                      <Button 
+                        onClick={() => setIsEditing(false)}
+                        variant="outlined"
+                        color="primary"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleSaveClick}
+                        variant="contained"
+                        color="primary"
+                      >
+                        Save Changes
+                      </Button>
+                    </Box>
+                  </Box>
+                </Fade>
+              ) : (
+                <Fade in={!isEditing}>
+                  <Box>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12}>
+                        <Typography variant="h6" color="primary" gutterBottom>
+                          Personal Information
+                        </Typography>
+                        <Card sx={{ bgcolor: 'grey.50', p: 3, borderRadius: 3 }}>
+                          <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                              <Typography color="text.secondary" gutterBottom>
+                                Full Name
+                              </Typography>
+                              <Typography variant="h6">{user?.name}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Typography color="text.secondary" gutterBottom>
+                                Email Address
+                              </Typography>
+                              <Typography variant="h6">{user?.email}</Typography>
+                            </Grid>
+                          </Grid>
+                        </Card>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                </Fade>
+              )}
+            </CardContent>
+          </Card>
         </Grid>
 
-        <Dialog open={isEditing} onClose={handleCancel} maxWidth="sm" fullWidth>
-          <DialogTitle>Edit Profile</DialogTitle>
-          <DialogContent>
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Name"
-              value={editData.name}
-              onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-              disabled={isSaving}
-              error={!editData.name.trim()}
-              helperText={!editData.name.trim() ? 'Name is required' : ''}
-            />
-            <TextField
-              fullWidth
-              margin="normal"
-              label="Email"
-              type="email"
-              value={editData.email}
-              onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-              disabled={isSaving}
-              error={!editData.email.trim()}
-              helperText={!editData.email.trim() ? 'Email is required' : ''}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button 
-              onClick={handleCancel}
-              sx={{ color: '#2e7d32' }}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSave}
-              variant="contained"
-              disabled={isSaving}
-              sx={{ 
-                bgcolor: '#2e7d32',
-                '&:hover': {
-                  bgcolor: '#1b5e20',
-                }
+        <Grid item xs={12} md={4}>
+          <Fade in={showChat}>
+            <Card
+              elevation={0}
+              sx={{
+                height: '100%',
+                background: 'rgba(255, 255, 255, 0.9)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: 4,
               }}
             >
-              {isSaving ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </DialogActions>
-        </Dialog>
+              <CardContent>
+                <Chat />
+              </CardContent>
+            </Card>
+          </Fade>
+        </Grid>
+      </Grid>
 
-        <Snackbar 
-          open={snackbar.open} 
-          autoHideDuration={6000} 
-          onClose={handleSnackbarClose}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          elevation={6}
+          variant="filled"
         >
-          <Alert 
-            onClose={handleSnackbarClose} 
-            severity={snackbar.severity}
-            sx={{ width: '100%' }}
-          >
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-      </Paper>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
