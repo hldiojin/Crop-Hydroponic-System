@@ -5,9 +5,9 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (data: { email: string; password: string }) => Promise<void>;
-  register: (data: { name: string; email: string; password: string }) => Promise<void>;
+  register: (data: { name: string; email: string; password: string; phone: string; address: string }) => Promise<void>;
   logout: () => void;
-  updateProfile: (data: { name: string; email: string }) => Promise<void>;
+  updateProfile: (data: Partial<User>) => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
 }
@@ -17,6 +17,10 @@ interface User {
   name: string;
   email: string;
   role: 'user' | 'admin';
+  photoURL?: string;
+  address?: string;
+  phone?: string;
+  
 }
 
 interface StoredUser extends User {
@@ -49,7 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (data: { email: string; password: string }) => {
-    // Hardcoded admin login
     if (data.email === 'admin@example.com' && data.password === 'admin') {
       setUser(adminUser);
       setToken('admin-token');
@@ -71,14 +74,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (data: { name: string; email: string; password: string }) => {
-    // Simulate user registration
+  const register = async (data: { name: string; email: string; password: string; phone: string; address: string }) => {
     const newUser: StoredUser = {
       id: Date.now(),
       name: data.name,
       email: data.email,
       role: 'user',
       password: data.password,
+      phone: data.phone,
+      address: data.address,
     };
     const storedUsers: StoredUser[] = JSON.parse(localStorage.getItem('users') || '[]');
     storedUsers.push(newUser);
@@ -97,18 +101,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('token');
   };
 
-  const updateProfile = async (data: { name: string; email: string }) => {
-    const response = await fetch('/api/update-profile', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(data),
-    });
-    const result = await response.json();
-    setUser(result.user);
-    localStorage.setItem('user', JSON.stringify(result.user));
+  const updateProfile = async (data: Partial<User>) => {
+    const updatedUser = { ...user, ...data };
+    setUser(updatedUser as User);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
   useEffect(() => {
