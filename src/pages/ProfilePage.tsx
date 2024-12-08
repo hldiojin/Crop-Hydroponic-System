@@ -2,7 +2,6 @@
 import React, { useState, useRef } from "react";
 import {
   Container,
-  Paper,
   Typography,
   Box,
   Avatar,
@@ -16,18 +15,37 @@ import {
   Fade,
   Grid,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   Edit as EditIcon,
   Message as MessageIcon,
   AddAPhoto as AddPhotoIcon,
+  Support as SupportIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import Chat from "../components/Chat";
+import io from 'socket.io-client';
+
+const socket = io('http://localhost:3001');
+
+interface Ticket {
+  id: string;
+  subject: string;
+  description: string;
+  status: 'open' | 'in-progress' | 'resolved';
+  createdAt: Date;
+}
 
 const ProfilePage: React.FC = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, isAdmin } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [ticketFormOpen, setTicketFormOpen] = useState(false);
+  const [ticketSubject, setTicketSubject] = useState('');
+  const [ticketDescription, setTicketDescription] = useState('');
   const [editData, setEditData] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -111,8 +129,87 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleEditClick = () => setIsEditing(true);
-  const handleChatToggle = () => setShowChat(!showChat);
+  const handleCreateTicket = async (subject: string, description: string) => {
+    try {
+      const newTicket: Ticket = {
+        id: Date.now().toString(),
+        subject,
+        description,
+        status: 'open',
+        createdAt: new Date(),
+      };
+      
+      socket.emit('createTicket', newTicket);
+
+      setSnackbar({
+        open: true,
+        message: "Support ticket created successfully",
+        severity: "success",
+      });
+      setTicketFormOpen(false);
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Failed to create support ticket",
+        severity: "error",
+      });
+    }
+  };
+
+  const renderActionButtons = () => (
+    <Box>
+      <IconButton
+        onClick={() => setIsEditing(true)}
+        sx={{
+          bgcolor: "background.paper",
+          boxShadow: 2,
+          "&:hover": {
+            bgcolor: "background.paper",
+            transform: "scale(1.1)",
+          },
+          transition: "transform 0.2s",
+        }}
+      >
+        <EditIcon color="primary" />
+      </IconButton>
+      
+      {!isAdmin && (
+        <>
+          <IconButton
+            onClick={() => setTicketFormOpen(true)}
+            sx={{
+              ml: 1,
+              bgcolor: "background.paper",
+              boxShadow: 2,
+              "&:hover": {
+                bgcolor: "background.paper",
+                transform: "scale(1.1)",
+              },
+              transition: "transform 0.2s",
+            }}
+          >
+            <SupportIcon color="primary" />
+          </IconButton>
+          
+          <IconButton
+            onClick={() => setShowChat(!showChat)}
+            sx={{
+              ml: 1,
+              bgcolor: "background.paper",
+              boxShadow: 2,
+              "&:hover": {
+                bgcolor: "background.paper",
+                transform: "scale(1.1)",
+              },
+              transition: "transform 0.2s",
+            }}
+          >
+            <MessageIcon color="primary" />
+          </IconButton>
+        </>
+      )}
+    </Box>
+  );
 
   const handleSaveClick = async () => {
     try {
@@ -212,37 +309,7 @@ const ProfilePage: React.FC = () => {
                     {user?.email}
                   </Typography>
                 </Box>
-                <Box>
-                  <IconButton
-                    onClick={handleEditClick}
-                    sx={{
-                      bgcolor: "background.paper",
-                      boxShadow: 2,
-                      "&:hover": {
-                        bgcolor: "background.paper",
-                        transform: "scale(1.1)",
-                      },
-                      transition: "transform 0.2s",
-                    }}
-                  >
-                    <EditIcon color="primary" />
-                  </IconButton>
-                  <IconButton
-                    onClick={handleChatToggle}
-                    sx={{
-                      ml: 1,
-                      bgcolor: "background.paper",
-                      boxShadow: 2,
-                      "&:hover": {
-                        bgcolor: "background.paper",
-                        transform: "scale(1.1)",
-                      },
-                      transition: "transform 0.2s",
-                    }}
-                  >
-                    <MessageIcon color="primary" />
-                  </IconButton>
-                </Box>
+                {renderActionButtons()}
               </Box>
 
               <Divider sx={{ my: 3 }} />
@@ -347,17 +414,17 @@ const ProfilePage: React.FC = () => {
                               </Typography>
                             </Grid>
                             <Grid item xs={12} sm={6}>
-                <Typography color="text.secondary" gutterBottom>
-                  Phone Number
-                </Typography>
-                <Typography variant="h6">{user?.phone || 'Not provided'}</Typography>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <Typography color="text.secondary" gutterBottom>
-                  Address
-                </Typography>
-                <Typography variant="h6">{user?.address || 'Not provided'}</Typography>
-              </Grid>
+                              <Typography color="text.secondary" gutterBottom>
+                                Phone Number
+                              </Typography>
+                              <Typography variant="h6">{user?.phone || 'Not provided'}</Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Typography color="text.secondary" gutterBottom>
+                                Address
+                              </Typography>
+                              <Typography variant="h6">{user?.address || 'Not provided'}</Typography>
+                            </Grid>
                           </Grid>
                         </Card>
                       </Grid>
@@ -369,24 +436,65 @@ const ProfilePage: React.FC = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={4}>
-          <Fade in={showChat}>
-            <Card
-              elevation={0}
-              sx={{
-                height: "100%",
-                background: "rgba(255, 255, 255, 0.9)",
-                backdropFilter: "blur(10px)",
-                borderRadius: 4,
-              }}
-            >
-              <CardContent>
-                <Chat />
-              </CardContent>
-            </Card>
-          </Fade>
-        </Grid>
+        {!isAdmin && (
+          <Grid item xs={12} md={4}>
+            <Fade in={showChat}>
+              <Card
+                elevation={0}
+                sx={{
+                  height: "100%",
+                  background: "rgba(255, 255, 255, 0.9)",
+                  backdropFilter: "blur(10px)",
+                  borderRadius: 4,
+                }}
+              >
+                <CardContent>
+                  <Chat />
+                </CardContent>
+              </Card>
+            </Fade>
+          </Grid>
+        )}
       </Grid>
+
+      {/* Ticket Form Dialog */}
+      <Dialog
+        open={ticketFormOpen}
+        onClose={() => setTicketFormOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Create Support Ticket</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Subject"
+            fullWidth
+            value={ticketSubject}
+            onChange={(e) => setTicketSubject(e.target.value)}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            fullWidth
+            multiline
+            rows={4}
+            value={ticketDescription}
+            onChange={(e) => setTicketDescription(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTicketFormOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={() => handleCreateTicket(ticketSubject, ticketDescription)}
+            variant="contained"
+            disabled={!ticketSubject.trim() || !ticketDescription.trim()}
+          >
+            Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snackbar.open}

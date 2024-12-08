@@ -56,3 +56,14 @@ export interface BaseProduct {
     name: string;
     confirmPassword: string;
   }
+
+  export interface Ticket {
+    id: string;
+    userId: number;
+    userName: string;
+    subject: string;
+    description: string;
+    status: 'open' | 'in-progress' | 'resolved';
+    createdAt: Date;
+    updatedAt: Date;
+  }

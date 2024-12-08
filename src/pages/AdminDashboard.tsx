@@ -1,5 +1,5 @@
 // src/pages/AdminDashboard.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -16,6 +16,10 @@ import {
   Divider,
   LinearProgress,
   IconButton,
+  Badge,
+  Chip,
+  Menu,
+  MenuItem,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -27,10 +31,37 @@ import {
   Science,
   Edit,
   Delete,
+  MailOutline,
 } from '@mui/icons-material';
 import Chat from '../components/Chat';
+import { Ticket } from '../types/types';
+import io from 'socket.io-client';
+
+const socket = io('http://localhost:3001');
 
 const AdminDashboard: React.FC = () => {
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [ticketAnchorEl, setTicketAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+
+  useEffect(() => {
+    socket.on('newTicket', (ticket: Ticket) => {
+      setTickets((prevTickets) => [...prevTickets, ticket]);
+    });
+
+    return () => {
+      socket.off('newTicket');
+    };
+  }, []);
+
+  const handleStatusChange = (ticketId: string, newStatus: Ticket['status']) => {
+    setTickets(prev => 
+      prev.map(ticket => 
+        ticket.id === ticketId ? { ...ticket, status: newStatus } : ticket
+      )
+    );
+  };
+
   return (
     <Box sx={{ backgroundColor: '#f5f5f5', minHeight: '100vh', pt: 12, pb: 4 }}>
       <Container maxWidth="xl">
@@ -116,6 +147,86 @@ const AdminDashboard: React.FC = () => {
             </Card>
           </Grid>
 
+          {/* Tickets Section */}
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">
+                  Support Tickets
+                  {tickets.filter(t => t.status === 'open').length > 0 && (
+                    <Badge
+                      color="error"
+                      badgeContent={tickets.filter(t => t.status === 'open').length}
+                      sx={{ ml: 2 }}
+                    />
+                  )}
+                </Typography>
+              </Box>
+              <List>
+                {tickets.map((ticket) => (
+                  <React.Fragment key={ticket.id}>
+                    <ListItem
+                      sx={{
+                        bgcolor: 'background.paper',
+                        borderRadius: 1,
+                        mb: 1,
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                        },
+                      }}
+                    >
+                      <ListItemAvatar>
+                        <Avatar sx={{ bgcolor: ticket.status === 'open' ? 'error.main' : 'primary.main' }}>
+                          <MailOutline />
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {ticket.subject}
+                            <Chip
+                              size="small"
+                              label={ticket.status}
+                              color={
+                                ticket.status === 'open' 
+                                  ? 'error' 
+                                  : ticket.status === 'in-progress' 
+                                    ? 'warning' 
+                                    : 'success'
+                              }
+                            />
+                          </Box>
+                        }
+                        secondary={
+                          <>
+                            <Typography variant="body2" component="span">
+                              From: {ticket.userName} | 
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              component="span" 
+                              sx={{ ml: 1 }}
+                            >
+                              {new Date(ticket.createdAt).toLocaleString()}
+                            </Typography>
+                          </>
+                        }
+                      />
+                      <IconButton
+                        onClick={(e) => {
+                          setSelectedTicket(ticket);
+                          setTicketAnchorEl(e.currentTarget);
+                        }}
+                      >
+                        <Edit />
+                      </IconButton>
+                    </ListItem>
+                  </React.Fragment>
+                ))}
+              </List>
+            </Paper>
+          </Grid>
+
           {/* Recent Orders */}
           <Grid item xs={12} md={8}>
             <Paper sx={{ p: 3 }}>
@@ -126,9 +237,15 @@ const AdminDashboard: React.FC = () => {
                 {[1, 2, 3, 4, 5].map((item) => (
                   <React.Fragment key={item}>
                     <ListItem
+                      sx={{
+                        borderRadius: 2,
+                        '&:hover': {
+                          bgcolor: 'grey.50',
+                        },
+                      }}
                       secondaryAction={
                         <Box>
-                          <IconButton size="small">
+                          <IconButton size="small" sx={{ mr: 1 }}>
                             <Edit />
                           </IconButton>
                           <IconButton size="small" color="error">
@@ -138,7 +255,7 @@ const AdminDashboard: React.FC = () => {
                       }
                     >
                       <ListItemAvatar>
-                        <Avatar>
+                        <Avatar sx={{ bgcolor: 'primary.main' }}>
                           <Science />
                         </Avatar>
                       </ListItemAvatar>
@@ -189,6 +306,48 @@ const AdminDashboard: React.FC = () => {
             </Paper>
           </Grid>
         </Grid>
+
+        {/* Status Change Menu */}
+        <Menu
+          anchorEl={ticketAnchorEl}
+          open={Boolean(ticketAnchorEl)}
+          onClose={() => {
+            setTicketAnchorEl(null);
+            setSelectedTicket(null);
+          }}
+        >
+          <MenuItem
+            onClick={() => {
+              if (selectedTicket) {
+                handleStatusChange(selectedTicket.id, 'open');
+              }
+              setTicketAnchorEl(null);
+            }}
+          >
+            Mark as Open
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              if (selectedTicket) {
+                handleStatusChange(selectedTicket.id, 'in-progress');
+              }
+              setTicketAnchorEl(null);
+            }}
+          >
+            Mark as In Progress
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              if (selectedTicket) {
+                handleStatusChange(selectedTicket.id, 'resolved');
+              }
+              setTicketAnchorEl(null);
+            }}
+          >
+            Mark as Resolved
+          </MenuItem>
+        </Menu>
+
         <Box sx={{ mt: 4 }}>
           <Chat />
         </Box>
