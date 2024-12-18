@@ -1,9 +1,25 @@
 // src/context/AuthContext.tsx
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
+
+interface Ticket {
+  id: string;
+  userId: number;
+  userName: string;
+  email: string;
+  issueType: string;
+  description: string;
+  status: 'pending' | 'in-progress' | 'resolved';
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  tickets: Ticket[];
+  submitTicket: (ticketData: Omit<Ticket, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateTicketStatus: (ticketId: string, status: Ticket['status']) => Promise<void>;
   login: (data: { email: string; password: string }) => Promise<void>;
   register: (data: { name: string; email: string; password: string; phone: string; address: string }) => Promise<void>;
   logout: () => void;
@@ -20,7 +36,6 @@ interface User {
   photoURL?: string;
   address?: string;
   phone?: string;
-  
 }
 
 interface StoredUser extends User {
@@ -30,10 +45,13 @@ interface StoredUser extends User {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   token: null,
+  tickets: [],
   login: async () => {},
   register: async () => {},
   logout: () => {},
   updateProfile: async () => {},
+  submitTicket: async () => {},
+  updateTicketStatus: async () => {},
   isAuthenticated: false,
   isAdmin: false,
 });
@@ -41,6 +59,8 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const socket = useRef<Socket>();
 
   const isAuthenticated = !!user;
   const isAdmin = user?.role === 'admin';
@@ -52,6 +72,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: 'admin',
   };
 
+  useEffect(() => {
+    socket.current = io('http://localhost:3000');
+
+    socket.current.on('ticketUpdated', (updatedTicket: Ticket) => {
+      setTickets(prev => prev.map(ticket => 
+        ticket.id === updatedTicket.id ? updatedTicket : ticket
+      ));
+    });
+
+    socket.current.on('newTicket', (ticket: Ticket) => {
+      setTickets(prev => [...prev, ticket]);
+    });
+
+    const storedTickets = JSON.parse(localStorage.getItem('tickets') || '[]');
+    setTickets(storedTickets);
+
+    return () => {
+      socket.current?.disconnect();
+    };
+  }, []);
+
   const login = async (data: { email: string; password: string }) => {
     if (data.email === 'admin@example.com' && data.password === 'admin') {
       setUser(adminUser);
@@ -59,7 +100,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('user', JSON.stringify(adminUser));
       localStorage.setItem('token', 'admin-token');
     } else {
-      // Simulate user login
       const storedUsers: StoredUser[] = JSON.parse(localStorage.getItem('users') || '[]');
       const foundUser = storedUsers.find((u) => u.email === data.email && u.password === data.password);
       if (foundUser) {
@@ -94,6 +134,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('token', 'user-token');
   };
 
+  const submitTicket = async (ticketData: Omit<Ticket, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
+    const newTicket: Ticket = {
+      ...ticketData,
+      id: Date.now().toString(),
+      userId: user?.id ?? 0,
+      userName: user?.name ?? "",
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const storedTickets = JSON.parse(localStorage.getItem('tickets') || '[]');
+    localStorage.setItem('tickets', JSON.stringify([...storedTickets, newTicket]));
+
+    socket.current?.emit('submitTicket', newTicket);
+    setTickets(prev => [...prev, newTicket]);
+  };
+
+  const updateTicketStatus = async (ticketId: string, status: Ticket['status']) => {
+    const updatedTickets = tickets.map(ticket => {
+      if (ticket.id === ticketId) {
+        return { ...ticket, status, updatedAt: new Date() };
+      }
+      return ticket;
+    });
+
+    localStorage.setItem('tickets', JSON.stringify(updatedTickets));
+    socket.current?.emit('updateTicket', { ticketId, status });
+    setTickets(updatedTickets);
+  };
+
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -105,6 +176,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedUser = { ...user, ...data };
     setUser(updatedUser as User);
     localStorage.setItem('user', JSON.stringify(updatedUser));
+
+    if (data.name && tickets.length > 0) {
+      const updatedTickets = tickets.map(ticket => {
+        if (ticket.userId === user?.id) {
+          return { ...ticket, userName: data.name as string };
+        }
+        return ticket;
+      });
+      localStorage.setItem('tickets', JSON.stringify(updatedTickets));
+      setTickets(updatedTickets);
+    }
   };
 
   useEffect(() => {
@@ -118,7 +200,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, register, logout, updateProfile, isAuthenticated, isAdmin }}
+      value={{
+        user,
+        token,
+        tickets,
+        login,
+        register,
+        logout,
+        updateProfile,
+        submitTicket,
+        updateTicketStatus,
+        isAuthenticated,
+        isAdmin,
+      }}
     >
       {children}
     </AuthContext.Provider>
@@ -126,5 +220,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useAuth = () => {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };
