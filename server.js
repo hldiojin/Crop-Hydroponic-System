@@ -10,11 +10,22 @@ const io = new Server(server, {
   },
 });
 
+let tickets = [];
+
 io.on('connection', (socket) => {
   console.log('a user connected:', socket.id);
 
   socket.on('sendMessage', (message) => {
     io.emit('receiveMessage', message);
+  });
+
+  socket.on('typing', (isTyping) => {
+    socket.broadcast.emit('userTyping', isTyping);
+  });
+
+  socket.on('createTicket', (ticket) => {
+    tickets.push(ticket);
+    io.emit('newTicket', ticket);
   });
 
   socket.on('disconnect', () => {

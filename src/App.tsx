@@ -46,7 +46,7 @@ const theme = createTheme({
 const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [favorites, setFavorites] = useState<number[]>([]); // Array to store favorite product IDs
+  const [favorites, setFavorites] = useState<number[]>([]); 
 
   const handleAddToCart = (product: Product) => {
     setCart(prevCart => {
@@ -109,7 +109,7 @@ const App: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
             <Navbar 
               cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)} 
-              onLogout={handleLogout} // Pass handleLogout to Navbar
+              onLogout={handleLogout} 
             />
             <Box sx={{ flex: '1 0 auto' }}>
               <MainContent 
