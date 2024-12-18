@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import {
   Container,
+  Paper,
   Typography,
   Box,
   Avatar,
@@ -23,11 +24,8 @@ import Chat from '../components/Chat';
 import ReportTicketForm from '../components/ReportTicketForm';
 
 const ProfilePage: React.FC = () => {
-  const { user, updateProfile, isAdmin } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [ticketFormOpen, setTicketFormOpen] = useState(false);
-  const [ticketSubject, setTicketSubject] = useState('');
-  const [ticketDescription, setTicketDescription] = useState('');
   const [editData, setEditData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -330,17 +328,6 @@ const ProfilePage: React.FC = () => {
                               </Typography>
                               <Typography variant="h6">{user?.address || 'Not provided'}</Typography>
                             </Grid>
-                              <Typography color="text.secondary" gutterBottom>
-                                Phone Number
-                              </Typography>
-                              <Typography variant="h6">{user?.phone || 'Not provided'}</Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                              <Typography color="text.secondary" gutterBottom>
-                                Address
-                              </Typography>
-                              <Typography variant="h6">{user?.address || 'Not provided'}</Typography>
-                            </Grid>
                           </Grid>
                         </Card>
                       </Grid>
@@ -370,45 +357,6 @@ const ProfilePage: React.FC = () => {
           </Fade>
         </Grid>
       </Grid>
-
-      {/* Ticket Form Dialog */}
-      <Dialog
-        open={ticketFormOpen}
-        onClose={() => setTicketFormOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Create Support Ticket</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Subject"
-            fullWidth
-            value={ticketSubject}
-            onChange={(e) => setTicketSubject(e.target.value)}
-          />
-          <TextField
-            margin="dense"
-            label="Description"
-            fullWidth
-            multiline
-            rows={4}
-            value={ticketDescription}
-            onChange={(e) => setTicketDescription(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setTicketFormOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={() => handleCreateTicket(ticketSubject, ticketDescription)}
-            variant="contained"
-            disabled={!ticketSubject.trim() || !ticketDescription.trim()}
-          >
-            Submit
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       <Snackbar
         open={snackbar.open}
