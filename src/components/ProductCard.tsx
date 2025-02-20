@@ -36,7 +36,7 @@ interface Props {
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
-  favorites: number[]; // Add favorites prop
+  favorites: number[]; 
 }
 
 const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite, favorites }) => {

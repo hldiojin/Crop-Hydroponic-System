@@ -165,7 +165,7 @@ const HeroSection: React.FC = () => {
         <Button
           variant="contained"
           component={Link}
-          to="/plants"
+          to="/systems"
           sx={{
             animation: `${fadeIn} 1s ease-out 0.5s backwards`,
             padding: '12px 36px',
