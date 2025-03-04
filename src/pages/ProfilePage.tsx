@@ -20,7 +20,6 @@ import {
 } from '@mui/material';
 import { Edit as EditIcon, Message as MessageIcon, AddAPhoto as AddPhotoIcon, Report as ReportIcon } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import Chat from '../components/Chat';
 import ReportTicketForm from '../components/ReportTicketForm';
 
 const ProfilePage: React.FC = () => {
@@ -30,7 +29,6 @@ const ProfilePage: React.FC = () => {
     name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    address: user?.address || '',
   });
   const [showChat, setShowChat] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -74,21 +72,7 @@ const ProfilePage: React.FC = () => {
         const reader = new FileReader();
         reader.onload = async (e) => {
           const base64String = e.target?.result as string;
-          try {
-            await updateProfile({ photoURL: base64String });
-            setSnackbar({
-              open: true,
-              message: 'Avatar updated successfully',
-              severity: 'success'
-            });
-          } catch (error) {
-            console.error('Upload error:', error);
-            setSnackbar({
-              open: true,
-              message: 'Failed to update avatar',
-              severity: 'error'
-            });
-          }
+          
         };
         reader.readAsDataURL(file);
       } catch (error) {
@@ -149,7 +133,6 @@ const ProfilePage: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'flex-end', mb: 4 }}>
                 <Box sx={{ position: 'relative' }}>
                   <Avatar
-                    src={avatarPreview || user?.photoURL}
                     sx={{
                       width: 120,
                       height: 120,
@@ -159,7 +142,6 @@ const ProfilePage: React.FC = () => {
                       boxShadow: 3,
                     }}
                   >
-                    {!avatarPreview && !user?.photoURL && user?.name?.charAt(0).toUpperCase()}
                   </Avatar>
                   
                   <IconButton
@@ -269,8 +251,6 @@ const ProfilePage: React.FC = () => {
                     <TextField
                       label="Address"
                       name="address"
-                      value={editData.address}
-                      onChange={(e) => setEditData({ ...editData, address: e.target.value })}
                       fullWidth
                       variant="outlined"
                       multiline
@@ -326,7 +306,6 @@ const ProfilePage: React.FC = () => {
                               <Typography color="text.secondary" gutterBottom>
                                 Address
                               </Typography>
-                              <Typography variant="h6">{user?.address || 'Not provided'}</Typography>
                             </Grid>
                           </Grid>
                         </Card>
@@ -351,7 +330,6 @@ const ProfilePage: React.FC = () => {
               }}
             >
               <CardContent>
-                <Chat />
               </CardContent>
             </Card>
           </Fade>

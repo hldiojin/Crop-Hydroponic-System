@@ -1,5 +1,5 @@
 // src/pages/LoginPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Paper,
@@ -10,6 +10,8 @@ import {
   InputAdornment,
   IconButton,
   Divider,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import {
   Email,
@@ -24,20 +26,69 @@ import AuthLayout from '../components/AuthLayout';
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, loading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+  const [formErrors, setFormErrors] = useState({
+    email: '',
+    password: '',
+  });
+
+  // Clear errors when component unmounts
+  useEffect(() => {
+    return () => {
+      clearError();
+    };
+  }, [clearError]);
+
+  const validateForm = () => {
+    let valid = true;
+    const newErrors = { email: '', password: '' };
+    
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+      valid = false;
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+      valid = false;
+    }
+    
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+      valid = false;
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+      valid = false;
+    }
+    
+    setFormErrors(newErrors);
+    return valid;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    
+    // Clear error when user starts typing
+    if (error) clearError();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) return;
+    
     try {
       await login(formData);
+      // Redirect to intended destination or home page
       navigate(location.state?.from || '/', { replace: true });
-    } catch (error) {
-      alert('Invalid email or password');
+    } catch (err) {
+      // Error handling is done in the AuthContext
+      console.error('Login submission error:', err);
     }
   };
 
@@ -50,6 +101,8 @@ const LoginPage: React.FC = () => {
           backdropFilter: 'blur(10px)',
           backgroundColor: 'rgba(255, 255, 255, 0.9)',
           borderRadius: 2,
+          width: '100%',
+          maxWidth: 450,
         }}
       >
         <Box sx={{ mb: 3, textAlign: 'center' }}>
@@ -61,15 +114,24 @@ const LoginPage: React.FC = () => {
           </Typography>
         </Box>
 
-        <form onSubmit={handleSubmit}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={clearError}>
+            {error}
+          </Alert>
+        )}
+
+        <form onSubmit={handleSubmit} noValidate>
           <TextField
             fullWidth
             margin="normal"
             label="Email"
+            name="email"
             type="email"
             required
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={handleChange}
+            error={!!formErrors.email}
+            helperText={formErrors.email}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -77,15 +139,19 @@ const LoginPage: React.FC = () => {
                 </InputAdornment>
               ),
             }}
+            disabled={loading}
           />
           <TextField
             fullWidth
             margin="normal"
             label="Password"
+            name="password"
             type={showPassword ? 'text' : 'password'}
             required
             value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            onChange={handleChange}
+            error={!!formErrors.password}
+            helperText={formErrors.password}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -97,12 +163,14 @@ const LoginPage: React.FC = () => {
                   <IconButton
                     onClick={() => setShowPassword(!showPassword)}
                     edge="end"
+                    disabled={loading}
                   >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
                 </InputAdornment>
               ),
             }}
+            disabled={loading}
           />
 
           <Button
@@ -111,9 +179,10 @@ const LoginPage: React.FC = () => {
             variant="contained"
             size="large"
             sx={{ mt: 3, mb: 2 }}
-            endIcon={<LoginOutlined />}
+            endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginOutlined />}
+            disabled={loading}
           >
-            Sign In
+            {loading ? 'Signing In...' : 'Sign In'}
           </Button>
 
           <Divider sx={{ my: 3 }}>

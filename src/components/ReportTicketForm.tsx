@@ -44,27 +44,7 @@ const ReportTicketForm: React.FC = () => {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    try {
-      await submitTicket({
-        userId: user?.id ?? 0,
-        userName: user?.name ?? "",
-        email: user?.email ?? "",
-        issueType: formData.issueType,
-        description: formData.description,
-      });
-      setSnackbarMessage('Ticket submitted successfully!');
-      setSnackbarSeverity('success');
-      setOpenSnackbar(true);
-      setFormData({
-        issueType: "",
-        description: "",
-      });
-    } catch (error) {
-      console.error('Failed to submit ticket:', error);
-      setSnackbarMessage('Failed to submit ticket.');
-      setSnackbarSeverity('error');
-      setOpenSnackbar(true);
-    }
+    
   };
 
   const handleCloseSnackbar = () => setOpenSnackbar(false);
