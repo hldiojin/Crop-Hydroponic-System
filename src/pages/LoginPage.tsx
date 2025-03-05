@@ -22,6 +22,8 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import AuthLayout from '../components/AuthLayout';
+import { keyframes } from '@emotion/react';
+
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -36,6 +38,15 @@ const LoginPage: React.FC = () => {
     email: '',
     password: '',
   });
+
+  const shakeAnimation = keyframes`
+  0% { transform: translateX(0); }
+  25% { transform: translateX(5px); }
+  50% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+  100% { transform: translateX(0); }
+`;
+
 
   // Clear errors when component unmounts
   useEffect(() => {
@@ -103,6 +114,7 @@ const LoginPage: React.FC = () => {
           borderRadius: 2,
           width: '100%',
           maxWidth: 450,
+          animation: error ? `${shakeAnimation} 0.5s` : 'none',
         }}
       >
         <Box sx={{ mb: 3, textAlign: 'center' }}>
@@ -115,63 +127,65 @@ const LoginPage: React.FC = () => {
         </Box>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={clearError}>
+          <Alert severity="error" sx={{ mb: 2 }} onClose={clearError} variant="filled" >
             {error}
           </Alert>
         )}
 
         <form onSubmit={handleSubmit} noValidate>
           <TextField
-            fullWidth
-            margin="normal"
-            label="Email"
-            name="email"
-            type="email"
-            required
-            value={formData.email}
-            onChange={handleChange}
-            error={!!formErrors.email}
-            helperText={formErrors.email}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Email color="primary" />
-                </InputAdornment>
-              ),
-            }}
-            disabled={loading}
-          />
-          <TextField
-            fullWidth
-            margin="normal"
-            label="Password"
-            name="password"
-            type={showPassword ? 'text' : 'password'}
-            required
-            value={formData.password}
-            onChange={handleChange}
-            error={!!formErrors.password}
-            helperText={formErrors.password}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Lock color="primary" />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => setShowPassword(!showPassword)}
-                    edge="end"
-                    disabled={loading}
-                  >
-                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-            disabled={loading}
-          />
+            
+  fullWidth
+  margin="normal"
+  label="Email"
+  name="email"
+  type="email"
+  required
+  value={formData.email}
+  onChange={handleChange}
+  error={!!formErrors.email || (error?.toLowerCase().includes('email') || error?.toLowerCase().includes('account'))}
+  helperText={formErrors.email}
+  InputProps={{
+    startAdornment: (
+      <InputAdornment position="start">
+        <Email color={formErrors.email || error ? "error" : "primary"} />
+      </InputAdornment>
+    ),
+  }}
+  disabled={loading}
+/>
+
+<TextField
+  fullWidth
+  margin="normal"
+  label="Password"
+  name="password"
+  type={showPassword ? 'text' : 'password'}
+  required
+  value={formData.password}
+  onChange={handleChange}
+  error={!!formErrors.password || (error?.toLowerCase().includes('password') || error?.toLowerCase().includes('incorrect'))}
+  helperText={formErrors.password}
+  InputProps={{
+    startAdornment: (
+      <InputAdornment position="start">
+        <Lock color={formErrors.password || error ? "error" : "primary"} />
+      </InputAdornment>
+    ),
+    endAdornment: (
+      <InputAdornment position="end">
+        <IconButton
+          onClick={() => setShowPassword(!showPassword)}
+          edge="end"
+          disabled={loading}
+        >
+          {showPassword ? <VisibilityOff /> : <Visibility />}
+        </IconButton>
+      </InputAdornment>
+    ),
+  }}
+  disabled={loading}
+/>
 
           <Button
             type="submit"

@@ -82,7 +82,6 @@ const api = axios.create({
 });
 
 // Set up axios interceptor to include cookies in requests
-// Set up axios interceptor to include cookies in requests
 api.interceptors.request.use(
   (config) => {
     // Add deviceId from cookies if available
@@ -91,7 +90,6 @@ api.interceptors.request.use(
       config.headers['DeviceId'] = deviceId;
     }
     
-    // Add refresh token if available
     const refreshToken = Cookies.get('RefreshToken');
     if (refreshToken && config.headers) {
       config.headers['RefreshToken'] = refreshToken;
@@ -146,7 +144,7 @@ const saveAuthToCookies = (authData: AuthData) => {
     
     try {
       const response = await api.post('/api/auth/login', data);
-      console.log('Login response:', response.data); // Debug log
+      console.log('Login response:', response.data);
       
       // Extract user data from the response, checking both possible structures
       const userData = response.data?.data || response.data?.response?.data;
@@ -174,18 +172,26 @@ const saveAuthToCookies = (authData: AuthData) => {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         // Handle API errors
-        const errorMessage = err.response?.data?.message || 'Login failed. Please check your credentials.';
+        let errorMessage = 'Incorrect email or password. Please try again.';
+        
+        if (err.response) {
+          // If we have a response, check the status code
+          if (err.response.status === 401) {
+            errorMessage = 'Incorrect email or password. Please try again.';
+          } else if (err.response.status === 404) {
+            errorMessage = 'Account not found. Please check your email address.';
+          } else if (err.response.data?.message) {
+            errorMessage = err.response.data.message;
+          }
+        } else if (err.code === 'ERR_NETWORK') {
+          errorMessage = 'Network error: Unable to connect to the server. Please try again later.';
+        }
+        
         setError(errorMessage);
         console.error('Login error:', errorMessage);
-        
-        // For CORS or network errors, provide more specific messages
-        if (err.code === 'ERR_NETWORK') {
-          setError('Network error: Unable to connect to the server. Please try again later.');
-        } else if (err.response?.status === 403) {
-          setError('Access denied. Please check your credentials.');
-        } else if (err.response?.status === 429) {
-          setError('Too many attempts. Please try again later.');
-        }
+      } else if (err instanceof Error) {
+        setError(err.message);
+        console.error('Login error:', err.message);
       } else {
         setError('An unexpected error occurred');
         console.error('Unexpected login error:', err);
@@ -195,43 +201,51 @@ const saveAuthToCookies = (authData: AuthData) => {
       setLoading(false);
     }
   };
-
+  
 // Add this function after the login function
 const register = async (data: { name: string; email: string; password: string; phone: string; address: string }) => {
   setLoading(true);
   setError(null);
   
   try {
+    // Send registration request
     const response = await api.post('/api/auth/register', data);
     console.log('Register response:', response.data);
     
-    // Extract user data from the response, checking both possible structures
-    const userData = response.data?.data || response.data?.response?.data;
-    
-    if (userData) {
-      // Store user data in state
-      setUser(userData);
+    // Check if registration was successful
+    if (response.data?.statusCodes === 200 || response.data?.response?.message) {
+      // Registration successful - now log in with the same credentials
+      console.log('Registration successful, attempting login...');
       
-      // If auth data is available, save token and set cookies
-      if (userData.auth) {
-        // Store token in state
-        setToken(userData.auth.token);
+      // Automatically log in the user after successful registration
+      try {
+        await login({
+          email: data.email,
+          password: data.password
+        });
         
-        // Save auth data to cookies
-        saveAuthToCookies(userData.auth);
-        
-        console.log('Registration successful:', userData);
-      } else {
-        throw new Error('Authentication data missing from response');
+        // If login succeeds, function will return naturally
+        return;
+      } catch (loginErr) {
+        // If auto-login fails, throw a more specific error
+        console.error('Auto-login after registration failed:', loginErr);
+        throw new Error('Registration successful, but automatic login failed. Please try logging in manually.');
       }
+    } else if (response.data?.error || response.data?.response?.error) {
+      // API returned an error message
+      const errorMessage = response.data?.error || response.data?.response?.error || 'Registration failed';
+      throw new Error(errorMessage);
     } else {
+      // Unexpected response format
       console.error('Register response structure:', JSON.stringify(response.data, null, 2));
-      throw new Error(response.data?.message || 'Invalid response format');
+      throw new Error('Unexpected response from server');
     }
   } catch (err) {
     if (axios.isAxiosError(err)) {
       // Handle API errors
-      const errorMessage = err.response?.data?.message || 'Registration failed. Please try again.';
+      const errorMessage = err.response?.data?.message 
+        || err.response?.data?.response?.message 
+        || 'Registration failed. Please try again.';
       setError(errorMessage);
       console.error('Register error:', errorMessage);
       
@@ -243,7 +257,12 @@ const register = async (data: { name: string; email: string; password: string; p
       } else if (err.response?.status === 400) {
         setError('Invalid information provided. Please check your details.');
       }
+    } else if (err instanceof Error) {
+      // Handle custom errors
+      setError(err.message);
+      console.error('Register error:', err.message);
     } else {
+      // Handle unexpected errors
       setError('An unexpected error occurred');
       console.error('Unexpected register error:', err);
     }
