@@ -19,7 +19,7 @@ interface Ticket {
 interface AuthData {
   deviceId: string;
   token: string;
-  refreshToken: string; // Note: API returns "refreshToken" (typo in API)
+  refeshToken: string; 
 }
 
 interface User {
@@ -44,6 +44,7 @@ interface AuthContextType {
   logout: () => void;
   changePassword: (data: { oldPassword: string; newPassword: string; confirmPassword: string }) => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
+  getUserInfo: () => Promise<User>;  // Add this line
   isAuthenticated: boolean;
   isAdmin: boolean;
   loading: boolean;
@@ -68,6 +69,7 @@ const AuthContext = createContext<AuthContextType>({
 : async () => {},
   submitTicket: async () => {},
   updateTicketStatus: async () => {},
+  getUserInfo: async () => ({} as User),  // Add this line
   isAuthenticated: false,
   isAdmin: false,
   loading: false,
@@ -81,21 +83,60 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
-  }
+  },
+  withCredentials: true, 
 });
 
-// Set up axios interceptor to include cookies in requests
 api.interceptors.request.use(
   (config) => {
-    // Add deviceId from cookies if available
-    const deviceId = Cookies.get('DeviceId');
+    // Get authentication tokens from cookies, fallback to localStorage
+    const deviceId = Cookies.get('DeviceId') || localStorage.getItem('DeviceId');
+    const refreshToken = Cookies.get('RefreshToken') || localStorage.getItem('RefreshToken');
+    const authToken = localStorage.getItem('authToken');
+    
+    console.log(`Request to ${config.url}:`, {
+      deviceId: deviceId ? 'exists' : 'missing',
+      refreshToken: refreshToken ? 'exists' : 'missing',
+      authToken: authToken ? 'exists' : 'missing'
+    });
+    
+    // Add deviceId to headers if available
     if (deviceId && config.headers) {
-      config.headers['DeviceId'] = deviceId;
+      // Try both methods to set headers for compatibility
+      try {
+        config.headers.set('DeviceId', deviceId);
+      } catch (e) {
+        config.headers['DeviceId'] = deviceId;
+      }
     }
     
-    const refreshToken = Cookies.get('RefreshToken');
+    // Add refresh token to headers if available
     if (refreshToken && config.headers) {
-      config.headers['RefreshToken'] = refreshToken;
+      try {
+        config.headers.set('RefreshToken', refreshToken);
+      } catch (e) {
+        config.headers['RefreshToken'] = refreshToken;
+      }
+    }
+    
+    // Add the authorization header if token is available
+    if (authToken && config.headers) {
+      try {
+        config.headers.set('Authorization', `Bearer ${authToken}`);
+      } catch (e) {
+        config.headers['Authorization'] = `Bearer ${authToken}`;
+      }
+    }
+    
+    // Ensure content type headers are set
+    if (config.headers) {
+      try {
+        config.headers.set('Content-Type', 'application/json');
+        config.headers.set('Accept', 'application/json');
+      } catch (e) {
+        config.headers['Content-Type'] = 'application/json';
+        config.headers['Accept'] = 'application/json';
+      }
     }
     
     return config;
@@ -120,31 +161,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearError = () => setError(null);
 
   // Helper function to save auth data to cookies with security options
-const saveAuthToCookies = (authData: AuthData) => {
-  // Set cookies with secure options (adjust expiry as needed)
-  const cookieOptions = { 
-    expires: 7, 
-    secure: window.location.protocol === 'https:', // Only send over HTTPS
-    sameSite: 'strict' as const // Protect against CSRF
+  const saveAuthToCookies = (authData: AuthData) => {
+    // Set cookies with secure options (adjust expiry as needed)
+    const cookieOptions = { 
+      expires: 7, 
+      secure: window.location.protocol === 'https:', // Only send over HTTPS
+      sameSite: 'strict' as const, // Protect against CSRF
+      path: '/'  // Add path to ensure cookies are sent with all requests
+    };
+    
+    console.log('Setting cookies from auth data:', {
+      deviceId: authData.deviceId,
+      refreshToken: authData.refeshToken // Note the typo in API response
+    });
+  
+    // Normalize header values and cookies to match case sensitivity
+    const deviceId = authData.deviceId;
+    const refreshToken = authData.refeshToken;
+  
+    // Clear any existing cookies first to avoid conflicts
+    Cookies.remove('DeviceId');
+    Cookies.remove('RefreshToken');
+    
+    // Set cookies with explicit options
+    Cookies.set('DeviceId', authData.deviceId, cookieOptions);
+  Cookies.set('RefreshToken', authData.refeshToken, cookieOptions);
+    
+    
+    
+    // Verify cookies were set
+    console.log('After saving cookies:', {
+      deviceIdCookie: Cookies.get('DeviceId') || 'missing',
+      refreshTokenCookie: Cookies.get('RefreshToken') || 'missing',
+    });
   };
-  
-  console.log('Setting cookies from auth data:', {
-    deviceId: authData.deviceId,
-    refreshToken: authData.refreshToken // Note the typo in API response
-  });
-
-
-  // Only store DeviceId and RefreshToken in cookies
-  Cookies.set('DeviceId', authData.deviceId, cookieOptions);
-  Cookies.set('RefreshToken', authData.refreshToken, cookieOptions);
-  
-  // Store token in memory only (not in cookies)
-};
   
   // Helper function to clear auth cookies
   const clearAuthCookies = () => {
-    Cookies.remove('DeviceId');
-    Cookies.remove('RefreshToken');
+    Cookies.remove('DeviceId', { path: '/' });
+    Cookies.remove('RefreshToken', { path: '/' });
   };
 
   const login = async (data: { email: string; password: string }) => {
@@ -164,13 +219,23 @@ const saveAuthToCookies = (authData: AuthData) => {
         
         // If auth data is available, save token and set cookies
         if (userData.auth) {
-          // Store token in state
-          setToken(userData.auth.token);
-          
-          // Save auth data to cookies
-          saveAuthToCookies(userData.auth);
-          
-          console.log('Login successful:', userData);
+  // Store token in state and localStorage (for persistence)
+  setToken(userData.auth.token);
+  window.localStorage.setItem('authToken', userData.auth.token);
+  
+  // Save device ID and refresh token to cookies
+  saveAuthToCookies(userData.auth);
+  
+  // Verify the headers will be correct in future requests
+  const deviceId = Cookies.get('DeviceId');
+  const refreshToken = Cookies.get('RefreshToken');
+  const authTokenFromStorage = localStorage.getItem('authToken');
+  
+  console.log('Headers for future API calls will use:', {
+    Authorization: `Bearer ${authTokenFromStorage}`,
+    DeviceId: deviceId,
+    RefreshToken: refreshToken
+  });
         } else {
           throw new Error('Authentication data missing from response');
         }
@@ -280,6 +345,115 @@ const register = async (data: { name: string; email: string; password: string; p
     setLoading(false);
   }
 };
+
+// Add this function to the AuthProvider component in AuthContext.tsx
+const getUserInfo = async () => {
+  setLoading(true);
+  setError(null);
+  
+  try {
+    // Get cookies for authentication
+    const deviceId = Cookies.get('DeviceId');
+    const refreshToken = Cookies.get('RefreshToken');
+    const authToken = token; // Use token from state
+    
+    console.log('Authentication data for API call:', { 
+      deviceId: deviceId ? 'exists' : 'missing',
+      refreshToken: refreshToken ? 'exists' : 'missing',
+      authToken: authToken ? 'exists' : 'missing'
+    });
+
+    if (!deviceId || !refreshToken || !authToken) {
+      console.error('Missing authentication tokens:', { 
+        deviceIdMissing: !deviceId, 
+        refreshTokenMissing: !refreshToken,
+        authTokenMissing: !authToken
+      });
+      throw new Error('Authentication required. Please log in again.');
+    }
+    
+    // Create proper headers for the API call
+    const headers = {
+      'Authorization': `Bearer ${authToken}`,
+      'DeviceId': deviceId,
+      'RefreshToken': refreshToken,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    };
+    
+    console.log('Making request to /api/user/me with headers', {
+      Authorization: `Bearer ${authToken.substring(0, 10)}...`, // Show partial token for security
+      DeviceId: deviceId,
+      RefreshToken: `${refreshToken.substring(0, 10)}...` // Show partial token for security
+    });
+    
+    // Make the API call with explicit headers
+    const response = await api.get('/api/user/me', { headers });
+    
+    console.log('User info response:', response.data);
+    
+    // Check if the request was successful
+    if (response.data?.statusCodes === 200 || response.data?.data) {
+      const userData = response.data?.data || response.data?.response?.data;
+      
+      if (userData) {
+        // Update user data in state
+        setUser(prevUser => ({
+          ...prevUser,
+          ...userData
+        }));
+        return userData;
+      }
+    }
+    
+    throw new Error('Failed to fetch user information');
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const errorMessage = err.response?.data?.message || 'Failed to fetch user information.';
+      setError(errorMessage);
+      console.error('Get user info error:', errorMessage);
+      console.error('Error status:', err.response?.status);
+      console.error('Error details:', err.response?.data);
+      
+      if (err.response?.status === 401) {
+        // Handle authentication error
+        clearAuthCookies();
+        setUser(null);
+        setToken(null);
+        throw new Error('Your session has expired. Please log in again.');
+      }
+    } else if (err instanceof Error) {
+      setError(err.message);
+      console.error('Get user info error:', err.message);
+    } else {
+      setError('An unexpected error occurred');
+      console.error('Unexpected get user info error:', err);
+    }
+    throw err;
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // 2. Add this function before the return statement in the AuthProvider component
 
@@ -608,6 +782,7 @@ const logout = () => {
         changePassword,
         submitTicket,
         updateTicketStatus,
+        getUserInfo,
         isAuthenticated,
         isAdmin,
         loading,

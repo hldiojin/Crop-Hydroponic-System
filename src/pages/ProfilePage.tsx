@@ -1,5 +1,5 @@
 // src/pages/ProfilePage.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Container,
   Paper,
@@ -22,6 +22,7 @@ import {
   InputAdornment,
   OutlinedInput,
   IconButton as MuiIconButton,
+  CircularProgress,
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
@@ -36,7 +37,7 @@ import { useAuth } from '../context/AuthContext';
 import ReportTicketForm from '../components/ReportTicketForm';
 
 const ProfilePage: React.FC = () => {
-  const { user, updateProfile, changePassword } = useAuth();
+  const { user, updateProfile, changePassword, getUserInfo, loading, error, clearError } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     name: user?.name || '',
@@ -49,509 +50,256 @@ const ProfilePage: React.FC = () => {
     message: '',
     severity: 'success' as 'success' | 'error',
   });
-
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [openModal, setOpenModal] = useState(false);
-
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [passwordData, setPasswordData] = useState({
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  const [showOldPassword, setShowOldPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setSnackbar({
-          open: true,
-          message: 'Please select an image file',
-          severity: 'error'
-        });
-        return;
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        setSnackbar({
-          open: true,
-          message: 'Image size should be less than 5MB',
-          severity: 'error'
-        });
-        return;
-      }
-
-      setAvatarFile(file);
-      const previewUrl = URL.createObjectURL(file);
-      setAvatarPreview(previewUrl);
-      
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  
+  // Fetch user info when component mounts
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      setLoadingProfile(true);
       try {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          const base64String = e.target?.result as string;
-          
-        };
-        reader.readAsDataURL(file);
-      } catch (error) {
-        console.error('File reading error:', error);
+        await getUserInfo();
+      } catch (err) {
         setSnackbar({
           open: true,
-          message: 'Error processing image',
-          severity: 'error'
+          message: typeof err === 'string' ? err : 'Failed to load user information',
+          severity: 'error',
         });
       } finally {
-        URL.revokeObjectURL(previewUrl);
+        setLoadingProfile(false);
       }
+    };
+    
+    fetchUserInfo();
+  }, [getUserInfo]);
+  
+  // Update edit data when user data changes
+  useEffect(() => {
+    if (user) {
+      setEditData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+      });
     }
+  }, [user]);
+
+  const handleEdit = () => {
+    setIsEditing(true);
   };
-
-  const handleEditClick = () => setIsEditing(true);
-  const handleChatToggle = () => setShowChat(!showChat);
-
-  const handleSaveClick = async () => {
-    try {
-      await updateProfile(editData);
-      setSnackbar({ open: true, message: 'Profile updated successfully', severity: 'success' });
-      setIsEditing(false);
-    } catch (error) {
-      setSnackbar({ open: true, message: 'Failed to update profile', severity: 'error' });
-    }
-  };
-
-  const handleOpenModal = () => setOpenModal(true);
-  const handleCloseModal = () => setOpenModal(false);
-
-  const handlePasswordModalOpen = () => setPasswordModalOpen(true);
-  const handlePasswordModalClose = () => {
-    setPasswordModalOpen(false);
-    setPasswordData({
-      oldPassword: '',
-      newPassword: '',
-      confirmPassword: ''
+  
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditData({
+      name: user?.name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
     });
+    setAvatarFile(null);
+    setAvatarPreview(null);
   };
-
-  const handlePasswordChange = (prop: keyof typeof passwordData) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    setPasswordData({ ...passwordData, [prop]: event.target.value });
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditData({ ...editData, [name]: value });
   };
-
-  const handleClickShowPassword = (field: 'old' | 'new' | 'confirm') => () => {
-    if (field === 'old') setShowOldPassword(!showOldPassword);
-    if (field === 'new') setShowNewPassword(!showNewPassword);
-    if (field === 'confirm') setShowConfirmPassword(!showConfirmPassword);
-  };
-
-  const handleSubmitPasswordChange = async () => {
+  
+  const handleSave = async () => {
     try {
-      await changePassword(passwordData);
-      handlePasswordModalClose();
-      setSnackbar({
-        open: true,
-        message: 'Password updated successfully',
-        severity: 'success'
+      await updateProfile({
+        name: editData.name,
+        phone: editData.phone,
+        // email is typically not updated directly
       });
-    } catch (error) {
-      let errorMsg = 'Failed to update password';
-      if (error instanceof Error) {
-        errorMsg = error.message;
-      }
+      
       setSnackbar({
         open: true,
-        message: errorMsg,
-        severity: 'error'
+        message: 'Profile updated successfully',
+        severity: 'success',
+      });
+      
+      setIsEditing(false);
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: typeof err === 'string' ? err : 'Failed to update profile',
+        severity: 'error',
       });
     }
   };
+  
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+  
+  // Add Avatar handling logic
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 12, mb: 4 }}>
-      <Grid container spacing={4}>
-        <Grid item xs={12} md={8}>
-          <Card 
-            elevation={0}
-            sx={{ 
-              background: 'rgba(255, 255, 255, 0.9)',
-              backdropFilter: 'blur(10px)',
-              borderRadius: 4,
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 150,
-                bgcolor: 'primary.main',
-                background: 'linear-gradient(120deg, #2e7d32 0%, #60ad5e 100%)',
-              }}
-            />
-            <CardContent sx={{ position: 'relative', pt: 12 }}>
-              <Box sx={{ display: 'flex', alignItems: 'flex-end', mb: 4 }}>
-                <Box sx={{ position: 'relative' }}>
-                  <Avatar
-                    sx={{
-                      width: 120,
-                      height: 120,
-                      border: '4px solid white',
-                      bgcolor: 'primary.main',
-                      fontSize: '3rem',
-                      boxShadow: 3,
-                    }}
-                  >
-                  </Avatar>
-                  
-                  <IconButton
-                    onClick={() => fileInputRef.current?.click()}
-                    sx={{
-                      position: 'absolute',
-                      bottom: 0,
-                      right: 0,
-                      bgcolor: 'background.paper',
-                      boxShadow: 2,
-                      '&:hover': { bgcolor: 'background.paper' },
-                    }}
-                  >
-                    <AddPhotoIcon color="primary" />
-                  </IconButton>
-                  
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/png, image/jpeg, image/jpg"
-                    style={{ display: 'none' }}
-                    onChange={handleAvatarChange}
-                  />
-                </Box>
-                <Box sx={{ ml: 3, flex: 1 }}>
-                  <Typography
-                    variant="h4"
-                    fontWeight="bold" 
-                    sx={{ mb: -1 }}
-                  >
-                    {user?.name}
-                  </Typography>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    {user?.email}
-                  </Typography>
-                </Box>
-                <Box>
-                  <IconButton
-                    onClick={handleEditClick}
-                    sx={{
-                      bgcolor: 'background.paper',
-                      boxShadow: 2,
-                      '&:hover': { bgcolor: 'background.paper', transform: 'scale(1.1)' },
-                      transition: 'transform 0.2s',
-                    }}
-                  >
-                    <EditIcon color="primary" />
-                  </IconButton>
-                  <IconButton
-                    onClick={handleChatToggle}
-                    sx={{
-                      ml: 1,
-                      bgcolor: 'background.paper',
-                      boxShadow: 2,
-                      '&:hover': { bgcolor: 'background.paper', transform: 'scale(1.1)' },
-                      transition: 'transform 0.2s',
-                    }}
-                  >
-                    <MessageIcon color="primary" />
-                  </IconButton>
-                  {user?.role !== 'admin' && (
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      {loadingProfile ? (
+        <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
+            <Typography variant="h4" component="h1" sx={{ flexGrow: 1 }}>
+              My Profile
+            </Typography>
+            {!isEditing && (
+              <Button
+                startIcon={<EditIcon />}
+                variant="outlined"
+                color="primary"
+                onClick={handleEdit}
+              >
+                Edit
+              </Button>
+            )}
+          </Box>
+          
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }} onClose={clearError}>
+              {error}
+            </Alert>
+          )}
+          
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={4} sx={{ textAlign: 'center' }}>
+              <Box position="relative" display="inline-block">
+                <Avatar
+                  src={avatarPreview || user?.attachment || undefined}
+                  alt={user?.name}
+                  sx={{ width: 120, height: 120, mb: 2, mx: 'auto' }}
+                />
+                {isEditing && (
+                  <label htmlFor="avatar-upload">
+                    <input
+                      type="file"
+                      id="avatar-upload"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setAvatarFile(file);
+                          setAvatarPreview(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
                     <IconButton
-                      onClick={handleOpenModal}
+                      component="span"
                       sx={{
-                        ml: 1,
-                        bgcolor: 'background.paper',
-                        boxShadow: 2,
-                        '&:hover': { bgcolor: 'background.paper', transform: 'scale(1.1)' },
-                        transition: 'transform 0.2s',
+                        position: 'absolute',
+                        right: -8,
+                        bottom: 8,
+                        backgroundColor: 'white',
+                        '&:hover': { backgroundColor: '#f5f5f5' },
                       }}
                     >
-                      <ReportIcon color="primary" />
+                      <AddPhotoIcon />
                     </IconButton>
-                  )}
-                </Box>
+                  </label>
+                )}
               </Box>
-
-              <Divider sx={{ my: 3 }} />
-
-              {isEditing ? (
-                <Fade in={isEditing}>
-                  <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <TextField
-                      label="Name"
-                      name="name"
-                      value={editData.name}
-                      onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                      fullWidth
-                      variant="outlined"
-                    />
-                    <TextField
-                      label="Email"
-                      name="email"
-                      value={editData.email}
-                      onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                      fullWidth
-                      variant="outlined"
-                    />
-                    <TextField
-                      label="Phone"
-                      name="phone"
-                      value={editData.phone}
-                      onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                      fullWidth
-                      variant="outlined"
-                    />
-                    <TextField
-                      label="Address"
-                      name="address"
-                      fullWidth
-                      variant="outlined"
-                      multiline
-                      rows={2}
-                    />
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
-                      <Button 
-                        onClick={() => setIsEditing(false)}
-                        variant="outlined"
-                        color="primary"
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        onClick={handleSaveClick}
-                        variant="contained"
-                        color="primary"
-                      >
-                        Save Changes
-                      </Button>
-                    </Box>
-                  </Box>
-                </Fade>
-              ) : (
-                <Fade in={!isEditing}>
-                  <Box>
-                    <Grid container spacing={3}>
-                      <Grid item xs={12}>
-                        <Typography variant="h6" color="primary" gutterBottom>
-                          Personal Information
-                        </Typography>
-                        <Card sx={{ bgcolor: 'grey.50', p: 3, borderRadius: 3 }}>
-                          <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}>
-                              <Typography color="text.secondary" gutterBottom>
-                                Full Name
-                              </Typography>
-                              <Typography variant="h6">{user?.name}</Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                              <Typography color="text.secondary" gutterBottom>
-                                Email Address
-                              </Typography>
-                              <Typography variant="h6">{user?.email}</Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                              <Typography color="text.secondary" gutterBottom>
-                                Phone Number
-                              </Typography>
-                              <Typography variant="h6">{user?.phone || 'Not provided'}</Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                              <Typography color="text.secondary" gutterBottom>
-                                Address
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12} sx={{ mt: 3 }}>
-                              <Button 
-                                variant="outlined" 
-                                color="primary" 
-                                startIcon={<PasswordIcon />}
-                                onClick={handlePasswordModalOpen}
-                                sx={{ fontWeight: 'medium' }}
-                              >
-                                Change Password
-                              </Button>
-                            </Grid>
-                          </Grid>
-                        </Card>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                </Fade>
+              
+              <Typography variant="h6" sx={{ mt: 2 }}>
+                {user?.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                {user?.role}
+              </Typography>
+              {user?.status && (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    display: 'inline-block',
+                    px: 1,
+                    borderRadius: 1,
+                    bgcolor: user.status === 'Active' ? 'success.light' : 'warning.light',
+                    color: user.status === 'Active' ? 'success.contrastText' : 'warning.contrastText',
+                  }}
+                >
+                  {user.status}
+                </Typography>
               )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Fade in={showChat}>
-            <Card
-              elevation={0}
-              sx={{
-                height: '100%',
-                background: 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(10px)',
-                borderRadius: 4,
-              }}
-            >
-              <CardContent>
-              </CardContent>
-            </Card>
-          </Fade>
-        </Grid>
-      </Grid>
-
+            </Grid>
+            
+            <Grid item xs={12} md={8}>
+              <Box sx={{ mb: 3 }}>
+                <TextField
+                  fullWidth
+                  label="Full Name"
+                  name="name"
+                  value={isEditing ? editData.name : user?.name || ''}
+                  onChange={handleChange}
+                  disabled={!isEditing || loading}
+                  variant={isEditing ? "outlined" : "filled"}
+                  margin="normal"
+                />
+                
+                <TextField
+                  fullWidth
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={isEditing ? editData.email : user?.email || ''}
+                  onChange={handleChange}
+                  disabled={true} // Email cannot be changed
+                  variant="filled"
+                  margin="normal"
+                />
+                
+                <TextField
+                  fullWidth
+                  label="Phone Number"
+                  name="phone"
+                  value={isEditing ? editData.phone : user?.phone || ''}
+                  onChange={handleChange}
+                  disabled={!isEditing || loading}
+                  variant={isEditing ? "outlined" : "filled"}
+                  margin="normal"
+                />
+                
+                {/* Additional user information fields can be added here */}
+              </Box>
+              
+              {isEditing && (
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 3 }}>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={handleCancel}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSave}
+                    disabled={loading}
+                  >
+                    {loading ? <CircularProgress size={24} /> : 'Save Changes'}
+                  </Button>
+                </Box>
+              )}
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
+      
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
-        <Alert 
-          onClose={() => setSnackbar({ ...snackbar, open: false })} 
-          severity={snackbar.severity}
-          elevation={6}
-          variant="filled"
-        >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
           {snackbar.message}
         </Alert>
       </Snackbar>
-
-      <Modal
-        open={openModal}
-        onClose={handleCloseModal}
-        aria-labelledby="report-ticket-modal"
-        aria-describedby="report-ticket-form"
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            bgcolor: 'background.paper',
-            boxShadow: 24,
-            p: 4,
-            borderRadius: 2,
-          }}
-        >
-          <ReportTicketForm />
-        </Box>
-      </Modal>
-
-      <Modal
-        open={passwordModalOpen}
-        onClose={handlePasswordModalClose}
-        aria-labelledby="change-password-modal"
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: { xs: '90%', sm: 400 },
-            bgcolor: 'background.paper',
-            boxShadow: 24,
-            p: 4,
-            borderRadius: 2,
-          }}
-        >
-          <Typography variant="h6" component="h2" sx={{ mb: 3 }}>
-            Change Password
-          </Typography>
-          
-          <FormControl fullWidth variant="outlined" sx={{ mb: 3 }}>
-            <InputLabel htmlFor="old-password">Current Password</InputLabel>
-            <OutlinedInput
-              id="old-password"
-              type={showOldPassword ? 'text' : 'password'}
-              value={passwordData.oldPassword}
-              onChange={handlePasswordChange('oldPassword')}
-              endAdornment={
-                <InputAdornment position="end">
-                  <MuiIconButton
-                    aria-label="toggle password visibility"
-                    onClick={handleClickShowPassword('old')}
-                    edge="end"
-                  >
-                    {showOldPassword ? <VisibilityOff /> : <Visibility />}
-                  </MuiIconButton>
-                </InputAdornment>
-              }
-              label="Current Password"
-            />
-          </FormControl>
-          
-          <FormControl fullWidth variant="outlined" sx={{ mb: 3 }}>
-            <InputLabel htmlFor="new-password">New Password</InputLabel>
-            <OutlinedInput
-              id="new-password"
-              type={showNewPassword ? 'text' : 'password'}
-              value={passwordData.newPassword}
-              onChange={handlePasswordChange('newPassword')}
-              endAdornment={
-                <InputAdornment position="end">
-                  <MuiIconButton
-                    aria-label="toggle password visibility"
-                    onClick={handleClickShowPassword('new')}
-                    edge="end"
-                  >
-                    {showNewPassword ? <VisibilityOff /> : <Visibility />}
-                  </MuiIconButton>
-                </InputAdornment>
-              }
-              label="New Password"
-            />
-          </FormControl>
-          
-          <FormControl fullWidth variant="outlined" sx={{ mb: 4 }}>
-            <InputLabel htmlFor="confirm-password">Confirm New Password</InputLabel>
-            <OutlinedInput
-              id="confirm-password"
-              type={showConfirmPassword ? 'text' : 'password'}
-              value={passwordData.confirmPassword}
-              onChange={handlePasswordChange('confirmPassword')}
-              endAdornment={
-                <InputAdornment position="end">
-                  <MuiIconButton
-                    aria-label="toggle password visibility"
-                    onClick={handleClickShowPassword('confirm')}
-                    edge="end"
-                  >
-                    {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                  </MuiIconButton>
-                </InputAdornment>
-              }
-              label="Confirm New Password"
-            />
-          </FormControl>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-            <Button onClick={handlePasswordModalClose} variant="outlined">
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSubmitPasswordChange} 
-              variant="contained" 
-              color="primary"
-              disabled={!passwordData.oldPassword || !passwordData.newPassword || passwordData.newPassword !== passwordData.confirmPassword}
-            >
-              Update Password
-            </Button>
-          </Box>
-        </Box>
-      </Modal>
     </Container>
   );
 };
