@@ -38,10 +38,10 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount, onLogout }) => {
   };
 
   const handleLogoutClick = () => {
-    logout();
-    onLogout();
-    handleMenuClose();
-    navigate('/');
+    logout(); // Call the logout function from AuthContext
+    handleMenuClose(); // Close the menu
+    onLogout(); // Call the onLogout prop function (this might update cart state in parent component)
+    navigate('Login'); // Navigate to homepage
   };
 
   return (

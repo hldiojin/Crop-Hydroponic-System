@@ -17,13 +17,26 @@ import {
   Grid,
   Divider,
   Modal,
+  FormControl,
+  InputLabel,
+  InputAdornment,
+  OutlinedInput,
+  IconButton as MuiIconButton,
 } from '@mui/material';
-import { Edit as EditIcon, Message as MessageIcon, AddAPhoto as AddPhotoIcon, Report as ReportIcon } from '@mui/icons-material';
+import { 
+  Edit as EditIcon, 
+  Message as MessageIcon, 
+  AddAPhoto as AddPhotoIcon, 
+  Report as ReportIcon,
+  Visibility,
+  VisibilityOff,
+  VpnKey as PasswordIcon
+} from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import ReportTicketForm from '../components/ReportTicketForm';
 
 const ProfilePage: React.FC = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, changePassword } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     name: user?.name || '',
@@ -42,6 +55,16 @@ const ProfilePage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [openModal, setOpenModal] = useState(false);
+
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -103,6 +126,48 @@ const ProfilePage: React.FC = () => {
 
   const handleOpenModal = () => setOpenModal(true);
   const handleCloseModal = () => setOpenModal(false);
+
+  const handlePasswordModalOpen = () => setPasswordModalOpen(true);
+  const handlePasswordModalClose = () => {
+    setPasswordModalOpen(false);
+    setPasswordData({
+      oldPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+  };
+
+  const handlePasswordChange = (prop: keyof typeof passwordData) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPasswordData({ ...passwordData, [prop]: event.target.value });
+  };
+
+  const handleClickShowPassword = (field: 'old' | 'new' | 'confirm') => () => {
+    if (field === 'old') setShowOldPassword(!showOldPassword);
+    if (field === 'new') setShowNewPassword(!showNewPassword);
+    if (field === 'confirm') setShowConfirmPassword(!showConfirmPassword);
+  };
+
+  const handleSubmitPasswordChange = async () => {
+    try {
+      await changePassword(passwordData);
+      handlePasswordModalClose();
+      setSnackbar({
+        open: true,
+        message: 'Password updated successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      let errorMsg = 'Failed to update password';
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      }
+      setSnackbar({
+        open: true,
+        message: errorMsg,
+        severity: 'error'
+      });
+    }
+  };
 
   return (
     <Container maxWidth="lg" sx={{ mt: 12, mb: 4 }}>
@@ -307,6 +372,17 @@ const ProfilePage: React.FC = () => {
                                 Address
                               </Typography>
                             </Grid>
+                            <Grid item xs={12} sx={{ mt: 3 }}>
+                              <Button 
+                                variant="outlined" 
+                                color="primary" 
+                                startIcon={<PasswordIcon />}
+                                onClick={handlePasswordModalOpen}
+                                sx={{ fontWeight: 'medium' }}
+                              >
+                                Change Password
+                              </Button>
+                            </Grid>
                           </Grid>
                         </Card>
                       </Grid>
@@ -370,6 +446,110 @@ const ProfilePage: React.FC = () => {
           }}
         >
           <ReportTicketForm />
+        </Box>
+      </Modal>
+
+      <Modal
+        open={passwordModalOpen}
+        onClose={handlePasswordModalClose}
+        aria-labelledby="change-password-modal"
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: { xs: '90%', sm: 400 },
+            bgcolor: 'background.paper',
+            boxShadow: 24,
+            p: 4,
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="h6" component="h2" sx={{ mb: 3 }}>
+            Change Password
+          </Typography>
+          
+          <FormControl fullWidth variant="outlined" sx={{ mb: 3 }}>
+            <InputLabel htmlFor="old-password">Current Password</InputLabel>
+            <OutlinedInput
+              id="old-password"
+              type={showOldPassword ? 'text' : 'password'}
+              value={passwordData.oldPassword}
+              onChange={handlePasswordChange('oldPassword')}
+              endAdornment={
+                <InputAdornment position="end">
+                  <MuiIconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleClickShowPassword('old')}
+                    edge="end"
+                  >
+                    {showOldPassword ? <VisibilityOff /> : <Visibility />}
+                  </MuiIconButton>
+                </InputAdornment>
+              }
+              label="Current Password"
+            />
+          </FormControl>
+          
+          <FormControl fullWidth variant="outlined" sx={{ mb: 3 }}>
+            <InputLabel htmlFor="new-password">New Password</InputLabel>
+            <OutlinedInput
+              id="new-password"
+              type={showNewPassword ? 'text' : 'password'}
+              value={passwordData.newPassword}
+              onChange={handlePasswordChange('newPassword')}
+              endAdornment={
+                <InputAdornment position="end">
+                  <MuiIconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleClickShowPassword('new')}
+                    edge="end"
+                  >
+                    {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                  </MuiIconButton>
+                </InputAdornment>
+              }
+              label="New Password"
+            />
+          </FormControl>
+          
+          <FormControl fullWidth variant="outlined" sx={{ mb: 4 }}>
+            <InputLabel htmlFor="confirm-password">Confirm New Password</InputLabel>
+            <OutlinedInput
+              id="confirm-password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={passwordData.confirmPassword}
+              onChange={handlePasswordChange('confirmPassword')}
+              endAdornment={
+                <InputAdornment position="end">
+                  <MuiIconButton
+                    aria-label="toggle password visibility"
+                    onClick={handleClickShowPassword('confirm')}
+                    edge="end"
+                  >
+                    {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                  </MuiIconButton>
+                </InputAdornment>
+              }
+              label="Confirm New Password"
+            />
+          </FormControl>
+          
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            <Button onClick={handlePasswordModalClose} variant="outlined">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmitPasswordChange} 
+              variant="contained" 
+              color="primary"
+              disabled={!passwordData.oldPassword || !passwordData.newPassword || passwordData.newPassword !== passwordData.confirmPassword}
+            >
+              Update Password
+            </Button>
+          </Box>
         </Box>
       </Modal>
     </Container>

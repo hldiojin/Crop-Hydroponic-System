@@ -19,7 +19,7 @@ interface Ticket {
 interface AuthData {
   deviceId: string;
   token: string;
-  refeshToken: string; // Note: API returns "refeshToken" (typo in API)
+  refreshToken: string; // Note: API returns "refreshToken" (typo in API)
 }
 
 interface User {
@@ -42,6 +42,7 @@ interface AuthContextType {
   login: (data: { email: string; password: string }) => Promise<void>;
   register: (data: { name: string; email: string; password: string; phone: string; address: string }) => Promise<void>;
   logout: () => void;
+  changePassword: (data: { oldPassword: string; newPassword: string; confirmPassword: string }) => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -63,6 +64,8 @@ const AuthContext = createContext<AuthContextType>({
   register: async () => {},
   logout: () => {},
   updateProfile: async () => {},
+  changePassword
+: async () => {},
   submitTicket: async () => {},
   updateTicketStatus: async () => {},
   isAuthenticated: false,
@@ -120,14 +123,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 const saveAuthToCookies = (authData: AuthData) => {
   // Set cookies with secure options (adjust expiry as needed)
   const cookieOptions = { 
-    expires: 7, // 7 days
+    expires: 7, 
     secure: window.location.protocol === 'https:', // Only send over HTTPS
     sameSite: 'strict' as const // Protect against CSRF
   };
   
+  console.log('Setting cookies from auth data:', {
+    deviceId: authData.deviceId,
+    refreshToken: authData.refreshToken // Note the typo in API response
+  });
+
+
   // Only store DeviceId and RefreshToken in cookies
   Cookies.set('DeviceId', authData.deviceId, cookieOptions);
-  Cookies.set('RefreshToken', authData.refeshToken, cookieOptions);
+  Cookies.set('RefreshToken', authData.refreshToken, cookieOptions);
   
   // Store token in memory only (not in cookies)
 };
@@ -272,6 +281,131 @@ const register = async (data: { name: string; email: string; password: string; p
   }
 };
 
+// 2. Add this function before the return statement in the AuthProvider component
+
+// Change password function
+const changePassword = async (data: { oldPassword: string; newPassword: string; confirmPassword: string }) => {
+  setLoading(true);
+  setError(null);
+  
+  try {
+    // Validate that new password and confirm password match
+    if (data.newPassword !== data.confirmPassword) {
+      throw new Error('New password and confirm password do not match');
+    }
+
+    if (!user || !user.id) {
+      throw new Error('You must be logged in to change');
+    }
+    
+    // Call the API to change password
+    const deviceId = Cookies.get('DeviceId');
+    const refreshToken = Cookies.get('RefreshToken');
+
+    if (!deviceId || !refreshToken) {
+      throw new Error('Device ID or refresh token missing. Please log in again.');
+    }
+
+    console.log('Using tokens:', { deviceId, refreshToken});
+
+    const response = await api.post('/api/auth/me/change-password', {
+      oldPassword: data.oldPassword,
+      newPassword: data.newPassword,
+      confirmPassword: data.confirmPassword
+    },  
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'DeviceId':deviceId,
+        'RefreshToken' : refreshToken
+      }
+    }
+  );
+    
+    console.log('Change password response:', response.data);
+    
+    // Check if password change was successful
+    if (response.data?.statusCode === 200 || 
+        response.data?.message === 'Password changed successfully' ||
+        response.data?.response?.message) {
+      return;
+    } else {
+      // API returned an error or unexpected format
+      const errorMessage = 
+        response.data?.error || 
+        response.data?.message || 
+        response.data?.response?.message || 
+        'Failed to change password';
+      throw new Error(errorMessage);
+    }
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      // Handle API errors
+      let errorMessage = 'Failed to change password. Please try again.';
+      
+      if (err.response) {
+        if (err.response.status === 401) {
+          errorMessage = 'Current password is incorrect.';
+        } else if (err.response.status === 400) {
+          errorMessage = err.response?.data?.message || 'Password validation failed. Please check password requirements.';
+        } else if (err.response.data?.message) {
+          errorMessage = err.response.data.message;
+        }
+      } else if (err.code === 'ERR_NETWORK') {
+        errorMessage = 'Network error: Unable to connect to the server. Please try again later.';
+      }
+      
+      setError(errorMessage);
+      console.error('Change password error:', errorMessage);
+    } else if (err instanceof Error) {
+      setError(err.message);
+      console.error('Change password error:', err.message);
+    } else {
+      setError('An unexpected error occurred');
+      console.error('Unexpected change password error:', err);
+    }
+    throw err;
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Update the logout function in your AuthContext.tsx file
+
+// Replace the async logout function with this version
+const logout = () => {
+  setLoading(true);
+  setError(null);
+  
+  // Clear user data from state first for immediate UI feedback
+  setUser(null);
+  setToken(null);
+  
+  // Clear cookies
+  clearAuthCookies();
+  
+  // Clear local storage items
+  localStorage.removeItem('user');
+  localStorage.removeItem('cart');  // Also clear cart if you have one
+  
+  // Send logout request to the API (don't await it)
+  if (user?.email) {
+    api.post('/api/auth/logout', {
+      email: user.email,
+      password: "" // Required by API
+    }).catch(err => {
+      console.error('Logout error:', err);
+      // We don't need to handle this error in the UI since user is already logged out locally
+    }).finally(() => {
+      setLoading(false);
+    });
+  } else {
+    setLoading(false);
+  }
+};
+
+
   // Submit a support ticket
   const submitTicket = async (ticketData: Omit<Ticket, 'id' | 'status' | 'createdAt' | 'updatedAt'>) => {
     setLoading(true);
@@ -366,21 +500,6 @@ const register = async (data: { name: string; email: string; password: string; p
     }
   };
 
-  // User logout
-  const logout = () => {
-    // Clear user data from state
-    setUser(null);
-    setToken(null);
-    
-    // Clear cookies
-    clearAuthCookies();
-    
-    // Clear local storage items if needed
-    localStorage.removeItem('user');
-    
-    // Redirect to login page if needed
-    // window.location.href = '/login';
-  };
 
   // Update user profile
   const updateProfile = async (data: Partial<User>) => {
@@ -486,6 +605,7 @@ const register = async (data: { name: string; email: string; password: string; p
         register,
         logout,
         updateProfile,
+        changePassword,
         submitTicket,
         updateTicketStatus,
         isAuthenticated,
