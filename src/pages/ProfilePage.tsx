@@ -35,6 +35,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import ReportTicketForm from '../components/ReportTicketForm';
+import Cookies from 'js-cookie';
 
 const ProfilePage: React.FC = () => {
   const { user, updateProfile, changePassword, getUserInfo, loading, error, clearError } = useAuth();
@@ -54,18 +55,38 @@ const ProfilePage: React.FC = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   
+
+  const checkedCookiesRef = useRef(false);
+
   // Fetch user info when component mounts
   useEffect(() => {
     const fetchUserInfo = async () => {
+      // Only run this once
+      if (checkedCookiesRef.current) return;
+      checkedCookiesRef.current = true;
+      
       setLoadingProfile(true);
+      
       try {
-        await getUserInfo();
-      } catch (err) {
-        setSnackbar({
-          open: true,
-          message: typeof err === 'string' ? err : 'Failed to load user information',
-          severity: 'error',
+        // Check if cookies exist
+        const deviceId = Cookies.get('DeviceId');
+        const refreshToken = Cookies.get('RefreshToken');
+        
+        console.log('ProfilePage - Cookies before loading:', {
+          DeviceId: deviceId || 'missing',
+          RefreshToken: refreshToken || 'missing'
         });
+        
+        if (!deviceId || !refreshToken) {
+          console.warn('Cookies missing, might need to log in again');
+          // You could redirect to login here if needed
+        }
+        
+        // Get user info from the API
+        await getUserInfo();
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        // Handle error appropriately
       } finally {
         setLoadingProfile(false);
       }
@@ -285,6 +306,44 @@ const ProfilePage: React.FC = () => {
                   </Button>
                 </Box>
               )}
+              <Button 
+                variant="outlined" 
+                color="primary" 
+                onClick={async () => {
+                  try {
+                    setLoadingProfile(true);
+                    
+                    // Verify cookies before refresh
+                    const deviceId = Cookies.get('DeviceId');
+                    const refreshToken = Cookies.get('RefreshToken');
+                    
+                    console.log('Cookies before refresh:', {
+                      DeviceId: deviceId || 'missing',
+                      RefreshToken: refreshToken || 'missing'
+                    });
+                    
+                    await getUserInfo();
+                    
+                    setSnackbar({
+                      open: true,
+                      message: 'Profile refreshed successfully',
+                      severity: 'success'
+                    });
+                  } catch (error) {
+                    console.error('Error refreshing profile:', error);
+                    setSnackbar({
+                      open: true,
+                      message: 'Failed to refresh profile',
+                      severity: 'error'
+                    });
+                  } finally {
+                    setLoadingProfile(false);
+                  }
+                }}
+                disabled={loadingProfile}
+              >
+                Refresh Profile
+              </Button>
             </Grid>
           </Grid>
         </Paper>

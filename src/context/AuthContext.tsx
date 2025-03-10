@@ -89,7 +89,6 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    // Get authentication tokens from cookies, fallback to localStorage
     const deviceId = Cookies.get('DeviceId') || localStorage.getItem('DeviceId');
     const refreshToken = Cookies.get('RefreshToken') || localStorage.getItem('RefreshToken');
     const authToken = localStorage.getItem('authToken');
@@ -100,7 +99,18 @@ api.interceptors.request.use(
       authToken: authToken ? 'exists' : 'missing'
     });
     
-    // Add deviceId to headers if available
+    // Create custom cookie header
+    if (deviceId && refreshToken && config.headers) {
+      const cookieString = `DeviceId=${deviceId}; RefreshToken=${refreshToken}`;
+      
+      try {
+        config.headers.set('Cookie', cookieString);
+      } catch (e) {
+        config.headers['Cookie'] = cookieString;
+      }
+    }
+    
+    // Add individual headers as before
     if (deviceId && config.headers) {
       // Try both methods to set headers for compatibility
       try {
@@ -119,7 +129,7 @@ api.interceptors.request.use(
       }
     }
     
-    // Add the authorization header if token is available
+    // Add authorization header
     if (authToken && config.headers) {
       try {
         config.headers.set('Authorization', `Bearer ${authToken}`);
@@ -160,41 +170,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Clear any error messages
   const clearError = () => setError(null);
 
-  // Helper function to save auth data to cookies with security options
-  const saveAuthToCookies = (authData: AuthData) => {
-    // Set cookies with secure options (adjust expiry as needed)
-    const cookieOptions = { 
-      expires: 7, 
-      secure: window.location.protocol === 'https:', // Only send over HTTPS
-      sameSite: 'strict' as const, // Protect against CSRF
-      path: '/'  // Add path to ensure cookies are sent with all requests
+    // Thiết lập các tùy chọn cho cookie
+    const saveAuthToCookies = (authData: AuthData) => {
+      const isLocalhost = window.location.hostname === 'localhost';
+    
+      const cookieOptions = {
+        expires: 7,
+        path: '/',
+        domain: 'hmes.buubuu.id.vn', // Đảm bảo domain phù hợp
+        secure: window.location.protocol === 'https:',
+        sameSite: (isLocalhost ? 'lax' : 'strict') as 'lax' | 'strict', // Ép kiểu trực tiếp
+      };
+    
+      Cookies.remove('DeviceId', { path: '/' });
+      Cookies.remove('RefreshToken', { path: '/' });
+    
+      Cookies.set('DeviceId', authData.deviceId, cookieOptions);
+      Cookies.set('RefreshToken', authData.refeshToken, cookieOptions);
+    
+      localStorage.setItem('DeviceId', authData.deviceId);
+      localStorage.setItem('RefreshToken', authData.refeshToken);
+      localStorage.setItem('authToken', authData.token);
     };
-    
-    console.log('Setting cookies from auth data:', {
-      deviceId: authData.deviceId,
-      refreshToken: authData.refeshToken // Note the typo in API response
-    });
-  
-    // Normalize header values and cookies to match case sensitivity
-    const deviceId = authData.deviceId;
-    const refreshToken = authData.refeshToken;
-  
-    // Clear any existing cookies first to avoid conflicts
-    Cookies.remove('DeviceId');
-    Cookies.remove('RefreshToken');
-    
-    // Set cookies with explicit options
-    Cookies.set('DeviceId', authData.deviceId, cookieOptions);
-  Cookies.set('RefreshToken', authData.refeshToken, cookieOptions);
-    
-    
-    
-    // Verify cookies were set
-    console.log('After saving cookies:', {
-      deviceIdCookie: Cookies.get('DeviceId') || 'missing',
-      refreshTokenCookie: Cookies.get('RefreshToken') || 'missing',
-    });
-  };
   
   // Helper function to clear auth cookies
   const clearAuthCookies = () => {
@@ -209,33 +206,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await api.post('/api/auth/login', data);
       console.log('Login response:', response.data);
-      
-      // Extract user data from the response, checking both possible structures
       const userData = response.data?.data || response.data?.response?.data;
-      
       if (userData) {
-        // Store user data in state
         setUser(userData);
-        
-        // If auth data is available, save token and set cookies
         if (userData.auth) {
-  // Store token in state and localStorage (for persistence)
   setToken(userData.auth.token);
-  window.localStorage.setItem('authToken', userData.auth.token);
   
-  // Save device ID and refresh token to cookies
   saveAuthToCookies(userData.auth);
+
+
   
-  // Verify the headers will be correct in future requests
-  const deviceId = Cookies.get('DeviceId');
-  const refreshToken = Cookies.get('RefreshToken');
-  const authTokenFromStorage = localStorage.getItem('authToken');
+  setTimeout(() => {
+    const deviceId = Cookies.get('DeviceId');
+    const refreshToken = Cookies.get('RefreshToken');
+    
+    console.log('Cookies after login:', {
+      DeviceId: deviceId || 'missing',
+      RefreshToken: refreshToken || 'missing',
+      AllCookies: document.cookie
+    });
+    
+    // If cookies weren't set properly, try using document.cookie directly
+    if (!deviceId || !refreshToken) {
+      console.warn('Cookies not set via js-cookie, trying direct method');
+      
+      // Set cookies manually as a fallback
+      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+      document.cookie = `DeviceId=${userData.auth.deviceId}; path=/; expires=${expires.toUTCString()}`;
+      document.cookie = `RefreshToken=${userData.auth.refeshToken}; path=/; expires=${expires.toUTCString()}`;
+    }
+  }, 100);
   
-  console.log('Headers for future API calls will use:', {
-    Authorization: `Bearer ${authTokenFromStorage}`,
-    DeviceId: deviceId,
-    RefreshToken: refreshToken
-  });
         } else {
           throw new Error('Authentication data missing from response');
         }
@@ -346,116 +347,71 @@ const register = async (data: { name: string; email: string; password: string; p
   }
 };
 
-// Add this function to the AuthProvider component in AuthContext.tsx
 const getUserInfo = async () => {
   setLoading(true);
   setError(null);
-  
-  try {
-    // Get cookies for authentication
-    const deviceId = Cookies.get('DeviceId');
-    const refreshToken = Cookies.get('RefreshToken');
-    const authToken = token; // Use token from state
-    
-    console.log('Authentication data for API call:', { 
-      deviceId: deviceId ? 'exists' : 'missing',
-      refreshToken: refreshToken ? 'exists' : 'missing',
-      authToken: authToken ? 'exists' : 'missing'
-    });
 
-    if (!deviceId || !refreshToken || !authToken) {
-      console.error('Missing authentication tokens:', { 
-        deviceIdMissing: !deviceId, 
-        refreshTokenMissing: !refreshToken,
-        authTokenMissing: !authToken
-      });
+  try {
+    // Lấy authToken từ localStorage
+    const authToken = localStorage.getItem('authToken');
+
+    if (!authToken) {
+      console.error('Missing authentication token');
       throw new Error('Authentication required. Please log in again.');
     }
+
+    // Tạo headers cho request
+    console.log('Making request to /api/user/me with cookies included');
+
+    // Gửi request với Axios
+    const deviceId = Cookies.get('DeviceId');
+    const refreshToken = Cookies.get('RefreshToken');
     
-    // Create proper headers for the API call
-    const headers = {
-      'Authorization': `Bearer ${authToken}`,
-      'DeviceId': deviceId,
-      'RefreshToken': refreshToken,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    };
-    
-    console.log('Making request to /api/user/me with headers', {
-      Authorization: `Bearer ${authToken.substring(0, 10)}...`, // Show partial token for security
-      DeviceId: deviceId,
-      RefreshToken: `${refreshToken.substring(0, 10)}...` // Show partial token for security
+    console.log('document.cookie:', deviceId);
+    const response = await axios({
+      method: 'GET',
+      url: 'https://api.hmes.buubuu.id.vn/api/user/me',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cookie': document.cookie,
+      },
+      withCredentials: true, 
     });
-    
-    // Make the API call with explicit headers
-    const response = await api.get('/api/user/me', { headers });
-    
+
     console.log('User info response:', response.data);
-    
-    // Check if the request was successful
+
     if (response.data?.statusCodes === 200 || response.data?.data) {
       const userData = response.data?.data || response.data?.response?.data;
-      
+
       if (userData) {
-        // Update user data in state
         setUser(prevUser => ({
           ...prevUser,
-          ...userData
+          ...userData,
         }));
         return userData;
       }
     }
-    
+
     throw new Error('Failed to fetch user information');
-  } catch (err) {
-    if (axios.isAxiosError(err)) {
-      const errorMessage = err.response?.data?.message || 'Failed to fetch user information.';
-      setError(errorMessage);
-      console.error('Get user info error:', errorMessage);
-      console.error('Error status:', err.response?.status);
-      console.error('Error details:', err.response?.data);
-      
-      if (err.response?.status === 401) {
-        // Handle authentication error
-        clearAuthCookies();
-        setUser(null);
-        setToken(null);
-        throw new Error('Your session has expired. Please log in again.');
-      }
-    } else if (err instanceof Error) {
+  } catch (err: unknown) { // Explicitly type the error as unknown
+    console.error('Error fetching user info:', err);
+    
+    // Type guard to handle the error properly
+    if (err instanceof Error) {
       setError(err.message);
-      console.error('Get user info error:', err.message);
     } else {
-      setError('An unexpected error occurred');
-      console.error('Unexpected get user info error:', err);
+      setError('An error occurred while fetching user information.');
     }
-    throw err;
+    
+    // Ensure we return a rejected promise
+    return Promise.reject(err);
   } finally {
     setLoading(false);
   }
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// 2. Add this function before the return statement in the AuthProvider component
 
 // Change password function
 const changePassword = async (data: { oldPassword: string; newPassword: string; confirmPassword: string }) => {
