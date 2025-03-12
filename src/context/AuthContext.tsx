@@ -46,7 +46,9 @@ interface AuthContextType {
     Promise<{ success: boolean; message: string; } | void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  verifyOtpAndResetPassword: (data: { email: string; otp: string; newPassword: string; confirmPassword: string }) => Promise<void>;
+  resetPasswordWithToken: (data: { newPassword: string; confirmPassword: string }) => Promise<void>;
+  // ... existing properties
+  verifyOtp: (data: { email: string; otp: string }) => Promise<string>;
   getUserInfo: () => Promise<User>;  // Add this line
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -71,7 +73,8 @@ const AuthContext = createContext<AuthContextType>({
   changePassword
     : async () => { },
   resetPassword: async () => {},
-  verifyOtpAndResetPassword: async () => {},
+  verifyOtp: async () => "",
+  resetPasswordWithToken: async () => {},
   submitTicket: async () => { },
   updateTicketStatus: async () => { },
   getUserInfo: async () => ({} as User),  // Add this line
@@ -599,27 +602,19 @@ const resetPassword = async (email: string): Promise<void> => {
   }
 };
 
-const verifyOtpAndResetPassword = async (data: { 
-  email: string; 
-  otp: string; 
-  newPassword: string; 
-  confirmPassword: string 
-}): Promise<void> => {
+// New function to verify OTP and get reset token (separate from password reset)
+// New function to verify OTP and get reset token (separate from password reset)
+const verifyOtp = async (data: { email: string; otp: string }): Promise<string> => {
   setLoading(true);
   setError(null);
 
   try {
-    // Validate passwords match
-    if (data.newPassword !== data.confirmPassword) {
-      throw new Error('New password and confirmation do not match');
-    }
+    console.log('Verifying OTP to get reset token');
     
-    console.log('Verifying OTP');
-    
-    // STEP 1: First verify the OTP
+    // Verify OTP and get temporary token
     const verifyResponse = await api.post('/api/otp/verify', {
       email: data.email,
-      otpCode: data.otp  // Using correct parameter name as per API documentation
+      otpCode: data.otp
     });
     
     console.log('OTP verification response:', verifyResponse.data);
@@ -633,16 +628,85 @@ const verifyOtpAndResetPassword = async (data: {
       throw new Error('Invalid or expired OTP. Please try again.');
     }
     
-    // STEP 2: Now reset the password with the verified OTP
-    console.log('OTP verified, now resetting password');
+    // Extract the reset token from the response - handle the nested structure
+    const tempToken = verifyResponse.data?.response?.data?.tempToken || 
+                     verifyResponse.data?.data?.tempToken ||
+                     verifyResponse.data?.tempToken;
+                      
+    if (!tempToken) {
+      console.error('Token not found in response:', verifyResponse.data);
+      throw new Error('Server did not provide a reset token. Please try again.');
+    }
     
-    // Call the API to reset password
-    const resetResponse = await api.post('/api/auth/me/reset-password', {
-      email: data.email,
-      newPassword: data.newPassword,
-      confirmPassword: data.confirmPassword,
-      otpCode: data.otp  // Include the OTP with the password reset request
-    });
+    console.log('Successfully retrieved temporary token');
+    
+    // Save the reset token to localStorage
+    localStorage.setItem('passwordResetToken', tempToken);
+    
+    return tempToken;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      let errorMessage = 'Failed to verify OTP.';
+      
+      if (err.response?.status === 400) {
+        errorMessage = err.response.data?.message || 'Invalid OTP code.';
+      } else if (err.response?.status === 401) {
+        errorMessage = 'Invalid or expired OTP.';
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      setError(errorMessage);
+      console.error('OTP verification error:', errorMessage);
+    } else if (err instanceof Error) {
+      setError(err.message);
+      console.error('OTP verification error:', err.message);
+    } else {
+      setError('An unexpected error occurred');
+      console.error('Unexpected OTP verification error:', err);
+    }
+    throw err;
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Updated function to reset password using token
+const resetPasswordWithToken = async (data: { 
+  newPassword: string; 
+  confirmPassword: string 
+}): Promise<void> => {
+  setLoading(true);
+  setError(null);
+
+  try {
+    // Validate passwords match
+    if (data.newPassword !== data.confirmPassword) {
+      throw new Error('New password and confirmation do not match');
+    }
+    
+    // Get the reset token from localStorage
+    const resetToken = localStorage.getItem('passwordResetToken');
+    
+    if (!resetToken) {
+      throw new Error('Reset token not found. Please verify your OTP again.');
+    }
+    
+    console.log('Resetting password with token');
+    
+    // Call the API to reset password with the token in both the request body and header
+    const resetResponse = await api.post(
+      '/api/auth/me/reset-password', 
+      {
+        newPassword: data.newPassword,
+        confirmPassword: data.confirmPassword
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${resetToken}` // Set the token in the Authorization header
+        }
+      }
+    );
     
     console.log('Password reset response:', resetResponse.data);
     
@@ -652,18 +716,40 @@ const verifyOtpAndResetPassword = async (data: {
         resetResponse.data?.message?.includes('success') ||
         resetResponse.data?.message?.includes('reset')) {
       // Password reset was successful
+      // Remove the reset token from localStorage
+      localStorage.removeItem('passwordResetToken');
       return;
     }
     
     throw new Error(resetResponse.data?.message || 'Failed to reset password. Please try again.');
   } catch (err) {
-    // Error handling remains the same
+    if (axios.isAxiosError(err)) {
+      let errorMessage = 'Failed to reset password.';
+      
+      // Handle token expiration
+      if (err.response?.status === 401) {
+        errorMessage = 'Reset token has expired. Please request a new OTP.';
+        localStorage.removeItem('passwordResetToken'); 
+      } else if (err.response?.status === 400) {
+        errorMessage = err.response.data?.message || 'Invalid password.';
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      setError(errorMessage);
+      console.error('Password reset error:', errorMessage);
+    } else if (err instanceof Error) {
+      setError(err.message);
+      console.error('Password reset error:', err.message);
+    } else {
+      setError('An unexpected error occurred');
+      console.error('Unexpected password reset error:', err);
+    }
+    throw err;
   } finally {
     setLoading(false);
   }
 };
-
-
 
   const logout = () => {
     setLoading(true);
@@ -929,7 +1015,8 @@ const updateProfile = async (data: Partial<User>) => {
         submitTicket,
         updateTicketStatus,
         resetPassword,
-        verifyOtpAndResetPassword,
+        verifyOtp,
+        resetPasswordWithToken,
         getUserInfo,
         isAuthenticated,
         isAdmin,
