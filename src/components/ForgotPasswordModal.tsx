@@ -19,6 +19,8 @@ import {
 } from '@mui/material';
 import { Visibility, VisibilityOff, Email as EmailIcon } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 interface ForgotPasswordModalProps {
   open: boolean;
@@ -26,7 +28,8 @@ interface ForgotPasswordModalProps {
 }
 
 const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose }) => {
-  const { resetPassword, verifyOtpAndResetPassword, loading, error, clearError } = useAuth();
+  const { resetPassword, verifyOtp, resetPasswordWithToken, loading, error, clearError } = useAuth();
+  const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -40,7 +43,18 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose
   const [resendDisabled, setResendDisabled] = useState(false);
   const [countdown, setCountdown] = useState(120); // 2 minutes in seconds
   const [successMessage, setSuccessMessage] = useState('');
+  const [hasResetToken, setHasResetToken] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check if we already have a reset token on mount
+  useEffect(() => {
+    const savedToken = localStorage.getItem('passwordResetToken');
+    if (savedToken && open) {
+      setHasResetToken(true);
+      setActiveStep(2); // Skip to password reset step
+      setSuccessMessage('Your identity has been verified. Please set your new password.');
+    }
+  }, [open]);
 
   // Clear timers on unmount
   useEffect(() => {
@@ -74,18 +88,21 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose
   // Reset the form when modal is closed
   useEffect(() => {
     if (!open) {
-      setActiveStep(0);
-      setEmail('');
-      setOtp('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setEmailError('');
-      setOtpError('');
-      setNewPasswordError('');
-      setConfirmPasswordError('');
-      setSuccessMessage('');
-      setResendDisabled(false);
-      setCountdown(120);
+      // Only reset if not using a saved token
+      if (!hasResetToken) {
+        setActiveStep(0);
+        setEmail('');
+        setOtp('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setEmailError('');
+        setOtpError('');
+        setNewPasswordError('');
+        setConfirmPasswordError('');
+        setSuccessMessage('');
+        setResendDisabled(false);
+        setCountdown(120);
+      }
       clearError();
       
       if (timerRef.current) {
@@ -93,7 +110,7 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose
         timerRef.current = null;
       }
     }
-  }, [open, clearError]);
+  }, [open, clearError, hasResetToken]);
 
   const validateEmail = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -111,9 +128,6 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose
   const validateOtp = () => {
     if (!otp) {
       setOtpError('OTP is required');
-      return false;
-    } else if (!/^\d{6}$/.test(otp)) { // Assuming OTP is a 6-digit number
-      setOtpError('OTP must be a 6-digit number');
       return false;
     }
     setOtpError('');
@@ -176,36 +190,84 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose
   };
 
   const handleVerifyOtp = async () => {
-    if (!validateOtp() || !validatePasswords()) {
+    if (!validateOtp()) {
       return;
     }
     
     try {
       clearError();
-      await verifyOtpAndResetPassword({
+      
+      // This will verify the OTP and store the token in localStorage
+      await verifyOtp({
         email,
-        otp,
-        newPassword,
-        confirmPassword
+        otp
       });
       
       setActiveStep(2);
-      setSuccessMessage('Password reset successfully');
-      
-      // Close the modal automatically after 3 seconds
-      setTimeout(() => {
-        onClose();
-      }, 3000);
+      setHasResetToken(true);
+      setSuccessMessage('OTP verified successfully. Please set your new password.');
     } catch (err) {
       console.error('Error verifying OTP:', err);
       // Error is already set in context
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!validatePasswords()) {
+      return;
+    }
+    
+    try {
+      clearError();
+      
+      // Reset password using the token stored in localStorage
+      await resetPasswordWithToken({
+        newPassword,
+        confirmPassword
+      });
+      
+      setActiveStep(3); // Final success step
+      setHasResetToken(false);
+      setSuccessMessage('Password reset successfully');
+      
+      // Close the modal and redirect to login after success
+      setTimeout(() => {
+        onClose();
+        navigate('/login');
+      }, 3000);
+    } catch (err) {
+      console.error('Error resetting password:', err);
+      
+      // If token expired (401), redirect to login after showing error
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        setTimeout(() => {
+          onClose();
+          navigate('/login');
+        }, 3000);
+      }
+      // Error is already set in context
+    }
+  };
+
+  const handleClose = () => {
+    // If we have a reset token and we're canceling, we should clean it up
+    if (hasResetToken && activeStep < 3) {
+      // Ask for confirmation before discarding the token
+      if (window.confirm('Are you sure you want to cancel? You will need to verify your identity again.')) {
+        localStorage.removeItem('passwordResetToken');
+        setHasResetToken(false);
+      } else {
+        return; // Don't close if user cancels
+      }
+    }
+    
+    onClose();
+  };
+
   return (
     <Dialog 
       open={open} 
-      onClose={onClose} 
+      onClose={handleClose} 
       fullWidth 
       maxWidth="sm"
       PaperProps={{ sx: { borderRadius: 2 } }}
@@ -218,7 +280,10 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose
             <StepLabel>Request OTP</StepLabel>
           </Step>
           <Step>
-            <StepLabel>Verify & Reset</StepLabel>
+            <StepLabel>Verify OTP</StepLabel>
+          </Step>
+          <Step>
+            <StepLabel>New Password</StepLabel>
           </Step>
           <Step>
             <StepLabel>Complete</StepLabel>
@@ -270,7 +335,7 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose
         {activeStep === 1 && (
           <Box>
             <Typography variant="body1" sx={{ mb: 2 }}>
-              We've sent a 6-digit OTP to your email address. Please enter the OTP below to verify your identity.
+              We've sent a verification code to your email address. Please enter the OTP below to verify your identity.
             </Typography>
             
             <TextField
@@ -300,11 +365,13 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose
                 }
               </Button>
             </Box>
-            
-            <Divider sx={{ my: 3 }} />
-            
-            <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 2 }}>
-              Set New Password
+          </Box>
+        )}
+        
+        {activeStep === 2 && (
+          <Box>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Your identity has been verified. Please set your new password.
             </Typography>
             
             <TextField
@@ -351,21 +418,21 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose
           </Box>
         )}
         
-        {activeStep === 2 && (
+        {activeStep === 3 && (
           <Box sx={{ textAlign: 'center', py: 2 }}>
             <Typography variant="h6" sx={{ mb: 2, color: 'success.main' }}>
               Password Reset Successful!
             </Typography>
             <Typography variant="body1">
-              Your password has been reset successfully. You can now log in with your new password.
+              Your password has been reset successfully. You will be redirected to the login page to sign in with your new password.
             </Typography>
           </Box>
         )}
       </DialogContent>
       
       <DialogActions sx={{ px: 3, pb: 3 }}>
-        {activeStep < 2 && (
-          <Button onClick={onClose} color="inherit" disabled={loading}>
+        {activeStep < 3 && (
+          <Button onClick={handleClose} color="inherit" disabled={loading}>
             Cancel
           </Button>
         )}
@@ -388,13 +455,27 @@ const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, onClose
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : null}
           >
-            {loading ? 'Verifying...' : 'Reset Password'}
+            {loading ? 'Verifying...' : 'Verify OTP'}
           </Button>
         )}
         
         {activeStep === 2 && (
-          <Button variant="contained" onClick={onClose}>
-            Close
+          <Button 
+            variant="contained" 
+            onClick={handleResetPassword} 
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : null}
+          >
+            {loading ? 'Resetting...' : 'Reset Password'}
+          </Button>
+        )}
+        
+        {activeStep === 3 && (
+          <Button variant="contained" onClick={() => {
+            onClose();
+            navigate('/login');
+          }}>
+            Go to Login
           </Button>
         )}
       </DialogActions>

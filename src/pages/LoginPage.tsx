@@ -30,7 +30,7 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     try {
       await login({ email, password });
-      navigate('/dashboard');
+      navigate('/SystemsPage');
     } catch (err) {
       // Error is handled by the context
       console.error('Login error:', err);
