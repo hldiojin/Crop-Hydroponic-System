@@ -1,228 +1,138 @@
 // src/pages/LoginPage.tsx
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import React, { useState } from 'react';
 import {
+  Container,
   Paper,
-  TextField,
+  Avatar,
   Button,
-  Typography,
+  TextField,
+  Link,
+  Grid,
   Box,
-  InputAdornment,
-  IconButton,
-  Divider,
+  Typography,
+  Snackbar,
   Alert,
-  CircularProgress,
+  CircularProgress
 } from '@mui/material';
-import {
-  Email,
-  Lock,
-  Visibility,
-  VisibilityOff,
-  LoginOutlined,
-} from '@mui/icons-material';
+import { LockOutlined as LockOutlinedIcon } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import AuthLayout from '../components/AuthLayout';
-import { keyframes } from '@emotion/react';
-
+import ForgotPasswordModal from '../components/ForgotPasswordModal';
 
 const LoginPage: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const { login, loading, error, clearError } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-  const [formErrors, setFormErrors] = useState({
-    email: '',
-    password: '',
-  });
+  const navigate = useNavigate();
 
-  const shakeAnimation = keyframes`
-  0% { transform: translateX(0); }
-  25% { transform: translateX(5px); }
-  50% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
-  100% { transform: translateX(0); }
-`;
-
-
-  // Clear errors when component unmounts
-  useEffect(() => {
-    return () => {
-      clearError();
-    };
-  }, [clearError]);
-
-  const validateForm = () => {
-    let valid = true;
-    const newErrors = { email: '', password: '' };
-    
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-      valid = false;
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-      valid = false;
-    }
-    
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-      valid = false;
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-      valid = false;
-    }
-    
-    setFormErrors(newErrors);
-    return valid;
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-    
-    // Clear error when user starts typing
-    if (error) clearError();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    // Validate form before submission
-    if (!validateForm()) return;
-    
     try {
-      await login(formData);
-      // Redirect to intended destination or home page
-      navigate(location.state?.from || '/', { replace: true });
+      await login({ email, password });
+      navigate('/dashboard');
     } catch (err) {
-      // Error handling is done in the AuthContext
-      console.error('Login submission error:', err);
+      // Error is handled by the context
+      console.error('Login error:', err);
     }
   };
 
   return (
-    <AuthLayout>
-      <Paper
-        elevation={24}
+    <Container component="main" maxWidth="xs">
+      <Paper 
+        elevation={3}
         sx={{
+          mt: 8,
           p: 4,
-          backdropFilter: 'blur(10px)',
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          borderRadius: 2,
-          width: '100%',
-          maxWidth: 450,
-          animation: error ? `${shakeAnimation} 0.5s` : 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          borderRadius: 2
         }}
       >
-        <Box sx={{ mb: 3, textAlign: 'center' }}>
-          <Typography variant="h4" fontWeight="bold" color="primary">
-            Welcome Back
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Sign in to continue to HydroPonic
-          </Typography>
-        </Box>
-
+        <Avatar sx={{ m: 1, bgcolor: 'primary.main' }}>
+          <LockOutlinedIcon />
+        </Avatar>
+        <Typography component="h1" variant="h5">
+          Sign In
+        </Typography>
+        
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={clearError} variant="filled" >
+          <Alert severity="error" sx={{ mt: 2, width: '100%' }} onClose={clearError}>
             {error}
           </Alert>
         )}
-
-        <form onSubmit={handleSubmit} noValidate>
+        
+        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 3, width: '100%' }}>
           <TextField
-            
-  fullWidth
-  margin="normal"
-  label="Email"
-  name="email"
-  type="email"
-  required
-  value={formData.email}
-  onChange={handleChange}
-  error={!!formErrors.email || (error?.toLowerCase().includes('email') || error?.toLowerCase().includes('account'))}
-  helperText={formErrors.email}
-  InputProps={{
-    startAdornment: (
-      <InputAdornment position="start">
-        <Email color={formErrors.email || error ? "error" : "primary"} />
-      </InputAdornment>
-    ),
-  }}
-  disabled={loading}
-/>
-
-<TextField
-  fullWidth
-  margin="normal"
-  label="Password"
-  name="password"
-  type={showPassword ? 'text' : 'password'}
-  required
-  value={formData.password}
-  onChange={handleChange}
-  error={!!formErrors.password || (error?.toLowerCase().includes('password') || error?.toLowerCase().includes('incorrect'))}
-  helperText={formErrors.password}
-  InputProps={{
-    startAdornment: (
-      <InputAdornment position="start">
-        <Lock color={formErrors.password || error ? "error" : "primary"} />
-      </InputAdornment>
-    ),
-    endAdornment: (
-      <InputAdornment position="end">
-        <IconButton
-          onClick={() => setShowPassword(!showPassword)}
-          edge="end"
-          disabled={loading}
-        >
-          {showPassword ? <VisibilityOff /> : <Visibility />}
-        </IconButton>
-      </InputAdornment>
-    ),
-  }}
-  disabled={loading}
-/>
-
+            margin="normal"
+            required
+            fullWidth
+            id="email"
+            label="Email Address"
+            name="email"
+            autoComplete="email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
+          />
+          
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="password"
+            label="Password"
+            type="password"
+            id="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+          />
+          
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+            <Button
+              variant="text"
+              color="primary"
+              onClick={() => setForgotPasswordOpen(true)}
+              sx={{ textTransform: 'none' }}
+            >
+              Forgot Password?
+            </Button>
+          </Box>
+          
           <Button
             type="submit"
             fullWidth
             variant="contained"
-            size="large"
             sx={{ mt: 3, mb: 2 }}
-            endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginOutlined />}
             disabled={loading}
           >
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading ? <CircularProgress size={24} /> : 'Sign In'}
           </Button>
-
-          <Divider sx={{ my: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              OR
-            </Typography>
-          </Divider>
-
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Don't have an account?{' '}
-              <Link
-                to="/register"
-                style={{
-                  color: '#2e7d32',
-                  textDecoration: 'none',
-                  fontWeight: 'bold',
-                }}
+          
+          <Grid container justifyContent="center">
+            <Grid item>
+              <Link 
+                component="button" 
+                variant="body2" 
+                onClick={() => navigate('/register')}
               >
-                Sign Up
+                Don't have an account? Sign Up
               </Link>
-            </Typography>
-          </Box>
-        </form>
+            </Grid>
+          </Grid>
+        </Box>
       </Paper>
-    </AuthLayout>
+      
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        open={forgotPasswordOpen}
+        onClose={() => setForgotPasswordOpen(false)}
+      />
+    </Container>
   );
 };
 

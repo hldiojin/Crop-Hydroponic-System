@@ -45,6 +45,8 @@ interface AuthContextType {
   changePassword: (data: { oldPassword: string; newPassword: string; confirmPassword: string }) => 
     Promise<{ success: boolean; message: string; } | void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  verifyOtpAndResetPassword: (data: { email: string; otp: string; newPassword: string; confirmPassword: string }) => Promise<void>;
   getUserInfo: () => Promise<User>;  // Add this line
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -68,6 +70,8 @@ const AuthContext = createContext<AuthContextType>({
   updateProfile: async () => { },
   changePassword
     : async () => { },
+  resetPassword: async () => {},
+  verifyOtpAndResetPassword: async () => {},
   submitTicket: async () => { },
   updateTicketStatus: async () => { },
   getUserInfo: async () => ({} as User),  // Add this line
@@ -424,8 +428,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   
-  // Change password function
-// Change password function
+  
 const changePassword = async (data: { oldPassword: string; newPassword: string; confirmPassword: string }): Promise<void> => {
   setLoading(true);
   setError(null);
@@ -525,9 +528,143 @@ const changePassword = async (data: { oldPassword: string; newPassword: string; 
     setLoading(false);
   }
 };
-  // Update the logout function in your AuthContext.tsx file
 
-  // Replace the async logout function with this version
+// Reset password - request OTP to be sent via email
+// Reset password - request OTP to be sent via email
+const resetPassword = async (email: string): Promise<void> => {
+  setLoading(true);
+  setError(null);
+
+  try {
+    console.log('Requesting OTP for password reset for email:', email);
+    
+    // The API expects a raw string for email, not an object
+    const response = await api.post('/api/otp/send', 
+      JSON.stringify(email), // Important: Send as a JSON-encoded string
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    console.log('Send OTP response:', response.data);
+    
+    if (response.data?.statusCode === 200 || 
+        response.data?.statusCodes === 200 ||
+        response.status === 200 ||
+        response.data?.message?.includes('success') ||
+        response.data?.message?.includes('sent')) {
+      return;
+    } 
+    
+    throw new Error(response.data?.message || 'Failed to send OTP. Please try again.');
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const errorMessage = err.response?.data?.message || 'Failed to request OTP.';
+      
+      if (err.response?.status === 400 && err.response?.data?.errors) {
+        console.error('API validation error details:', JSON.stringify(err.response.data));
+        const validationErrors = err.response.data.errors;
+        if (validationErrors.Email && validationErrors.Email.length > 0) {
+          setError(validationErrors.Email[0]);
+          console.error('Email validation error:', validationErrors.Email[0]);
+        } else if (validationErrors.$ && validationErrors.$.length > 0) {
+          setError('Invalid email format. Please provide a valid email address.');
+          console.error('Format error:', validationErrors.$[0]);
+        } else {
+          setError('Invalid request format. Please try again.');
+          console.error('Validation errors:', validationErrors);
+        }
+      } else {
+        setError(errorMessage);
+        console.error('Send OTP error:', errorMessage);
+      }
+      
+      if (err.response?.status === 404) {
+        throw new Error('Email not found. Please check your email address.');
+      } else if (err.response?.status === 429) {
+        throw new Error('Too many attempts. Please wait before trying again.');
+      }
+    } else if (err instanceof Error) {
+      setError(err.message);
+      console.error('Send OTP error:', err.message);
+    } else {
+      setError('An unexpected error occurred');
+      console.error('Unexpected OTP request error:', err);
+    }
+    throw err;
+  } finally {
+    setLoading(false);
+  }
+};
+
+const verifyOtpAndResetPassword = async (data: { 
+  email: string; 
+  otp: string; 
+  newPassword: string; 
+  confirmPassword: string 
+}): Promise<void> => {
+  setLoading(true);
+  setError(null);
+
+  try {
+    // Validate passwords match
+    if (data.newPassword !== data.confirmPassword) {
+      throw new Error('New password and confirmation do not match');
+    }
+    
+    console.log('Verifying OTP');
+    
+    // STEP 1: First verify the OTP
+    const verifyResponse = await api.post('/api/otp/verify', {
+      email: data.email,
+      otpCode: data.otp  // Using correct parameter name as per API documentation
+    });
+    
+    console.log('OTP verification response:', verifyResponse.data);
+    
+    // Check if OTP verification was successful
+    if (!(verifyResponse.data?.statusCode === 200 || 
+        verifyResponse.data?.statusCodes === 200 ||
+        verifyResponse.status === 200 ||
+        verifyResponse.data?.message?.includes('success') ||
+        verifyResponse.data?.message?.includes('valid'))) {
+      throw new Error('Invalid or expired OTP. Please try again.');
+    }
+    
+    // STEP 2: Now reset the password with the verified OTP
+    console.log('OTP verified, now resetting password');
+    
+    // Call the API to reset password
+    const resetResponse = await api.post('/api/auth/me/reset-password', {
+      email: data.email,
+      newPassword: data.newPassword,
+      confirmPassword: data.confirmPassword,
+      otpCode: data.otp  // Include the OTP with the password reset request
+    });
+    
+    console.log('Password reset response:', resetResponse.data);
+    
+    if (resetResponse.data?.statusCode === 200 || 
+        resetResponse.data?.statusCodes === 200 ||
+        resetResponse.status === 200 ||
+        resetResponse.data?.message?.includes('success') ||
+        resetResponse.data?.message?.includes('reset')) {
+      // Password reset was successful
+      return;
+    }
+    
+    throw new Error(resetResponse.data?.message || 'Failed to reset password. Please try again.');
+  } catch (err) {
+    // Error handling remains the same
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
   const logout = () => {
     setLoading(true);
     setError(null);
@@ -791,6 +928,8 @@ const updateProfile = async (data: Partial<User>) => {
         changePassword,
         submitTicket,
         updateTicketStatus,
+        resetPassword,
+        verifyOtpAndResetPassword,
         getUserInfo,
         isAuthenticated,
         isAdmin,
