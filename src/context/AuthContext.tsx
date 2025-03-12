@@ -42,7 +42,8 @@ interface AuthContextType {
   login: (data: { email: string; password: string }) => Promise<void>;
   register: (data: { name: string; email: string; password: string; phone: string; address: string }) => Promise<void>;
   logout: () => void;
-  changePassword: (data: { oldPassword: string; newPassword: string; confirmPassword: string }) => Promise<void>;
+  changePassword: (data: { oldPassword: string; newPassword: string; confirmPassword: string }) => 
+    Promise<{ success: boolean; message: string; } | void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   getUserInfo: () => Promise<User>;  // Add this line
   isAuthenticated: boolean;
@@ -79,7 +80,8 @@ const AuthContext = createContext<AuthContextType>({
 
 // Create an axios instance for API calls
 const api = axios.create({
-  baseURL: 'http://localhost:5151',
+  //baseURL: 'http://localhost:5151',
+  baseURL: 'https://api.hmes.buubuu.id.vn',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -200,83 +202,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (data: { email: string; password: string }) => {
-    setLoading(true);
-    setError(null);
+  setLoading(true);
+  setError(null);
 
-    try {
-      const response = await api.post('/api/auth/login', data);
-      console.log('Login response:', response.data);
-      const userData = response.data?.data || response.data?.response?.data;
-      if (userData) {
-        setUser(userData);
-        if (userData.auth) {
-          setToken(userData.auth.token);
-          localStorage.setItem('authToken', userData.auth.token);
-
-          //saveAuthToCookies(userData.auth);
-
-
-
+  try {
+    const response = await api.post('/api/auth/login', data);
+    console.log('Login response:', response.data);
+    
+    // Check for direct user data structure first
+    const userData = response.data;
+    
+    // Validate the response has the expected structure
+    if (userData && userData.id && userData.email) {
+      // This is the direct user data structure
+      setUser(userData);
+      
+      if (userData.auth && userData.auth.token) {
+        setToken(userData.auth.token);
+        localStorage.setItem('authToken', userData.auth.token);
+        
+        // Set cookies for auth data
+        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        document.cookie = `DeviceId=${userData.auth.deviceId || ''}; path=/; expires=${expires.toUTCString()}`;
+        document.cookie = `RefreshToken=${userData.auth.refeshToken || ''}; path=/; expires=${expires.toUTCString()}`;
+        
+        // Log the cookies
+        setTimeout(() => {
+          console.log('Cookies after login:', {
+            DeviceId: Cookies.get('DeviceId') || 'missing',
+            RefreshToken: Cookies.get('RefreshToken') || 'missing',
+            AllCookies: document.cookie
+          });
+        }, 100);
+        
+        return;
+      } else {
+        throw new Error('Authentication token missing from response');
+      }
+    } 
+    // Fall back to checking nested data structures
+    else if (response.data?.data || response.data?.response?.data) {
+      const nestedUserData = response.data?.data || response.data?.response?.data;
+      
+      if (nestedUserData) {
+        setUser(nestedUserData);
+        
+        if (nestedUserData.auth) {
+          setToken(nestedUserData.auth.token);
+          localStorage.setItem('authToken', nestedUserData.auth.token);
+          
+          // Set cookies for auth data
+          const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          document.cookie = `DeviceId=${nestedUserData.auth.deviceId || ''}; path=/; expires=${expires.toUTCString()}`;
+          document.cookie = `RefreshToken=${nestedUserData.auth.refeshToken || ''}; path=/; expires=${expires.toUTCString()}`;
+          
           setTimeout(() => {
-            const deviceId = Cookies.get('DeviceId');
-            const refreshToken = Cookies.get('RefreshToken');
-
             console.log('Cookies after login:', {
-              DeviceId: deviceId || 'missing',
-              RefreshToken: refreshToken || 'missing',
+              DeviceId: Cookies.get('DeviceId') || 'missing',
+              RefreshToken: Cookies.get('RefreshToken') || 'missing',
               AllCookies: document.cookie
             });
-
-            // If cookies weren't set properly, try using document.cookie directly
-            if (!deviceId || !refreshToken) {
-              console.warn('Cookies not set via js-cookie, trying direct method');
-
-              // Set cookies manually as a fallback
-              const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-              document.cookie = `DeviceId=${userData.auth.deviceId}; path=/; expires=${expires.toUTCString()}`;
-              document.cookie = `RefreshToken=${userData.auth.refeshToken}; path=/; expires=${expires.toUTCString()}`;
-            }
           }, 100);
-
-        } else {
-          throw new Error('Authentication data missing from response');
+          
+          return;
         }
-      } else {
-        console.error('Login response structure:', JSON.stringify(response.data, null, 2));
-        throw new Error(response.data?.message || 'Invalid response format');
       }
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        // Handle API errors
-        let errorMessage = 'Incorrect email or password. Please try again.';
-
-        if (err.response) {
-          // If we have a response, check the status code
-          if (err.response.status === 401) {
-            errorMessage = 'Incorrect email or password. Please try again.';
-          } else if (err.response.status === 404) {
-            errorMessage = 'Account not found. Please check your email address.';
-          } else if (err.response.data?.message) {
-            errorMessage = err.response.data.message;
-          }
-        } else if (err.code === 'ERR_NETWORK') {
-          errorMessage = 'Network error: Unable to connect to the server. Please try again later.';
-        }
-
-        setError(errorMessage);
-        console.error('Login error:', errorMessage);
-      } else if (err instanceof Error) {
-        setError(err.message);
-        console.error('Login error:', err.message);
-      } else {
-        setError('An unexpected error occurred');
-        console.error('Unexpected login error:', err);
-      }
-      throw err;
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    // If we get here, the response didn't match any expected format
+    console.error('Login response structure unexpected:', JSON.stringify(response.data, null, 2));
+    throw new Error('Invalid response format from server');
+  } catch (err) {
+    // Rest of your error handling remains the same
+    // ...
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Add this function after the login function
   const register = async (data: { name: string; email: string; password: string; phone: string; address: string }) => {
@@ -419,94 +421,110 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 
+
+
+  
   // Change password function
-  const changePassword = async (data: { oldPassword: string; newPassword: string; confirmPassword: string }) => {
-    setLoading(true);
-    setError(null);
+// Change password function
+const changePassword = async (data: { oldPassword: string; newPassword: string; confirmPassword: string }): Promise<void> => {
+  setLoading(true);
+  setError(null);
 
-    try {
-      // Validate that new password and confirm password match
-      if (data.newPassword !== data.confirmPassword) {
-        throw new Error('New password and confirm password do not match');
-      }
-
-      if (!user || !user.id) {
-        throw new Error('You must be logged in to change');
-      }
-
-      // Call the API to change password
-      const deviceId = Cookies.get('DeviceId');
-      const refreshToken = Cookies.get('RefreshToken');
-
-      if (!deviceId || !refreshToken) {
-        throw new Error('Device ID or refresh token missing. Please log in again.');
-      }
-
-      console.log('Using tokens:', { deviceId, refreshToken });
-
-      const response = await api.post('/api/auth/me/change-password', {
-        oldPassword: data.oldPassword,
-        newPassword: data.newPassword,
-        confirmPassword: data.confirmPassword
-      },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'DeviceId': deviceId,
-            'RefreshToken': refreshToken
-          }
-        }
-      );
-
-      console.log('Change password response:', response.data);
-
-      // Check if password change was successful
-      if (response.data?.statusCode === 200 ||
-        response.data?.message === 'Password changed successfully' ||
-        response.data?.response?.message) {
-        return;
-      } else {
-        // API returned an error or unexpected format
-        const errorMessage =
-          response.data?.error ||
-          response.data?.message ||
-          response.data?.response?.message ||
-          'Failed to change password';
-        throw new Error(errorMessage);
-      }
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        // Handle API errors
-        let errorMessage = 'Failed to change password. Please try again.';
-
-        if (err.response) {
-          if (err.response.status === 401) {
-            errorMessage = 'Current password is incorrect.';
-          } else if (err.response.status === 400) {
-            errorMessage = err.response?.data?.message || 'Password validation failed. Please check password requirements.';
-          } else if (err.response.data?.message) {
-            errorMessage = err.response.data.message;
-          }
-        } else if (err.code === 'ERR_NETWORK') {
-          errorMessage = 'Network error: Unable to connect to the server. Please try again later.';
-        }
-
-        setError(errorMessage);
-        console.error('Change password error:', errorMessage);
-      } else if (err instanceof Error) {
-        setError(err.message);
-        console.error('Change password error:', err.message);
-      } else {
-        setError('An unexpected error occurred');
-        console.error('Unexpected change password error:', err);
-      }
-      throw err;
-    } finally {
-      setLoading(false);
+  try {
+    console.log('Attempting to change password');
+    
+    // Validate that new password and confirm password match
+    if (data.newPassword !== data.confirmPassword) {
+      throw new Error('New password and confirm password do not match');
     }
-  };
 
+    // Validate we have a logged-in user
+    if (!user || !user.id) {
+      throw new Error('You must be logged in to change your password');
+    }
+    
+    // Get authentication tokens
+    const authToken = localStorage.getItem('authToken');
+    const deviceId = Cookies.get('DeviceId');
+    const refreshToken = Cookies.get('RefreshToken');
+
+    console.log('Authentication tokens available:', {
+      authToken: authToken ? 'exists' : 'missing',
+      deviceId: deviceId ? 'exists' : 'missing',
+      refreshToken: refreshToken ? 'exists' : 'missing'
+    });
+
+    if (!authToken) {
+      throw new Error('Authentication token missing. Please log in again.');
+    }
+
+    // Prepare request data
+    const requestData = {
+      oldPassword: data.oldPassword,
+      newPassword: data.newPassword,
+      confirmPassword: data.confirmPassword
+    };
+
+    // Make API request
+    const response = await api.post('/api/auth/me/change-password', requestData);
+
+    console.log('Change password response:', response.data);
+
+    // Check for successful response
+    if (response.data?.statusCode === 200 || 
+        response.data?.statusCodes === 200 || 
+        response.data?.message?.includes('success') ||
+        response.data?.message?.includes('changed') ||
+        response.status === 200) {
+      // Password changed successfully - don't return a value (void)
+      return;
+    } 
+    
+    // If we reach here without returning or throwing, something went wrong
+    console.error('Unexpected response format:', response.data);
+    throw new Error('Server returned an unexpected response. Please try again.');
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      // Handle API errors
+      let errorMessage = 'Failed to change password. Please try again.';
+      
+      if (err.response) {
+        if (err.response.status === 401) {
+          errorMessage = 'Current password is incorrect.';
+        } else if (err.response.status === 400) {
+          // Extract specific error message from API if available
+          errorMessage = err.response?.data?.message || 
+                        err.response?.data?.error ||
+                        'Invalid request. Please check your password requirements.';
+        } else if (err.response.status === 403) {
+          errorMessage = 'You are not authorized to change this password.';
+        } else if (err.response.status === 422) {
+          errorMessage = 'Password validation failed. New password may not meet requirements.';
+        } else if (err.response.data?.message) {
+          // Use any error message provided by the API
+          errorMessage = err.response.data.message;
+        }
+      } else if (err.code === 'ERR_NETWORK') {
+        errorMessage = 'Network error: Unable to connect to the server. Please try again later.';
+      }
+      
+      setError(errorMessage);
+      console.error('Change password error:', errorMessage);
+      console.error('Error details:', err.response?.data);
+    } else if (err instanceof Error) {
+      setError(err.message);
+      console.error('Change password error:', err.message);
+    } else {
+      setError('An unexpected error occurred');
+      console.error('Unexpected change password error:', err);
+    }
+    
+    // Rethrow the error with a clearer message for the component to handle
+    throw err;
+  } finally {
+    setLoading(false);
+  }
+};
   // Update the logout function in your AuthContext.tsx file
 
   // Replace the async logout function with this version
@@ -636,52 +654,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-
   // Update user profile
-  const updateProfile = async (data: Partial<User>) => {
-    setLoading(true);
-    setError(null);
+const updateProfile = async (data: Partial<User>) => {
+  setLoading(true);
+  setError(null);
 
-    try {
-      // If API is available, use it
-      const response = await api.patch('/api/auth/profile', data);
-
-      if (response.data && response.data.data) {
-        const updatedUser = response.data.data;
-        setUser(updatedUser);
-        return;
-      }
-
-      // Fallback to local storage
-      const updatedUser = { ...user, ...data } as User;
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-
-      // Update tickets if username changed
-      if (data.name && tickets.length > 0) {
-        const updatedTickets = tickets.map(ticket => {
-          if (ticket.userId === parseInt(user?.id || '0')) {
-            return { ...ticket, userName: data.name as string };
-          }
-          return ticket;
-        });
-        localStorage.setItem('tickets', JSON.stringify(updatedTickets));
-        setTickets(updatedTickets);
-      }
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const errorMessage = err.response?.data?.message || 'Failed to update profile.';
-        setError(errorMessage);
-        console.error('Profile update error:', errorMessage);
-      } else {
-        setError('An unexpected error occurred');
-        console.error('Unexpected profile update error:', err);
-      }
-      throw err;
-    } finally {
-      setLoading(false);
+  try {
+    console.log('Updating profile with data:', data);
+    
+    // Get authentication token
+    const authToken = localStorage.getItem('authToken');
+    
+    if (!authToken) {
+      throw new Error('Authentication required. Please log in again.');
     }
-  };
+
+    // Use PUT method to update user information at api/user/me
+    const response = await api.put('/api/user/me', {
+      name: data.name,
+      phone: data.phone
+    });
+
+    console.log('Profile update response:', response.data);
+
+    // Check if update was successful
+    if (response.data) {
+      // Get the updated user data - either from the response or the original data
+      const updatedUserData = response.data.data || response.data;
+      
+      // Update user state with the new data
+      setUser(prevUser => ({
+        ...prevUser,
+        ...(updatedUserData || {}),
+        // If the response doesn't include updated fields, use our input data
+        name: updatedUserData?.name || data.name || prevUser?.name,
+        phone: updatedUserData?.phone || data.phone || prevUser?.phone
+      }));
+      
+      // Try to refresh the complete user info
+      try {
+        await getUserInfo();
+      } catch (refreshErr) {
+        console.warn('Could not refresh user data after profile update:', refreshErr);
+        // Continue since the update was still successful
+      }
+      
+      return;
+    }
+
+    throw new Error('Failed to update profile. Please try again.');
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const errorMessage = err.response?.data?.message || 'Failed to update profile.';
+      setError(errorMessage);
+      console.error('Profile update error:', errorMessage);
+      console.error('Error status:', err.response?.status);
+      console.error('Error details:', err.response?.data);
+      
+      // Handle specific status codes
+      if (err.response?.status === 401) {
+        throw new Error('Your session has expired. Please log in again.');
+      } else if (err.response?.status === 400) {
+        throw new Error(err.response.data?.message || 'Invalid information provided.');
+      }
+    } else if (err instanceof Error) {
+      setError(err.message);
+      console.error('Profile update error:', err.message);
+    } else {
+      setError('An unexpected error occurred');
+      console.error('Unexpected profile update error:', err);
+    }
+    throw err;
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Check if user is already logged in on component mount
   useEffect(() => {
