@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Card, 
-  CardContent, 
-  CardMedia, 
-  Typography, 
-  Button, 
+import {
+  Card,
+  CardContent,
+  CardMedia,
+  Typography,
+  Button,
   CardActions,
   Chip,
   Box,
@@ -17,16 +17,16 @@ import {
   DialogActions,
   TextField
 } from '@mui/material';
-import { 
-  WaterDrop, 
-  Timer, 
-  Science, 
-  ShoppingCart, 
-  Info, 
-  Memory, 
-  Power, 
-  Edit, 
-  Star 
+import {
+  WaterDrop,
+  Timer,
+  Science,
+  ShoppingCart,
+  Info,
+  Memory,
+  Power,
+  Edit,
+  Star
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { Product } from '../types/types';
@@ -36,11 +36,11 @@ interface Props {
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
-  favorites: number[]; 
+  favorites: number[];
 }
 
 const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite, favorites }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isFavorite, setIsFavorite] = useState(false);
@@ -53,28 +53,30 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
 
   const handleFavoriteClick = () => {
     if (!isAuthenticated) {
-      navigate('/login', { 
-        state: { 
-          from: location,
-          action: 'favorite',
-          productId: product.id 
-        } 
-      });
-      return;
+      // navigate('/login', {
+      //   state: {
+      //     from: location,
+      //     action: 'favorite',
+      //     productId: product.id
+      //   }
+      // });
+      // return;
+      return logout();
     }
     onFavorite(product);
   };
 
   const handleEditOpen = () => {
     if (!isAuthenticated) {
-      navigate('/login', { 
-        state: { 
-          from: location,
-          action: 'edit',
-          productId: product.id 
-        } 
-      });
-      return;
+      // navigate('/login', {
+      //   state: {
+      //     from: location,
+      //     action: 'edit',
+      //     productId: product.id
+      //   }
+      // });
+      // return;
+      return logout();
     }
     setEditOpen(true);
   };
@@ -99,11 +101,11 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
           <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
             <Chip icon={<Timer />} label={product.growthTime} size="small" color="primary" />
             <Chip icon={<WaterDrop />} label={`pH ${product.phRange}`} size="small" color="secondary" />
-            <Chip 
-              icon={<Science />} 
-              label={product.difficulty} 
-              size="small" 
-              color={product.difficulty === 'Easy' ? 'success' : 'warning'} 
+            <Chip
+              icon={<Science />}
+              label={product.difficulty}
+              size="small"
+              color={product.difficulty === 'Easy' ? 'success' : 'warning'}
             />
           </Box>
         );
@@ -126,17 +128,17 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
 
   return (
     <>
-      <Card 
-        sx={{ 
-          height: '100%', 
-          display: 'flex', 
-          flexDirection: 'column', 
+      <Card
+        sx={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
           transition: 'transform 0.3s, box-shadow 0.3s',
           '&:hover': {
             transform: 'scale(1.05)',
             boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
           }
-        }} 
+        }}
         elevation={6}
       >
         <CardMedia
@@ -165,17 +167,17 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
         </CardContent>
         <CardActions sx={{ flexDirection: 'column', alignItems: 'stretch', padding: 2, gap: 1.5 }}>
           <Box sx={{ display: 'flex', width: '100%', gap: 1 }}>
-            <Button 
-              variant="outlined" 
-              startIcon={<Info />} 
-              component={Link} 
+            <Button
+              variant="outlined"
+              startIcon={<Info />}
+              component={Link}
               to={`/product/${product.id}`}
               size="small"
               sx={{ flex: 1, height: 40 }}
             >
               Details
             </Button>
-            <Button 
+            <Button
               variant="outlined"
               startIcon={<Edit />}
               onClick={handleEditOpen}
@@ -185,7 +187,7 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
               Edit
             </Button>
           </Box>
-          <Button 
+          <Button
             variant="contained"
             onClick={() => onAddToCart(product)}
             startIcon={<ShoppingCart />}
@@ -195,8 +197,8 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
             Add to Cart
           </Button>
           <Tooltip title="Favorite">
-            <IconButton 
-              color={isFavorite ? "secondary" : "default"} 
+            <IconButton
+              color={isFavorite ? "secondary" : "default"}
               onClick={handleFavoriteClick}
               sx={{ alignSelf: 'center' }}
             >
