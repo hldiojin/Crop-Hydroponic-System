@@ -1,6 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { CssBaseline, ThemeProvider, createTheme, Box, GlobalStyles } from '@mui/material';
+import { 
+  CssBaseline, 
+  ThemeProvider, 
+  createTheme, 
+  Box, 
+  GlobalStyles,
+  CircularProgress 
+} from '@mui/material';
 import Navbar from './components/Navbar';
 import HeroSection from './components/HeroSection';
 import Footer from './components/Footer';
@@ -19,9 +26,9 @@ import ProfilePage from './pages/ProfilePage';
 import FavoritePage from './pages/FavoritePage';
 import AdminDashboard from './pages/AdminDashboard';
 import { AdminRoute } from './components/AdminRoute';
-import { products as initialProducts } from './data/products';
-import CheckoutPage from './pages/CheckoutPage'; // Import CheckoutPage
-
+import CheckoutPage from './pages/CheckoutPage';
+import { productService } from './services/productService';
+import { config } from './config';
 const theme = createTheme({
   palette: {
     primary: {
@@ -46,8 +53,31 @@ const theme = createTheme({
 
 const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<number[]>([]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await productService.getAll();
+        setProducts(response.data || []);
+      } catch (err) {
+        console.error('Failed to fetch products:', err);
+        setError('Failed to load products.');
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchProducts();
+  }, []);
+
+    
+
 
   const handleAddToCart = (product: Product) => {
     setCart((prevCart) => {
@@ -81,12 +111,23 @@ const App: React.FC = () => {
     setCart((prevCart) => prevCart.filter((item) => item.product.id !== id));
   };
 
-  const handleEditProduct = (updatedProduct: Product) => {
-    setProducts((prevProducts: Product[]) =>
-      prevProducts.map((product: Product) =>
-        product.id === updatedProduct.id ? updatedProduct : product
-      )
-    );
+  const handleEditProduct = async (updatedProduct: Product) => {
+    try {
+      // Only call API if not using local data
+      if (!config.useLocalData) {
+        await productService.update(updatedProduct.id, updatedProduct);
+      }
+      
+      // Update local state
+      setProducts((prevProducts: Product[]) =>
+        prevProducts.map((product: Product) =>
+          product.id === updatedProduct.id ? updatedProduct : product
+        )
+      );
+    } catch (error) {
+      console.error('Failed to update product:', error);
+      // Handle error (show notification, etc.)
+    }
   };
 
   const handleFavoriteProduct = (product: Product) => {
@@ -124,6 +165,7 @@ const App: React.FC = () => {
                 cart={cart}
                 products={products}
                 favorites={favorites}
+                loading={loading}
               />
             </Box>
             <Footer />
@@ -143,6 +185,7 @@ const MainContent: React.FC<{
   cart: CartItem[];
   products: Product[];
   favorites: number[];
+  loading: boolean;
 }> = ({
   handleAddToCart,
   handleUpdateQuantity,
@@ -152,6 +195,7 @@ const MainContent: React.FC<{
   cart,
   products,
   favorites,
+  loading,
 }) => {
   const location = useLocation();
 
@@ -162,15 +206,22 @@ const MainContent: React.FC<{
         <Route
           path="/"
           element={
-            <ProductList
-              products={products}
-              onAddToCart={handleAddToCart}
-              onEdit={handleEditProduct}
-              onFavorite={handleFavoriteProduct}
-              favorites={favorites}
-            />
+            loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <ProductList
+                products={products}
+                onAddToCart={handleAddToCart}
+                onEdit={handleEditProduct}
+                onFavorite={handleFavoriteProduct}
+                favorites={favorites}
+              />
+            )
           }
         />
+        {/* Rest of your routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route
@@ -197,41 +248,42 @@ const MainContent: React.FC<{
           }
         />
         <Route
-          path="/plants"
-          element={
-            <PlantsPage
-              products={products.filter((p) => p.type === 'plant')}
-              onAddToCart={handleAddToCart}
-              onEdit={handleEditProduct}
-              onFavorite={handleFavoriteProduct}
-              favorites={favorites}
-            />
-          }
-        />
+  path="/plants"
+  element={
+    <PlantsPage
+      onAddToCart={handleAddToCart}
+      onEdit={handleEditProduct}
+      onFavorite={handleFavoriteProduct}
+      favorites={favorites}
+    />
+  }
+/>
+          
+        
+<Route
+  path="/systems"
+  element={
+    <SystemsPage
+      onAddToCart={handleAddToCart}
+      onEdit={handleEditProduct}
+      onFavorite={handleFavoriteProduct}
+      favorites={favorites}
+    />
+  }
+/>
         <Route
-          path="/systems"
-          element={
-            <SystemsPage
-              products={products.filter((p) => p.type === 'system')}
-              onAddToCart={handleAddToCart}
-              onEdit={handleEditProduct}
-              onFavorite={handleFavoriteProduct}
-              favorites={favorites}
-            />
-          }
-        />
-        <Route
-          path="/nutrients"
-          element={
-            <NutrientsPage
-              products={products.filter((p) => p.type === 'nutrient')}
-              onAddToCart={handleAddToCart}
-              onEdit={handleEditProduct}
-              onFavorite={handleFavoriteProduct}
-              favorites={favorites}
-            />
-          }
-        />
+  path="/nutrients"
+  element={
+    <NutrientsPage
+      onAddToCart={handleAddToCart}
+      onEdit={handleEditProduct}
+      onFavorite={handleFavoriteProduct}
+      favorites={favorites}
+    />
+  }
+/>
+          
+        
         <Route
           path="/profile"
           element={
@@ -261,7 +313,6 @@ const MainContent: React.FC<{
             </AdminRoute>
           }
         />
-        {/* Add CheckoutPage route */}
         <Route
           path="/checkout"
           element={
