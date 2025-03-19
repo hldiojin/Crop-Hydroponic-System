@@ -1,15 +1,27 @@
 // src/pages/ProductList.tsx
-import React from 'react';
-import { Grid, Container, Typography } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { 
+  Container, 
+  Grid, 
+  Typography, 
+  Box, 
+  Select, 
+  MenuItem, 
+  FormControl, 
+  InputLabel,
+  SelectChangeEvent,
+  Pagination
+} from '@mui/material';
 import ProductCard from '../components/ProductCard';
 import { Product } from '../types/types';
 import NoProductsFound from './NoProductsFound';
+
 interface Props {
   products: Product[];
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
-  favorites: number[]; // Add favorites prop
+  favorites: string[]; // Thay đổi từ number[] sang string[]
 }
 
 const ProductList: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite, favorites }) => {

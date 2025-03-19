@@ -11,7 +11,7 @@ interface Props {
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
-  favorites: number[];
+  favorites: string[]; // Thay đổi từ number[] sang string[]
 }
 
 const NutrientsPage: React.FC<Props> = ({ onAddToCart, onEdit, onFavorite, favorites }) => {
@@ -23,8 +23,8 @@ const NutrientsPage: React.FC<Props> = ({ onAddToCart, onEdit, onFavorite, favor
     const fetchNutrients = async () => {
       try {
         setLoading(true);
-        const nutrientsData = await productService.getNutrients();
-        setNutrients(nutrientsData);
+        const nutrientProducts = await productService.getNutrients();
+        setNutrients(nutrientProducts);
       } catch (err) {
         console.error('Error fetching nutrients:', err);
         setError('Failed to load nutrient products.');
@@ -60,12 +60,12 @@ const NutrientsPage: React.FC<Props> = ({ onAddToCart, onEdit, onFavorite, favor
           Hydroponic Nutrients
         </Typography>
         <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
-          Premium nutrients and supplements for optimal plant growth
+          Premium nutrients for optimal plant growth
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-          <Chip label="Balanced Formula" icon={<Science />} color="primary" />
-          <Chip label="Plant Growth" icon={<Spa />} color="success" />
-          <Chip label="pH Balanced" icon={<WaterDrop />} color="secondary" />
+          <Chip label="Organic" color="success" />
+          <Chip label="High Performance" color="primary" />
+          <Chip label="pH Balanced" color="secondary" />
         </Box>
       </Box>
       

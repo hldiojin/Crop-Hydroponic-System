@@ -14,10 +14,11 @@ import {
 import { Add, Remove, Delete } from '@mui/icons-material';
 import { CartItem } from '../types/types';
 
+// Cập nhật kiểu của id từ number sang string
 interface CartPageProps {
   cart: CartItem[];
-  updateQuantity: (id: number, change: number) => void;
-  removeFromCart: (id: number) => void;
+  updateQuantity: (id: string, change: number) => void;
+  removeFromCart: (id: string) => void;
 }
 
 const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCart }) => {
@@ -50,7 +51,7 @@ const CartPage: React.FC<CartPageProps> = ({ cart, updateQuantity, removeFromCar
                     <CardMedia
                       component="img"
                       height="100"
-                      image={item.product.image}
+                      image={item.product.mainImage || '/placeholder-image.jpg'} // Thay đổi image thành mainImage
                       alt={item.product.name}
                     />
                   </Grid>

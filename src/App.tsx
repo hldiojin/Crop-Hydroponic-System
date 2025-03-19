@@ -29,6 +29,7 @@ import { AdminRoute } from './components/AdminRoute';
 import CheckoutPage from './pages/CheckoutPage';
 import { productService } from './services/productService';
 import { config } from './config';
+
 const theme = createTheme({
   palette: {
     primary: {
@@ -56,14 +57,14 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const response = await productService.getAll();
-        setProducts(response.data || []);
+        const productsData = await productService.getAll();
+        setProducts(productsData || []);
       } catch (err) {
         console.error('Failed to fetch products:', err);
         setError('Failed to load products.');
@@ -75,9 +76,6 @@ const App: React.FC = () => {
   
     fetchProducts();
   }, []);
-
-    
-
 
   const handleAddToCart = (product: Product) => {
     setCart((prevCart) => {
@@ -93,7 +91,7 @@ const App: React.FC = () => {
     });
   };
 
-  const handleUpdateQuantity = (id: number, change: number) => {
+  const handleUpdateQuantity = (id: string, change: number) => {
     setCart((prevCart) =>
       prevCart
         .map((item) => {
@@ -107,18 +105,16 @@ const App: React.FC = () => {
     );
   };
 
-  const handleRemoveFromCart = (id: number) => {
+  const handleRemoveFromCart = (id: string) => {
     setCart((prevCart) => prevCart.filter((item) => item.product.id !== id));
   };
 
   const handleEditProduct = async (updatedProduct: Product) => {
     try {
-      // Only call API if not using local data
       if (!config.useLocalData) {
         await productService.update(updatedProduct.id, updatedProduct);
       }
       
-      // Update local state
       setProducts((prevProducts: Product[]) =>
         prevProducts.map((product: Product) =>
           product.id === updatedProduct.id ? updatedProduct : product
@@ -126,7 +122,6 @@ const App: React.FC = () => {
       );
     } catch (error) {
       console.error('Failed to update product:', error);
-      // Handle error (show notification, etc.)
     }
   };
 
@@ -178,13 +173,13 @@ const App: React.FC = () => {
 
 const MainContent: React.FC<{
   handleAddToCart: (product: Product) => void;
-  handleUpdateQuantity: (id: number, change: number) => void;
-  handleRemoveFromCart: (id: number) => void;
+  handleUpdateQuantity: (id: string, change: number) => void;
+  handleRemoveFromCart: (id: string) => void;
   handleEditProduct: (product: Product) => void;
   handleFavoriteProduct: (product: Product) => void;
   cart: CartItem[];
   products: Product[];
-  favorites: number[];
+  favorites: string[];
   loading: boolean;
 }> = ({
   handleAddToCart,
@@ -221,7 +216,6 @@ const MainContent: React.FC<{
             )
           }
         />
-        {/* Rest of your routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route
@@ -248,42 +242,38 @@ const MainContent: React.FC<{
           }
         />
         <Route
-  path="/plants"
-  element={
-    <PlantsPage
-      onAddToCart={handleAddToCart}
-      onEdit={handleEditProduct}
-      onFavorite={handleFavoriteProduct}
-      favorites={favorites}
-    />
-  }
-/>
-          
-        
-<Route
-  path="/systems"
-  element={
-    <SystemsPage
-      onAddToCart={handleAddToCart}
-      onEdit={handleEditProduct}
-      onFavorite={handleFavoriteProduct}
-      favorites={favorites}
-    />
-  }
-/>
+          path="/plants"
+          element={
+            <PlantsPage
+              onAddToCart={handleAddToCart}
+              onEdit={handleEditProduct}
+              onFavorite={handleFavoriteProduct}
+              favorites={favorites}
+            />
+          }
+        />
         <Route
-  path="/nutrients"
-  element={
-    <NutrientsPage
-      onAddToCart={handleAddToCart}
-      onEdit={handleEditProduct}
-      onFavorite={handleFavoriteProduct}
-      favorites={favorites}
-    />
-  }
-/>
-          
-        
+          path="/systems"
+          element={
+            <SystemsPage
+              onAddToCart={handleAddToCart}
+              onEdit={handleEditProduct}
+              onFavorite={handleFavoriteProduct}
+              favorites={favorites}
+            />
+          }
+        />
+        <Route
+          path="/nutrients"
+          element={
+            <NutrientsPage
+              onAddToCart={handleAddToCart}
+              onEdit={handleEditProduct}
+              onFavorite={handleFavoriteProduct}
+              favorites={favorites}
+            />
+          }
+        />
         <Route
           path="/profile"
           element={

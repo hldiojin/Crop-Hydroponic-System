@@ -19,19 +19,15 @@ import {
 import {
   Close as CloseIcon,
   Delete as DeleteIcon,
-  Timer,
   Science,
-  WaterDrop,
-  LocalFlorist,
-  Memory,
-  Power,
   ShoppingCart,
 } from '@mui/icons-material';
 import { Product } from '../types/types';
 
+// Thay đổi kiểu dữ liệu của favorites từ number[] sang string[]
 interface Props {
   products: Product[];
-  favorites: number[];
+  favorites: string[];
   onRemoveFavorite: (product: Product) => void;
   onAddToCart: (product: Product) => void;
 }
@@ -39,6 +35,7 @@ interface Props {
 const FavoritePage: React.FC<Props> = ({ products, favorites, onRemoveFavorite, onAddToCart }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+  // Không cần chuyển đổi id vì giờ favorites đã là string[]
   const favoriteProducts = products.filter(product => favorites.includes(product.id));
 
   const handleProductClick = (product: Product) => {
@@ -68,7 +65,7 @@ const FavoritePage: React.FC<Props> = ({ products, favorites, onRemoveFavorite, 
               <CardMedia
                 component="img"
                 height="200"
-                image={product.image}
+                image={product.mainImage || '/placeholder-image.jpg'} // Thay đổi image thành mainImage
                 alt={product.name}
                 onClick={() => handleProductClick(product)}
               />
@@ -77,7 +74,7 @@ const FavoritePage: React.FC<Props> = ({ products, favorites, onRemoveFavorite, 
                   {product.name}
                 </Typography>
                 <Typography variant="h6" color="primary">
-                  ${product.price}
+                  ${product.price.toLocaleString()}
                 </Typography>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
                   <Button
@@ -125,37 +122,24 @@ const FavoritePage: React.FC<Props> = ({ products, favorites, onRemoveFavorite, 
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <img
-                    src={selectedProduct.image}
+                    src={selectedProduct.mainImage || '/placeholder-image.jpg'} // Thay đổi image thành mainImage
                     alt={selectedProduct.name}
                     style={{ width: '100%', borderRadius: '8px' }}
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <Typography variant="h6" color="primary" gutterBottom>
-                    ${selectedProduct.price}
+                    ${selectedProduct.price.toLocaleString()}
                   </Typography>
                   <Typography variant="body1" paragraph>
-                    {selectedProduct.description}
+                    {selectedProduct.description || `Product in ${selectedProduct.categoryName} category`}
                   </Typography>
-                  {selectedProduct.type === 'plant' && (
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                      <Chip icon={<Timer />} label={selectedProduct.growthTime} />
-                      <Chip icon={<WaterDrop />} label={`pH ${selectedProduct.phRange}`} />
-                      <Chip icon={<Science />} label={selectedProduct.difficulty} />
-                    </Box>
-                  )}
-                  {selectedProduct.type === 'system' && (
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                      <Chip icon={<Memory />} label={selectedProduct.capacity} />
-                      <Chip icon={<Power />} label={selectedProduct.powerConsumption} />
-                    </Box>
-                  )}
-                  {selectedProduct.type === 'nutrient' && (
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                      <Chip icon={<Science />} label={selectedProduct.usage} />
-                      <Chip icon={<Science />} label={selectedProduct.concentration} />
-                    </Box>
-                  )}
+                  
+                  {/* Hiển thị thông tin tiêu chuẩn từ API thay vì các trường cụ thể của từng loại */}
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                    <Chip icon={<Science />} label={selectedProduct.categoryName} />
+                    <Chip icon={<Science />} label={selectedProduct.status} />
+                  </Box>
                 </Grid>
               </Grid>
             </DialogContent>

@@ -16,48 +16,52 @@ import {
   IconButton,
 } from '@mui/material';
 import {
-  Timer,
   Science,
-  WaterDrop,
-  LocalFlorist,
   ShoppingCart,
-  Memory,
-  Power,
   Star,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import { Product, PlantProduct, SystemProduct, NutrientProduct } from '../types/types';
+import { Product } from '../types/types';
+import productService from '../services/productService';
 
 interface ProductDetailProps {
   products: Product[];
   onAddToCart: (product: Product) => void;
   onFavorite: (product: Product) => void;
-  favorites: number[]; 
+  favorites: string[];
 }
 
-// Type guards
-const isPlantProduct = (product: Product): product is PlantProduct => {
-  return product.type === 'plant';
-};
-
-const isSystemProduct = (product: Product): product is SystemProduct => {
-  return product.type === 'system';
-};
-
-const isNutrientProduct = (product: Product): product is NutrientProduct => {
-  return product.type === 'nutrient';
-};
-
 const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart, onFavorite, favorites }) => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
-  const product = products.find(p => p.id === Number(id));
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (product) {
+    const fetchProduct = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const fetchedProduct = await productService.getById(id);
+        setProduct(fetchedProduct);
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError('Failed to load product details.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  useEffect(() => {
+    if (product && favorites) {
       setIsFavorite(favorites.includes(product.id));
     }
   }, [product, favorites]);
@@ -79,141 +83,23 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart, on
     }
   };
 
-  if (!product) {
+  if (loading) {
     return (
-      <Container sx={{ marginTop: '100px' }}>
-        <Typography variant="h5" sx={{ mt: 4 }}>Product not found</Typography>
+      <Container sx={{ marginTop: '100px', textAlign: 'center' }}>
+        <Typography>Loading product details...</Typography>
       </Container>
     );
   }
 
-  const renderSpecifications = () => {
-    if (isPlantProduct(product)) {
-      return (
-        <>
-          <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-            {product.scientificName}
-          </Typography>
-          <Box sx={{ my: 3 }}>
-            <Grid container spacing={1}>
-              <Grid item>
-                <Chip
-                  icon={<Timer />}
-                  label={`Growth Time: ${product.growthTime}`}
-                  color="primary"
-                />
-              </Grid>
-              <Grid item>
-                <Chip
-                  icon={<Science />}
-                  label={`Difficulty: ${product.difficulty}`}
-                  color={product.difficulty === 'Easy' ? 'success' : 'warning'}
-                />
-              </Grid>
-              <Grid item>
-                <Chip
-                  icon={<WaterDrop />}
-                  label={`pH Range: ${product.phRange}`}
-                  color="secondary"
-                />
-              </Grid>
-            </Grid>
-            <Paper elevation={2} sx={{ p: 2, my: 3, bgcolor: 'background.default' }}>
-              <Typography variant="h6" gutterBottom>
-                <LocalFlorist sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Nutrient Requirements
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {product.nutrientNeeds.map((nutrient: string, index: number) => (
-                  <Chip
-                    key={index}
-                    label={nutrient}
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                  />
-                ))}
-              </Box>
-            </Paper>
-          </Box>
-        </>
-      );
-    }
-
-    if (isSystemProduct(product)) {
-      return (
-        <Box sx={{ my: 3 }}>
-          <Grid container spacing={1}>
-            <Grid item>
-              <Chip
-                icon={<Memory />}
-                label={`Capacity: ${product.capacity}`}
-                color="primary"
-              />
-            </Grid>
-            <Grid item>
-              <Chip
-                icon={<Power />}
-                label={`Power: ${product.powerConsumption}`}
-                color="secondary"
-              />
-            </Grid>
-          </Grid>
-          <Paper elevation={2} sx={{ p: 2, my: 3, bgcolor: 'background.default' }}>
-            <Typography variant="h6" gutterBottom>Features</Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {product.features.map((feature: string, index: number) => (
-                <Chip
-                  key={index}
-                  label={feature}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                />
-              ))}
-            </Box>
-          </Paper>
-        </Box>
-      );
-    }
-
-    if (isNutrientProduct(product)) {
-      return (
-        <Box sx={{ my: 3 }}>
-          <Grid container spacing={1}>
-            <Grid item>
-              <Chip
-                icon={<Science />}
-                label={`Usage: ${product.usage}`}
-                color="primary"
-              />
-            </Grid>
-            <Grid item>
-              <Chip
-                icon={<Science />}
-                label={`Concentration: ${product.concentration}`}
-                color="secondary"
-              />
-            </Grid>
-          </Grid>
-          <Paper elevation={2} sx={{ p: 2, my: 3, bgcolor: 'background.default' }}>
-            <Typography variant="h6" gutterBottom>Benefits</Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {product.benefits.map((benefit: string, index: number) => (
-                <Chip
-                  key={index}
-                  label={benefit}
-                  size="small"
-                  color="success"
-                  variant="outlined"
-                />
-              ))}
-            </Box>
-          </Paper>
-        </Box>
-      );
-    }
-  };
+  if (error || !product) {
+    return (
+      <Container sx={{ marginTop: '100px' }}>
+        <Typography variant="h5" sx={{ mt: 4 }}>
+          {error || 'Product not found'}
+        </Typography>
+      </Container>
+    );
+  }
 
   return (
     <Container sx={{ py: 4, marginTop: '100px' }}>
@@ -223,7 +109,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart, on
             <CardMedia
               component="img"
               height="400"
-              image={product.image}
+              image={product.mainImage || '/placeholder-image.jpg'}
               alt={product.name}
               sx={{ objectFit: 'cover' }}
             />
@@ -252,10 +138,26 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart, on
             </Tooltip>
           </Box>
           
-          {renderSpecifications()}
+          <Box sx={{ my: 3 }}>
+            <Grid container spacing={1}>
+              <Grid item>
+                <Chip
+                  icon={<Science />}
+                  label={`Category: ${product.categoryName}`}
+                  color="primary"
+                />
+              </Grid>
+              <Grid item>
+                <Chip
+                  label={`Status: ${product.status}`}
+                  color={product.status === 'Active' ? 'success' : 'default'}
+                />
+              </Grid>
+            </Grid>
+          </Box>
           
           <Typography variant="h5" color="primary" sx={{ my: 2 }}>
-            ${product.price}
+            ${product.price.toLocaleString()}
           </Typography>
 
           <Divider sx={{ my: 3 }} />
@@ -264,7 +166,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart, on
             Description
           </Typography>
           <Typography variant="body1" paragraph>
-            {product.description}
+            {product.description || `${product.name} - ${product.categoryName}`}
           </Typography>
 
           <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>

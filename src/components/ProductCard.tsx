@@ -18,15 +18,11 @@ import {
   TextField
 } from '@mui/material';
 import { 
-  WaterDrop, 
-  Timer, 
-  Science, 
   ShoppingCart, 
   Info, 
-  Memory, 
-  Power, 
   Edit, 
-  Star 
+  Star,
+  Science
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { Product } from '../types/types';
@@ -36,7 +32,7 @@ interface Props {
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
-  favorites: number[]; 
+  favorites: string[]; // Thay đổi từ number[] sang string[]
 }
 
 const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite, favorites }) => {
@@ -48,6 +44,7 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
   const [editProduct, setEditProduct] = useState(product);
 
   useEffect(() => {
+    // Không cần convert vì id và favorites đều là string
     setIsFavorite(favorites.includes(product.id));
   }, [favorites, product.id]);
 
@@ -84,7 +81,13 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
   };
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditProduct({ ...editProduct, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    // Handle price as a number
+    if (name === 'price') {
+      setEditProduct({ ...editProduct, [name]: Number(value) });
+    } else {
+      setEditProduct({ ...editProduct, [name]: value });
+    }
   };
 
   const handleEditSave = () => {
@@ -92,36 +95,23 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
     setEditOpen(false);
   };
 
+  // Đơn giản hóa renderProductSpecifics để chỉ hiển thị thông tin có sẵn từ API
   const renderProductSpecifics = () => {
-    switch (product.type) {
-      case 'plant':
-        return (
-          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-            <Chip icon={<Timer />} label={product.growthTime} size="small" color="primary" />
-            <Chip icon={<WaterDrop />} label={`pH ${product.phRange}`} size="small" color="secondary" />
-            <Chip 
-              icon={<Science />} 
-              label={product.difficulty} 
-              size="small" 
-              color={product.difficulty === 'Easy' ? 'success' : 'warning'} 
-            />
-          </Box>
-        );
-      case 'system':
-        return (
-          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-            <Chip icon={<Memory />} label={product.capacity} size="small" color="primary" />
-            <Chip icon={<Power />} label={product.powerConsumption} size="small" color="secondary" />
-          </Box>
-        );
-      case 'nutrient':
-        return (
-          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-            <Chip icon={<Science />} label={product.usage} size="small" color="primary" />
-            <Chip icon={<Science />} label={product.concentration} size="small" color="secondary" />
-          </Box>
-        );
-    }
+    return (
+      <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+        <Chip 
+          label={product.categoryName || 'Uncategorized'} 
+          size="small" 
+          color="primary" 
+        />
+        <Chip 
+          icon={<Science />}
+          label={product.status} 
+          size="small" 
+          color={product.status === 'Active' ? 'success' : 'default'} 
+        />
+      </Box>
+    );
   };
 
   return (
@@ -142,7 +132,7 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
         <CardMedia
           component="img"
           height="200"
-          image={product.image}
+          image={product.mainImage || '/placeholder-image.jpg'}
           alt={product.name}
           sx={{ objectFit: 'cover' }}
         />
@@ -150,17 +140,12 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
           <Typography gutterBottom variant="h6" component="div" sx={{ height: '3em', overflow: 'hidden' }}>
             {product.name}
           </Typography>
-          {'scientificName' in product && (
-            <Typography variant="body2" color="text.secondary" sx={{ height: '1.5em', overflow: 'hidden' }}>
-              {product.scientificName}
-            </Typography>
-          )}
           <Typography variant="h6" color="primary">
-            ${product.price}
+            ${product.price.toLocaleString()}
           </Typography>
           {renderProductSpecifics()}
           <Typography variant="body2" color="text.secondary" sx={{ height: '4.5em', overflow: 'hidden' }}>
-            {product.description}
+            {product.description || product.categoryName}
           </Typography>
         </CardContent>
         <CardActions sx={{ flexDirection: 'column', alignItems: 'stretch', padding: 2, gap: 1.5 }}>
@@ -221,6 +206,7 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
             margin="dense"
             label="Price"
             name="price"
+            type="number"
             value={editProduct.price}
             onChange={handleEditChange}
             fullWidth
@@ -229,7 +215,7 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite
             margin="dense"
             label="Description"
             name="description"
-            value={editProduct.description}
+            value={(editProduct as any).description || ''}
             onChange={handleEditChange}
             fullWidth
           />

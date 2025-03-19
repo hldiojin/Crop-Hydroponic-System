@@ -11,7 +11,7 @@ interface Props {
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
-  favorites: number[];
+  favorites: string[]; // Thay đổi từ number[] sang string[]
 }
 
 const PlantsPage: React.FC<Props> = ({ onAddToCart, onEdit, onFavorite, favorites }) => {
@@ -23,8 +23,8 @@ const PlantsPage: React.FC<Props> = ({ onAddToCart, onEdit, onFavorite, favorite
     const fetchPlants = async () => {
       try {
         setLoading(true);
-        const plantsData = await productService.getPlants();
-        setPlants(plantsData);
+        const plantProducts = await productService.getPlants();
+        setPlants(plantProducts);
       } catch (err) {
         console.error('Error fetching plants:', err);
         setError('Failed to load plant products.');
