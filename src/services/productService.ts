@@ -21,6 +21,46 @@ export const productService = {
       return [];
     }
   },
+
+  // Get products by category ID
+  getByCategory: async (categoryId: string): Promise<Product[]> => {
+    try {
+      // Dựa vào API của bạn, có thể cần điều chỉnh endpoint hoặc tham số
+      const response = await axios.get<ApiResponse<BaseProduct>>(
+        `${API_BASE_URL}/product?categoryId=${categoryId}`
+      );
+      return response.data.response.data.map(mapToDomainModel);
+    } catch (error) {
+      console.error(`Error fetching products for category ${categoryId}:`, error);
+      return [];
+    }
+  },
+  
+  // Search products by name or ID
+  searchProducts: async (searchText: string): Promise<Product[]> => {
+    try {
+      // Đây là endpoint giả định, bạn cần điều chỉnh theo API thực tế
+      const response = await axios.get<ApiResponse<BaseProduct>>(
+        `${API_BASE_URL}/product?search=${encodeURIComponent(searchText)}`
+      );
+      return response.data.response.data.map(mapToDomainModel);
+    } catch (error) {
+      console.error(`Error searching products with term "${searchText}":`, error);
+      return [];
+    }
+  },
+  
+  // Search products locally (không gọi API)
+  searchProductsLocally: (products: Product[], searchText: string): Product[] => {
+    if (!searchText.trim()) return products;
+    
+    const lowerCaseSearch = searchText.toLowerCase().trim();
+    
+    return products.filter(product => 
+      product.id.toLowerCase().includes(lowerCaseSearch) || 
+      product.name.toLowerCase().includes(lowerCaseSearch)
+    );
+  },
   
   getById: async (id: string): Promise<Product | null> => {
     try {

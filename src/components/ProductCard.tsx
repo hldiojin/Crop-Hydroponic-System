@@ -32,7 +32,7 @@ interface Props {
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
-  favorites: string[]; // Thay đổi từ number[] sang string[]
+  favorites: string[]; 
 }
 
 const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit, onFavorite, favorites }) => {
