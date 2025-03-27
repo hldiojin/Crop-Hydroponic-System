@@ -197,24 +197,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = async (data: { email: string; password: string }) => {
     setLoading(true);
     setError(null);
-
+  
     try {
       const response = await api.post("/auth/login", data);
       console.log("Login response:", response.data);
-
-      // Check for direct user data structure first
+  
       const userData = response.data;
-
-      // Validate the response has the expected structure
+  
       if (userData && userData.id && userData.email) {
-        // This is the direct user data structure
         setUser(userData);
-
+  
         if (userData.auth && userData.auth.token) {
           setToken(userData.auth.token);
           localStorage.setItem("authToken", userData.auth.token);
-
-          // Set cookies for auth data
+  
           const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
           document.cookie = `DeviceId=${
             userData.auth.deviceId || ""
@@ -222,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           document.cookie = `RefreshToken=${
             userData.auth.refeshToken || ""
           }; path=/; expires=${expires.toUTCString()}`;
-
+  
           // Log the cookies
           setTimeout(() => {
             console.log("Cookies after login:", {
@@ -231,25 +227,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               AllCookies: document.cookie,
             });
           }, 100);
-
+  
           return;
         } else {
           throw new Error("Authentication token missing from response");
         }
       }
-      // Fall back to checking nested data structures
       else if (response.data?.data || response.data?.response?.data) {
         const nestedUserData =
           response.data?.data || response.data?.response?.data;
-
+  
         if (nestedUserData) {
           setUser(nestedUserData);
-
+  
           if (nestedUserData.auth) {
             setToken(nestedUserData.auth.token);
             localStorage.setItem("authToken", nestedUserData.auth.token);
-
-            // Set cookies for auth data
+  
             const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
             document.cookie = `DeviceId=${
               nestedUserData.auth.deviceId || ""
@@ -257,7 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             document.cookie = `RefreshToken=${
               nestedUserData.auth.refeshToken || ""
             }; path=/; expires=${expires.toUTCString()}`;
-
+  
             setTimeout(() => {
               console.log("Cookies after login:", {
                 DeviceId: Cookies.get("DeviceId") || "missing",
@@ -265,21 +259,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 AllCookies: document.cookie,
               });
             }, 100);
-
+  
             return;
           }
         }
       }
-
-      // If we get here, the response didn't match any expected format
+  
       console.error(
         "Login response structure unexpected:",
         JSON.stringify(response.data, null, 2)
       );
       throw new Error("Invalid response format from server");
-    } catch (err) {
-      // Rest of your error handling remains the same
-      // ...
+    } catch (err: any) {
+      console.error("Login error:", err);
+      
+      let errorMessage = "Failed to login. Please try again.";
+      
+      if (axios.isAxiosError(err)) {
+        if (err.response?.data) {
+          const data = err.response.data;
+          
+          if (typeof data === 'object') {
+            if (data.statusCodes && data.message) {
+              errorMessage = data.message;
+            } 
+            else if (data.message) {
+              errorMessage = data.message;
+            }
+            else if (data.response?.message) {
+              errorMessage = data.response.message;
+            }
+            else if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+              errorMessage = data.errors[0].message || data.errors[0];
+            }
+          } 
+          else if (typeof data === 'string') {
+            try {
+              const parsedData = JSON.parse(data);
+              errorMessage = parsedData.message || data;
+            } catch {
+              errorMessage = data;
+            }
+          }
+        }
+        else if (err.code === 'ERR_NETWORK') {
+          errorMessage = 'Network error: Cannot connect to server';
+        }
+      } 
+      else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      else if (err?.statusCodes && err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -814,7 +850,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Clear user data from state first for immediate UI feedback
     setUser(null);
     setToken(null);
-
+    setError(null);
     // Clear cookies
     clearAuthCookies();
 

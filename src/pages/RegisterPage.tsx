@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
-  Paper,
-  TextField,
-  Button,
-  Typography,
   Box,
+  Typography,
   InputAdornment,
   IconButton,
   Divider,
-  Container,
   Alert,
   CircularProgress,
+  Snackbar,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Person,
@@ -24,7 +23,18 @@ import {
   Home,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import AuthLayout from '../components/AuthLayout'; 
+import { motion } from 'framer-motion';
+import {
+  MotionBox,
+  MotionAvatar,
+  MotionTypography,
+  MotionTextField,
+  MotionButton,
+  containerVariants,
+  itemVariants,
+  logoVariants,
+  buttonVariants
+} from "../utils/motion";
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -44,6 +54,29 @@ const RegisterPage: React.FC = () => {
     phone: '',
     address: '',
   });
+  
+  // Add toast state similar to LoginPage
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+    severity: "error" as "error" | "success" | "info" | "warning",
+  });
+  
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Show toast when error changes
+  useEffect(() => {
+    if (error) {
+      setToast({
+        open: true,
+        message: error,
+        severity: "error"
+      });
+      // Clear the error after showing it in toast
+      clearError();
+    }
+  }, [error, clearError]);
 
   // Clear errors when component unmounts
   useEffect(() => {
@@ -121,61 +154,194 @@ const RegisterPage: React.FC = () => {
     
     try {
       await register(formData);
-      // Redirect to home page on success
-      navigate('/', { replace: true });
-    } catch (err) {
-      // Error handling is done in the AuthContext
-      console.error('Registration submission error:', err);
+      // Show success toast
+      setToast({
+        open: true,
+        message: "Account created successfully! You can now log in.",
+        severity: "success"
+      });
+      
+      // Redirect to login page after a short delay
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      
+      // Extract error message
+      let errorMessage = "Registration failed. Please try again.";
+      if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setToast({
+        open: true,
+        message: errorMessage,
+        severity: "error"
+      });
     }
+  };
+  
+  // Enhanced toast close handler
+  const handleCloseToast = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setToast({...toast, open: false});
   };
 
   return (
-    <AuthLayout>
-      <Container
-        maxWidth="sm"
-        sx={{
-          minHeight: '120vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          mt: 8,
-        }}
-      >
-        <Paper
-          elevation={24}
+    <Box
+      sx={{
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        overflow: 'hidden',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        bgcolor: '#f5f5f5',
+      }}
+    >
+      {/* Left Side - Illustration (hidden on mobile) */}
+      {!isMobile && (
+        <MotionBox
+          initial={{ x: -100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
           sx={{
+            flex: '1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
+            color: 'white',
             p: 4,
-            backdropFilter: 'blur(10px)',
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-            borderRadius: 2,
           }}
         >
-          <Box sx={{ mb: 3, textAlign: 'center' }}>
-            <Typography variant="h4" fontWeight="bold" color="primary">
-              Create Account
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Join HydroPonic today
-            </Typography>
-          </Box>
-          
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }} onClose={clearError}>
-              {error}
-            </Alert>
-          )}
+          <MotionBox 
+            sx={{ textAlign: 'center', maxWidth: '500px' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.7 }}
+          >
+            <MotionTypography 
+              variant="h3" 
+              component="h1" 
+              gutterBottom 
+              fontWeight="bold"
+              initial={{ y: -30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+            >
+              Hydroponic System
+            </MotionTypography>
+            <MotionTypography 
+              variant="h6" 
+              sx={{ mb: 6, opacity: 0.9 }}
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.5 }}
+            >
+              Join our community of hydroponic enthusiasts
+            </MotionTypography>
+            
+            {/* Use motion.img directly instead of MotionBox with component prop */}
+            <motion.img 
+              src="/assets/illustrations/hydroponic-illustration.svg" 
+              alt="Hydroponic System"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.7, duration: 0.6, type: "spring" }}
+              style={{ 
+                width: '80%', 
+                maxWidth: '400px',
+                display: 'block',
+                margin: '0 auto'
+              }}
+            />
+          </MotionBox>
+        </MotionBox>
+      )}
 
-          <form onSubmit={handleSubmit} noValidate>
-            <TextField
-              fullWidth
+      {/* Right Side - Register Form */}
+      <MotionBox
+        initial={{ x: isMobile ? 0 : 100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.7, ease: "easeOut" }}
+        sx={{
+          flex: '1',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 3,
+          overflow: 'auto',
+          backgroundColor: 'white',
+        }}
+      >
+        <MotionBox 
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          sx={{ 
+            width: '100%', 
+            maxWidth: '450px',
+            px: { xs: 2, sm: 4 },
+            py: { xs: 3, sm: 5 },
+          }}
+        >
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <MotionAvatar 
+              variants={logoVariants}
+              sx={{ 
+                m: '0 auto', 
+                bgcolor: 'primary.main',
+                width: 64,
+                height: 64
+              }}
+            >
+              <HowToReg fontSize="large" />
+            </MotionAvatar>
+            <MotionTypography 
+              component="h1" 
+              variant="h4" 
+              sx={{ mt: 2, fontWeight: 'bold' }}
+              variants={itemVariants}
+            >
+              Create Account
+            </MotionTypography>
+            <MotionTypography 
+              variant="body1" 
+              color="text.secondary" 
+              sx={{ mt: 1 }}
+              variants={itemVariants}
+            >
+              Join HydroPonic today
+            </MotionTypography>
+          </Box>
+
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            noValidate
+            sx={{ width: '100%' }}
+          >
+            <MotionTextField
+              variants={itemVariants}
               margin="normal"
+              required
+              fullWidth
+              id="name"
               label="Full Name"
               name="name"
-              required
+              autoComplete="name"
+              autoFocus
               value={formData.name}
               onChange={handleChange}
               error={!!formErrors.name}
               helperText={formErrors.name}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -183,19 +349,23 @@ const RegisterPage: React.FC = () => {
                   </InputAdornment>
                 ),
               }}
-              disabled={loading}
+              sx={{ mb: 2 }}
             />
-            <TextField
-              fullWidth
+
+            <MotionTextField
+              variants={itemVariants}
               margin="normal"
-              label="Email"
-              name="email"
-              type="email"
               required
+              fullWidth
+              id="email"
+              label="Email Address"
+              name="email"
+              autoComplete="email"
               value={formData.email}
               onChange={handleChange}
               error={!!formErrors.email}
               helperText={formErrors.email}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -203,19 +373,24 @@ const RegisterPage: React.FC = () => {
                   </InputAdornment>
                 ),
               }}
-              disabled={loading}
+              sx={{ mb: 2 }}
             />
-            <TextField
-              fullWidth
+
+            <MotionTextField
+              variants={itemVariants}
               margin="normal"
-              label="Password"
-              name="password"
-              type={showPassword ? 'text' : 'password'}
               required
+              fullWidth
+              name="password"
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              id="password"
+              autoComplete="new-password"
               value={formData.password}
               onChange={handleChange}
               error={!!formErrors.password}
               helperText={formErrors.password}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -234,18 +409,23 @@ const RegisterPage: React.FC = () => {
                   </InputAdornment>
                 ),
               }}
-              disabled={loading}
+              sx={{ mb: 2 }}
             />
-            <TextField
-              fullWidth
+            
+            <MotionTextField
+              variants={itemVariants}
               margin="normal"
-              label="Phone"
-              name="phone"
               required
+              fullWidth
+              name="phone"
+              label="Phone Number"
+              id="phone"
+              autoComplete="tel"
               value={formData.phone}
               onChange={handleChange}
               error={!!formErrors.phone}
               helperText={formErrors.phone}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -253,18 +433,23 @@ const RegisterPage: React.FC = () => {
                   </InputAdornment>
                 ),
               }}
-              disabled={loading}
+              sx={{ mb: 2 }}
             />
-            <TextField
-              fullWidth
+
+            <MotionTextField
+              variants={itemVariants}
               margin="normal"
-              label="Address"
-              name="address"
               required
+              fullWidth
+              name="address"
+              label="Address"
+              id="address"
+              autoComplete="street-address"
               value={formData.address}
               onChange={handleChange}
               error={!!formErrors.address}
               helperText={formErrors.address}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -272,45 +457,93 @@ const RegisterPage: React.FC = () => {
                   </InputAdornment>
                 ),
               }}
-              disabled={loading}
+              sx={{ mb: 2 }}
             />
-            <Button
+
+            <MotionButton
+              component={motion.button}
+              variants={buttonVariants}
+              whileHover="hover"
+              whileTap="tap"
               type="submit"
               fullWidth
               variant="contained"
-              size="large"
-              sx={{ mt: 3, mb: 2 }}
-              endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <HowToReg />}
+              sx={{ 
+                mt: 3, 
+                mb: 3, 
+                py: 1.5,
+                borderRadius: 2,
+                fontWeight: 'bold',
+                fontSize: '1rem'
+              }}
               disabled={loading}
             >
-              {loading ? 'Creating Account...' : 'Sign Up'}
-            </Button>
+              {loading ? <CircularProgress size={24} /> : "Sign Up"}
+            </MotionButton>
 
-            <Divider sx={{ my: 3 }}>
-              <Typography variant="body2" color="text.secondary">
-                OR
-              </Typography>
-            </Divider>
+            {/* Use motion.div for divider */}
+            <motion.div
+              variants={itemVariants}
+              style={{ 
+                margin: '16px 0',
+                position: 'relative',
+                textAlign: 'center'
+              }}
+            >
+              <Divider>
+                <Typography variant="body2" color="text.secondary">
+                  OR
+                </Typography>
+              </Divider>
+            </motion.div>
 
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
+            <MotionBox 
+              variants={itemVariants}
+              sx={{ textAlign: 'center', mt: 2 }}
+            >
+              <Typography variant="body1" color="text.secondary" display="inline">
                 Already have an account?{' '}
-                <Link
-                  to="/login"
-                  style={{
-                    color: '#2e7d32',
-                    textDecoration: 'none',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  Sign In
-                </Link>
               </Typography>
-            </Box>
-          </form>
-        </Paper>
-      </Container>
-    </AuthLayout>
+              {/* Use motion.button directly for better type compatibility */}
+              <motion.button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: theme.palette.primary.main,
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  padding: 0,
+                  marginLeft: '8px',
+                  fontFamily: 'inherit'
+                }}
+                onClick={() => navigate("/login")}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                Sign In
+              </motion.button>
+            </MotionBox>
+          </Box>
+        </MotionBox>
+      </MotionBox>
+
+      {/* Enhanced Toast Notification */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={6000}
+        onClose={handleCloseToast}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseToast} 
+          severity={toast.severity}
+          sx={{ width: '100%' }}
+        >
+          {toast.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

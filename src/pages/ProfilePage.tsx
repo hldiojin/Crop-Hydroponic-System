@@ -1,8 +1,5 @@
-// src/pages/ProfilePage.tsx
 import React, { useState, useRef, useEffect } from "react";
 import {
-  Container,
-  Paper,
   Typography,
   Box,
   Avatar,
@@ -12,9 +9,6 @@ import {
   Snackbar,
   Alert,
   Card,
-  CardContent,
-  Fade,
-  Grid,
   Divider,
   Modal,
   FormControl,
@@ -37,6 +31,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  useTheme,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -51,14 +46,30 @@ import {
   VisibilityOff,
   VpnKey as PasswordIcon,
   Help as HelpIcon,
+  ArrowBack as ArrowBackIcon,
+  Dashboard as DashboardIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import ticketService from "../services/ticketService";
 import { Ticket, TicketRequest } from "../types/types";
-import toast from "react-hot-toast";
+import { motion } from "framer-motion";
+import {
+  MotionBox,
+  MotionAvatar,
+  MotionTypography,
+  MotionTextField,
+  MotionButton,
+  containerVariants,
+  itemVariants,
+  logoVariants,
+  buttonVariants
+} from "../utils/motion";
 
 const ProfilePage: React.FC = () => {
+  const theme = useTheme();
+  const navigate = useNavigate();
   const {
     user,
     updateProfile,
@@ -119,6 +130,9 @@ const ProfilePage: React.FC = () => {
 
   const checkedCookiesRef = useRef(false);
 
+  // Section visibility state for animation
+  const [activeSection, setActiveSection] = useState("profile");
+
   // Fetch user info when component mounts
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -131,11 +145,6 @@ const ProfilePage: React.FC = () => {
         // Check if cookies exist
         const deviceId = Cookies.get("DeviceId");
         const refreshToken = Cookies.get("RefreshToken");
-
-        console.log("ProfilePage - Cookies before loading:", {
-          DeviceId: deviceId || "missing",
-          RefreshToken: refreshToken || "missing",
-        });
 
         if (!deviceId || !refreshToken) {
           console.warn("Cookies missing, might need to log in again");
@@ -232,18 +241,7 @@ const ProfilePage: React.FC = () => {
   const handleRefreshProfile = async () => {
     try {
       setLoadingProfile(true);
-
-      // Verify cookies before refresh
-      const deviceId = Cookies.get("DeviceId");
-      const refreshToken = Cookies.get("RefreshToken");
-
-      console.log("Cookies before refresh:", {
-        DeviceId: deviceId || "missing",
-        RefreshToken: refreshToken || "missing",
-      });
-
       await getUserInfo();
-
       setSnackbar({
         open: true,
         message: "Profile refreshed successfully",
@@ -357,7 +355,6 @@ const ProfilePage: React.FC = () => {
       });
     } catch (err) {
       console.error("Error changing password:", err);
-      // Error is already set in the context, but we can also show it in the snackbar
       if (err instanceof Error) {
         setSnackbar({
           open: true,
@@ -468,7 +465,11 @@ const ProfilePage: React.FC = () => {
         setTotalTicketPages(response.response.totalPages);
       } catch (error) {
         console.error("Error fetching more tickets:", error);
-        toast.error("Failed to load more tickets");
+        setSnackbar({
+          open: true,
+          message: "Failed to load more tickets",
+          severity: "error",
+        });
       } finally {
         setIsLoadingTickets(false);
       }
@@ -479,204 +480,376 @@ const ProfilePage: React.FC = () => {
     setTicketsDialogOpen(false);
   };
 
+  // Animation variants for page transitions
+  const pageVariants = {
+    initial: { opacity: 0, y: 20 },
+    in: { opacity: 1, y: 0 },
+    out: { opacity: 0, y: -20 }
+  };
+
+  const pageTransition = {
+    type: "tween",
+    ease: "anticipate",
+    duration: 0.5
+  };
+
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <motion.div
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+      style={{ 
+        width: '100vw', 
+        minHeight: '100vh',
+        background: 'linear-gradient(to bottom, #f9f9f9, #e8f5e9)',
+        overflow: 'auto',
+        paddingTop: '24px' // Add padding to top to clear navbar space
+      }}
+    >
       {loadingProfile ? (
         <Box
           display="flex"
           justifyContent="center"
           alignItems="center"
-          height="50vh"
+          height="100vh"
         >
-          <CircularProgress />
+          <CircularProgress size={60} thickness={4} />
         </Box>
       ) : (
-        <Paper
-          elevation={3}
+        <MotionBox
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
           sx={{
-            p: 0,
-            borderRadius: 2,
-            overflow: "hidden",
+            width: '100%',
+            minHeight: 'calc(100vh - 24px)', // Adjust height to account for top padding
+            p: { xs: 2, sm: 4 },
+            display: 'flex',
+            flexDirection: 'column',
+            mt: { xs: 5, sm: 2 } // Added top margin to move content down, away from navbar
           }}
         >
-          {/* Header Section with Background */}
-          <Box
+          {/* Header with back button and title */}
+          <MotionBox
+            variants={itemVariants}
             sx={{
-              height: 150,
-              background: "linear-gradient(120deg, #2196F3, #21CBF3)",
-              position: "relative",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              p: 3,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 4,
+              pt: { xs: 2, sm: 0 } // Add padding top on mobile for better spacing
             }}
           >
-            <Box>
-              {!isEditing ? (
-                <Button
-                  startIcon={<EditIcon />}
-                  variant="contained"
-                  color="primary"
-                  onClick={handleEdit}
-                  sx={{
-                    bgcolor: "rgba(255, 255, 255, 0.2)",
-                    "&:hover": { bgcolor: "rgba(255, 255, 255, 0.3)" },
-                  }}
-                >
-                  Edit Profile
-                </Button>
-              ) : (
-                <Stack direction="row" spacing={1}>
-                  <Button
-                    startIcon={<CancelIcon />}
-                    variant="contained"
-                    color="error"
-                    onClick={handleCancel}
-                    disabled={loading}
-                    sx={{
-                      bgcolor: "rgba(255, 255, 255, 0.2)",
-                      "&:hover": { bgcolor: "rgba(255, 255, 255, 0.3)" },
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    startIcon={loading ? undefined : <SaveIcon />}
-                    variant="contained"
-                    color="success"
-                    onClick={handleSave}
-                    disabled={loading}
-                    sx={{
-                      bgcolor: "rgba(255, 255, 255, 0.2)",
-                      "&:hover": { bgcolor: "rgba(255, 255, 255, 0.3)" },
-                    }}
-                  >
-                    {loading ? (
-                      <CircularProgress size={24} color="inherit" />
-                    ) : (
-                      "Save"
-                    )}
-                  </Button>
-                </Stack>
-              )}
-            </Box>
-          </Box>
+            <IconButton 
+              color="primary" 
+              onClick={() => navigate('/')}
+              sx={{ 
+                bgcolor: 'rgba(46, 125, 50, 0.1)',
+                '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.2)' },
+                boxShadow: '0 4px 8px rgba(0,0,0,0.05)'
+              }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
+            
+            <MotionTypography 
+              variant="h4" 
+              component="h1" 
+              fontWeight="bold"
+              color="primary"
+              sx={{ 
+                textAlign: 'center', 
+                flex: 1,
+                fontSize: { xs: '1.75rem', sm: '2.125rem' } // Responsive font size
+              }}
+            >
+              My Profile
+            </MotionTypography>
+            
+            {/* Just a dummy element to center the title */}
+            <Box sx={{ width: 40 }} />
+          </MotionBox>
 
-          {/* Avatar positioned to overlap the header and content */}
-          <Box
+          {/* Main content area */}
+          <MotionBox
+            variants={containerVariants}
             sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              position: "relative",
-              mt: -6, // Adjusted for better positioning
-              mb: 3,
-              px: 3,
-              textAlign: "center",
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              gap: 4,
+              flex: 1
             }}
           >
-            <Box position="relative" display="inline-block">
-              <Avatar
-                src={avatarPreview || user?.attachment || undefined}
-                alt={user?.name}
+            {/* Left sidebar with avatar and quick actions */}
+            <MotionBox
+              variants={itemVariants}
+              sx={{
+                width: { xs: '100%', md: '280px' },
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2
+              }}
+            >
+              <Card
+                elevation={4}
                 sx={{
-                  width: 120,
-                  height: 120,
-                  border: "5px solid white",
-                  boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-                }}
-              />
-              {isEditing && (
-                <label htmlFor="avatar-upload">
-                  <input
-                    type="file"
-                    id="avatar-upload"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setAvatarFile(file);
-                        setAvatarPreview(URL.createObjectURL(file));
-                      }
-                    }}
-                  />
-                  <IconButton
-                    component="span"
-                    sx={{
-                      position: "absolute",
-                      right: 5,
-                      bottom: 5,
-                      backgroundColor: "white",
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                      "&:hover": { backgroundColor: "#f5f5f5" },
-                    }}
-                  >
-                    <AddPhotoIcon />
-                  </IconButton>
-                </label>
-              )}
-            </Box>
-
-            <Box sx={{ textAlign: "center", mt: 2, width: "100%" }}>
-              <Typography variant="h5" fontWeight="bold">
-                {user?.name}
-              </Typography>
-
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  mt: 1,
-                  gap: 1,
+                  borderRadius: 4,
+                  p: 3,
+                  width: '100%',
+                  textAlign: 'center',
+                  background: 'linear-gradient(to bottom, #ffffff, #f5f5f5)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
                 }}
               >
-                <Chip
-                  icon={<BadgeIcon fontSize="small" />}
-                  label={user?.role || "User"}
-                  color="primary"
-                  variant="outlined"
-                  size="small"
-                />
-
-                {user?.status && (
-                  <Chip
-                    label={user.status}
-                    color={user.status === "Active" ? "success" : "warning"}
-                    size="small"
-                    variant="outlined"
+                <Box position="relative" display="inline-block" mb={2}>
+                  <MotionAvatar
+                    variants={logoVariants}
+                    src={avatarPreview || user?.attachment || undefined}
+                    alt={user?.name}
+                    sx={{
+                      width: 120,
+                      height: 120,
+                      border: '4px solid white',
+                      boxShadow: '0 4px 12px rgba(46, 125, 50, 0.15)',
+                      margin: '0 auto'
+                    }}
                   />
-                )}
-              </Box>
-            </Box>
-          </Box>
+                  {isEditing && (
+                    <label htmlFor="avatar-upload">
+                      <input
+                        type="file"
+                        id="avatar-upload"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setAvatarFile(file);
+                            setAvatarPreview(URL.createObjectURL(file));
+                          }
+                        }}
+                      />
+                      <IconButton
+                        component="span"
+                        sx={{
+                          position: "absolute",
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: "white",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                          "&:hover": { backgroundColor: "#f5f5f5" },
+                        }}
+                      >
+                        <AddPhotoIcon />
+                      </IconButton>
+                    </label>
+                  )}
+                </Box>
 
-          {error && (
-            <Box sx={{ px: 3, mb: 2 }}>
-              <Alert severity="error" onClose={clearError}>
-                {error}
-              </Alert>
-            </Box>
-          )}
-
-          <Divider />
-
-          {/* User Information Form */}
-          <Box sx={{ px: 4, py: 3 }}>
-            <Stack spacing={3}>
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="medium"
-                  color="text.secondary"
+                <MotionTypography 
+                  variant="h5" 
+                  component="h2" 
+                  fontWeight="bold"
+                  color="primary.dark"
                   gutterBottom
+                  variants={itemVariants}
                 >
-                  Personal Information
-                </Typography>
-                <Card variant="outlined" sx={{ p: 2 }}>
+                  {user?.name}
+                </MotionTypography>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    flexWrap: "wrap",
+                    gap: 1,
+                    mb: 2
+                  }}
+                >
+                  <Chip
+                    icon={<BadgeIcon fontSize="small" />}
+                    label={user?.role || "User"}
+                    color="primary"
+                    size="small"
+                  />
+
+                  {user?.status && (
+                    <Chip
+                      label={user.status}
+                      color={user.status === "Active" ? "success" : "warning"}
+                      size="small"
+                    />
+                  )}
+                </Box>
+
+                {/* Action buttons */}
+                <Stack spacing={2} mt={2}>
+                  {!isEditing ? (
+                    <MotionButton
+                      variants={buttonVariants}
+                      whileHover="hover"
+                      whileTap="tap"
+                      startIcon={<EditIcon />}
+                      variant="contained"
+                      color="primary"
+                      onClick={handleEdit}
+                      fullWidth
+                    >
+                      Edit Profile
+                    </MotionButton>
+                  ) : (
+                    <>
+                      <MotionButton
+                        variants={buttonVariants}
+                        whileHover="hover"
+                        whileTap="tap"
+                        startIcon={loading ? undefined : <SaveIcon />}
+                        variant="contained"
+                        color="success"
+                        onClick={handleSave}
+                        disabled={loading}
+                        fullWidth
+                      >
+                        {loading ? (
+                          <CircularProgress size={24} color="inherit" />
+                        ) : (
+                          "Save Changes"
+                        )}
+                      </MotionButton>
+                      <MotionButton
+                        variants={buttonVariants}
+                        whileHover="hover"
+                        whileTap="tap"
+                        startIcon={<CancelIcon />}
+                        variant="outlined"
+                        color="error"
+                        onClick={handleCancel}
+                        disabled={loading}
+                        fullWidth
+                      >
+                        Cancel
+                      </MotionButton>
+                    </>
+                  )}
+                  
+                  <MotionButton
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
+                    startIcon={<DashboardIcon />}
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => navigate('/')}
+                    fullWidth
+                  >
+                    Go to Dashboard
+                  </MotionButton>
+                </Stack>
+              </Card>
+
+              {/* Quick actions card */}
+              <Card
+                elevation={3}
+                sx={{
+                  borderRadius: 4,
+                  p: 3,
+                  width: '100%',
+                  background: 'linear-gradient(to bottom, #ffffff, #f8f8f8)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.05)'
+                }}
+              >
+                <MotionTypography 
+                  variant="h6" 
+                  component="h3" 
+                  fontWeight="bold"
+                  color="primary.dark"
+                  gutterBottom
+                  variants={itemVariants}
+                >
+                  Quick Actions
+                </MotionTypography>
+
+                <Stack spacing={2} mt={2}>
+                  <MotionButton
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
+                    startIcon={<PasswordIcon />}
+                    variant="outlined"
+                    onClick={handlePasswordModalOpen}
+                    fullWidth
+                  >
+                    Change Password
+                  </MotionButton>
+
+                  <MotionButton
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
+                    startIcon={<RefreshIcon />}
+                    variant="outlined"
+                    onClick={handleRefreshProfile}
+                    disabled={loadingProfile}
+                    fullWidth
+                  >
+                    {loadingProfile ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      "Refresh Profile"
+                    )}
+                  </MotionButton>
+                </Stack>
+              </Card>
+            </MotionBox>
+
+            {/* Right side with personal info and ticket sections */}
+            <MotionBox
+              variants={itemVariants}
+              sx={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3
+              }}
+            >
+              {/* Personal Information Card */}
+              <Card
+                elevation={3}
+                sx={{
+                  borderRadius: 4,
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
+                }}
+              >
+                <Box
+                  sx={{
+                    p: 3,
+                    background: 'linear-gradient(120deg, #2e7d32, #60ad5e)',
+                    color: 'white'
+                  }}
+                >
+                  <MotionTypography 
+                    variant="h6" 
+                    fontWeight="bold"
+                    variants={itemVariants}
+                  >
+                    Personal Information
+                  </MotionTypography>
+                </Box>
+                
+                <Box sx={{ p: 3 }}>
+                  {error && (
+                    <Alert severity="error" onClose={clearError} sx={{ mb: 3 }}>
+                      {error}
+                    </Alert>
+                  )}
+                
                   <Stack spacing={3}>
-                    <TextField
+                    <MotionTextField
+                      variants={itemVariants}
                       fullWidth
                       label="Full Name"
                       name="name"
@@ -693,7 +866,8 @@ const ProfilePage: React.FC = () => {
                       }}
                     />
 
-                    <TextField
+                    <MotionTextField
+                      variants={itemVariants}
                       fullWidth
                       label="Email"
                       name="email"
@@ -711,7 +885,8 @@ const ProfilePage: React.FC = () => {
                       }}
                     />
 
-                    <TextField
+                    <MotionTextField
+                      variants={itemVariants}
                       fullWidth
                       label="Phone Number"
                       name="phone"
@@ -728,79 +903,75 @@ const ProfilePage: React.FC = () => {
                       }}
                     />
                   </Stack>
-                </Card>
-              </Box>
+                </Box>
+              </Card>
 
-              {/* Account Actions Section */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="medium"
-                  color="text.secondary"
-                  gutterBottom
+              {/* Support Section */}
+              <Card
+                elevation={3}
+                sx={{
+                  borderRadius: 4,
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
+                }}
+              >
+                <Box
+                  sx={{
+                    p: 3,
+                    background: 'linear-gradient(120deg, #1976d2, #42a5f5)',
+                    color: 'white'
+                  }}
                 >
-                  Account Actions
-                </Typography>
-                <Card variant="outlined" sx={{ p: 2 }}>
-                  <Stack
-                    direction={{ xs: "column", sm: "row" }}
-                    spacing={2}
-                    sx={{
-                      display: "flex",
-                      justifyContent: "center",
-                      flexWrap: "wrap",
-                    }}
+                  <MotionTypography 
+                    variant="h6" 
+                    fontWeight="bold"
+                    variants={itemVariants}
                   >
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<RefreshIcon />}
-                      onClick={handleRefreshProfile}
-                      disabled={loadingProfile}
-                      sx={{ flex: { xs: "1 1 100%", sm: "1 1 0%" } }}
-                    >
-                      {loadingProfile ? (
-                        <CircularProgress size={24} />
-                      ) : (
-                        "Refresh Profile"
-                      )}
-                    </Button>
-
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      startIcon={<PasswordIcon />}
-                      onClick={handlePasswordModalOpen}
-                      sx={{ flex: { xs: "1 1 100%", sm: "1 1 0%" } }}
-                    >
-                      Change Password
-                    </Button>
-
-                    <Button
+                    Support & Help
+                  </MotionTypography>
+                </Box>
+                
+                <Box sx={{ p: 3 }}>
+                  <Typography variant="body1" color="text.secondary" paragraph>
+                    Need help with your account or have a question about our services?
+                  </Typography>
+                  
+                  <Stack 
+                    direction={{ xs: 'column', sm: 'row' }} 
+                    spacing={2} 
+                    sx={{ mt: 2 }}
+                  >
+                    <MotionButton
+                      variants={buttonVariants}
+                      whileHover="hover"
+                      whileTap="tap"
+                      startIcon={<HelpIcon />}
                       variant="contained"
                       color="info"
-                      startIcon={<HelpIcon />}
                       onClick={handleTicketModalOpen}
-                      sx={{ flex: { xs: "1 1 100%", sm: "1 1 0%" } }}
+                      sx={{ flex: 1 }}
                     >
                       Submit Ticket
-                    </Button>
+                    </MotionButton>
 
-                    <Button
-                      variant="contained"
-                      color="warning"
+                    <MotionButton
+                      variants={buttonVariants}
+                      whileHover="hover"
+                      whileTap="tap"
                       startIcon={<HelpIcon />}
+                      variant="outlined"
+                      color="info"
                       onClick={handleViewAllTickets}
-                      sx={{ flex: { xs: "1 1 100%", sm: "1 1 0%" } }}
+                      sx={{ flex: 1 }}
                     >
                       View All Tickets
-                    </Button>
+                    </MotionButton>
                   </Stack>
-                </Card>
-              </Box>
-            </Stack>
-          </Box>
-        </Paper>
+                </Box>
+              </Card>
+            </MotionBox>
+          </MotionBox>
+        </MotionBox>
       )}
 
       {/* Tickets Dialog */}
@@ -809,30 +980,57 @@ const ProfilePage: React.FC = () => {
         onClose={handleCloseTicketsDialog}
         maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: 'hidden'
+          }
+        }}
       >
-        <DialogTitle>
-          <Typography variant="h6">Your Tickets</Typography>
+        <DialogTitle
+          sx={{
+            background: 'linear-gradient(120deg, #1976d2, #42a5f5)',
+            color: 'white',
+            p: 3
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold">Your Support Tickets</Typography>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ p: 0 }}>
           {isLoadingTickets ? (
-            <Box display="flex" justifyContent="center" p={3}>
+            <Box display="flex" justifyContent="center" p={4}>
               <CircularProgress />
+            </Box>
+          ) : tickets.length === 0 ? (
+            <Box p={4} textAlign="center">
+              <Typography variant="body1" color="text.secondary">
+                You haven't submitted any tickets yet.
+              </Typography>
             </Box>
           ) : (
             <TableContainer>
               <Table>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Description</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Created At</TableCell>
+                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Created At</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {tickets.map((ticket) => (
-                    <TableRow key={ticket.id}>
-                      <TableCell>{ticket.briefDescription}</TableCell>
+                    <TableRow 
+                      key={ticket.id}
+                      sx={{ 
+                        '&:hover': { 
+                          backgroundColor: 'rgba(0, 0, 0, 0.02)' 
+                        }
+                      }}
+                    >
+                      <TableCell sx={{ maxWidth: 300, whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                        {ticket.briefDescription}
+                      </TableCell>
                       <TableCell>{ticket.type}</TableCell>
                       <TableCell>
                         <Chip
@@ -845,6 +1043,7 @@ const ProfilePage: React.FC = () => {
                               : "success"
                           }
                           size="small"
+                          sx={{ fontWeight: 'medium' }}
                         />
                       </TableCell>
                       <TableCell>
@@ -857,17 +1056,23 @@ const ProfilePage: React.FC = () => {
             </TableContainer>
           )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0, 0, 0, 0.08)' }}>
           {ticketPage < totalTicketPages && (
             <Button
               onClick={handleLoadMoreTickets}
               disabled={isLoadingTickets}
+              variant="outlined"
               color="primary"
+              startIcon={isLoadingTickets ? <CircularProgress size={16} /> : null}
             >
               {isLoadingTickets ? "Loading..." : "Load More"}
             </Button>
           )}
-          <Button onClick={handleCloseTicketsDialog} color="primary">
+          <Button 
+            onClick={handleCloseTicketsDialog} 
+            variant="contained"
+            color="primary"
+          >
             Close
           </Button>
         </DialogActions>
@@ -891,11 +1096,17 @@ const ProfilePage: React.FC = () => {
             p: 4,
             borderRadius: 2,
           }}
+          component={motion.div}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
         >
           <Typography
             id="change-password-modal"
             variant="h5"
             component="h2"
+            color="primary.dark"
+            fontWeight="bold"
             gutterBottom
           >
             Change Password
@@ -1031,14 +1242,19 @@ const ProfilePage: React.FC = () => {
               <Button variant="outlined" onClick={handlePasswordModalClose}>
                 Cancel
               </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleSubmitPasswordChange}
-                disabled={loading}
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
               >
-                {loading ? <CircularProgress size={24} /> : "Change Password"}
-              </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSubmitPasswordChange}
+                  disabled={loading}
+                >
+                  {loading ? <CircularProgress size={24} /> : "Change Password"}
+                </Button>
+              </motion.div>
             </Box>
           </Box>
         </Box>
@@ -1062,14 +1278,20 @@ const ProfilePage: React.FC = () => {
             p: 4,
             borderRadius: 2,
           }}
+          component={motion.div}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
         >
           <Typography
             id="submit-ticket-modal"
             variant="h5"
             component="h2"
+            color="primary.dark"
+            fontWeight="bold"
             gutterBottom
           >
-            Submit Ticket
+            Submit Support Ticket
           </Typography>
 
           {ticketError && (
@@ -1105,7 +1327,12 @@ const ProfilePage: React.FC = () => {
               value={ticketData.Description}
               onChange={handleTicketDescriptionChange}
               error={!!ticketError}
-              helperText={ticketError}
+              helperText={ticketError ? ticketError : "Please describe your issue in detail"}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1
+                }
+              }}
             />
 
             {/* Ticket attachment display */}
@@ -1119,16 +1346,21 @@ const ProfilePage: React.FC = () => {
                 onChange={handleTicketAttachmentsChange}
               />
               <label htmlFor="ticket-attachments">
-                <Button
-                  variant="outlined"
-                  component="span"
-                  startIcon={<AddPhotoIcon />}
+                <motion.div
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                 >
-                  Add Attachments
-                </Button>
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    startIcon={<AddPhotoIcon />}
+                  >
+                    Add Attachments
+                  </Button>
+                </motion.div>
               </label>
               {ticketAttachments.length > 0 && (
-                <Typography variant="body2" sx={{ mt: 1 }}>
+                <Typography variant="body2" sx={{ mt: 1, color: 'success.main' }}>
                   {ticketAttachments.length} file(s) selected
                 </Typography>
               )}
@@ -1145,18 +1377,23 @@ const ProfilePage: React.FC = () => {
               <Button variant="outlined" onClick={handleTicketModalClose}>
                 Cancel
               </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleSubmitTicket}
-                disabled={ticketLoading}
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
               >
-                {ticketLoading ? (
-                  <CircularProgress size={24} />
-                ) : (
-                  "Submit Ticket"
-                )}
-              </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSubmitTicket}
+                  disabled={ticketLoading}
+                >
+                  {ticketLoading ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    "Submit Ticket"
+                  )}
+                </Button>
+              </motion.div>
             </Box>
           </Box>
         </Box>
@@ -1166,13 +1403,19 @@ const ProfilePage: React.FC = () => {
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
       >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          variant="filled"
+          elevation={6}
+          sx={{ width: '100%' }}
+        >
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Container>
+    </motion.div>
   );
 };
 

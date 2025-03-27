@@ -14,7 +14,7 @@ import Footer from "./components/Footer";
 import ProductList from "./pages/ProductList";
 import CartPage from "./pages/CartPage";
 import { CartItem, Product } from "./types/types";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -52,6 +52,41 @@ const theme = createTheme({
     },
   },
 });
+
+// Helper component to determine if layout elements should be shown
+const AppLayout = ({ children, cartItemsCount, onLogout }: { 
+  children: React.ReactNode,
+  cartItemsCount: number,
+  onLogout: () => void 
+}) => {
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+  
+  // Define paths where Navbar and Footer should be hidden
+  const noLayoutPaths = ['/login', '/register', '/cart', '/checkout', '/profile', '/admin', '/favorites'];
+  
+  // Check if current path is in the noLayoutPaths list or user is not authenticated
+  const hideLayout = 
+    noLayoutPaths.some(path => 
+      location.pathname === path || location.pathname.startsWith(path + '/')
+    ) || !isAuthenticated && (location.pathname === '/login' || location.pathname === '/register');
+
+  // Only show Navbar and Footer for main pages when user is authenticated
+  return hideLayout ? (
+    <>{children}</>
+  ) : (
+    <>
+      <Navbar 
+        cartItemsCount={cartItemsCount}
+        onLogout={onLogout}
+      />
+      <Box sx={{ flex: "1 0 auto" }}>
+        {children}
+      </Box>
+      <Footer />
+    </>
+  );
+};
 
 const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -210,14 +245,10 @@ const App: React.FC = () => {
               minHeight: "100vh",
             }}
           >
-            <Navbar
-              cartItemsCount={cart.reduce(
-                (sum, item) => sum + item.quantity,
-                0
-              )}
+            <AppLayout 
+              cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)} 
               onLogout={handleLogout}
-            />
-            <Box sx={{ flex: "1 0 auto" }}>
+            >
               <MainContent
                 handleAddToCart={handleAddToCart}
                 handleUpdateQuantity={handleUpdateQuantity}
@@ -228,9 +259,10 @@ const App: React.FC = () => {
                 products={products}
                 favorites={favorites}
                 loading={loading}
+                onLogout={handleLogout}
+                cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
               />
-            </Box>
-            <Footer />
+            </AppLayout>
           </Box>
         </ThemeProvider>
       </BrowserRouter>
@@ -248,6 +280,8 @@ const MainContent: React.FC<{
   products: Product[];
   favorites: string[];
   loading: boolean;
+  onLogout: () => void;
+  cartItemsCount: number;
 }> = ({
   handleAddToCart,
   handleUpdateQuantity,
@@ -258,12 +292,25 @@ const MainContent: React.FC<{
   products,
   favorites,
   loading,
+  onLogout,
+  cartItemsCount
 }) => {
   const location = useLocation();
+  
+  // Define paths where Navbar and Footer should be hidden
+  const noLayoutPaths = ['/login', '/register', '/cart', '/checkout', '/profile', '/admin', '/favorites'];
+  
+  // Check if current path is in the noLayoutPaths list
+  const hideLayout = noLayoutPaths.some(path => 
+    location.pathname === path || location.pathname.startsWith(path + '/')
+  );
+  
+  // Only show HeroSection on homepage
+  const showHeroSection = location.pathname === "/";
 
   return (
     <>
-      {location.pathname === "/" && <HeroSection />}
+      {showHeroSection && <HeroSection />}
       <Routes>
         <Route
           path="/"
@@ -297,17 +344,17 @@ const MainContent: React.FC<{
           }
         />
         <Route
-          path="/cart"
-          element={
-            <ProtectedRoute>
-              <CartPage
-                cart={cart}
-                updateQuantity={handleUpdateQuantity}
-                removeFromCart={handleRemoveFromCart}
-              />
-            </ProtectedRoute>
-          }
-        />
+  path="/cart"
+  element={
+    <ProtectedRoute>
+      <CartPage
+        cart={cart}
+        updateQuantity={handleUpdateQuantity}
+        removeFromCart={handleRemoveFromCart}
+      />
+    </ProtectedRoute>
+  }
+/>
         <Route
           path="/plants"
           element={
@@ -345,7 +392,10 @@ const MainContent: React.FC<{
           path="/profile"
           element={
             <ProtectedRoute>
-              <ProfilePage />
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <ProfilePage />
+              </Box>
             </ProtectedRoute>
           }
         />
@@ -353,12 +403,15 @@ const MainContent: React.FC<{
           path="/favorites"
           element={
             <ProtectedRoute>
-              <FavoritePage
-                products={products}
-                favorites={favorites}
-                onRemoveFavorite={handleFavoriteProduct}
-                onAddToCart={handleAddToCart}
-              />
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <FavoritePage
+                  products={products}
+                  favorites={favorites}
+                  onRemoveFavorite={handleFavoriteProduct}
+                  onAddToCart={handleAddToCart}
+                />
+              </Box>
             </ProtectedRoute>
           }
         />
@@ -366,7 +419,10 @@ const MainContent: React.FC<{
           path="/admin"
           element={
             <AdminRoute>
-              <AdminDashboard />
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <AdminDashboard />
+              </Box>
             </AdminRoute>
           }
         />
@@ -374,7 +430,10 @@ const MainContent: React.FC<{
           path="/checkout"
           element={
             <ProtectedRoute>
-              <CheckoutPage />
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <CheckoutPage />
+              </Box>
             </ProtectedRoute>
           }
         />
