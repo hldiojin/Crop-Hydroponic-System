@@ -8,21 +8,21 @@ export interface BaseProduct {
   categoryName: string;
   status: string;
   // Trường type sẽ được thêm vào từ frontend dựa trên categoryName
-  type?: 'plant' | 'system' | 'nutrient';
+  type?: "plant" | "system" | "nutrient";
 }
 
 // Vẫn giữ lại các interface cụ thể cho từng loại sản phẩm để TypeScript hiểu được
 export interface PlantProduct extends BaseProduct {
-  type: 'plant';
+  type: "plant";
   scientificName?: string;
   growthTime?: string;
-  difficulty?: 'Easy' | 'Medium' | 'Hard';
+  difficulty?: "Easy" | "Medium" | "Hard";
   nutrientNeeds?: string[];
   phRange?: string;
 }
 
 export interface SystemProduct extends BaseProduct {
-  type: 'system';
+  type: "system";
   capacity?: string;
   powerConsumption?: string;
   dimensions?: string;
@@ -30,14 +30,18 @@ export interface SystemProduct extends BaseProduct {
 }
 
 export interface NutrientProduct extends BaseProduct {
-  type: 'nutrient';
+  type: "nutrient";
   usage?: string;
   concentration?: string;
   benefits?: string[];
   suitableFor?: string[];
 }
 
-export type Product = PlantProduct | SystemProduct | NutrientProduct | BaseProduct;
+export type Product =
+  | PlantProduct
+  | SystemProduct
+  | NutrientProduct
+  | BaseProduct;
 
 export interface ApiResponse<T> {
   statusCodes: number;
@@ -81,13 +85,31 @@ export interface RegisterForm extends LoginForm {
   confirmPassword: string;
 }
 
+export interface TicketRequest {
+  DeviceItemId?: string | null;
+  Type: "Shopping" | "Technical";
+  Description: string;
+  Attachments?: File[] | null;
+}
+
 export interface Ticket {
   id: string;
-  userId: number;
-  email: string;
-  issueType: 'bug' | 'feature' | 'other';
-  description: string;
-  status: 'pending' | 'in-progress' | 'resolved';
-  createdAt: Date;
-  updateAt: Date;
+  userFullName: string;
+  briefDescription: string;
+  type: "Shopping" | "Technical";
+  status: "Pending" | "InProgress" | "Resolved";
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface TicketResponse {
+  statusCodes: number;
+  response: {
+    data: Ticket[];
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    pageSize: number;
+    lastPage: boolean;
+  };
 }

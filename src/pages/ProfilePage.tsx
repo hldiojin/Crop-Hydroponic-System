@@ -1,5 +1,5 @@
 // src/pages/ProfilePage.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
   Container,
   Paper,
@@ -24,58 +24,99 @@ import {
   Stack,
   Chip,
   CircularProgress,
-} from '@mui/material';
-import { 
-  Edit as EditIcon, 
+  Select,
+  MenuItem,
+  SelectChangeEvent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+} from "@mui/material";
+import {
+  Edit as EditIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
-  AddAPhoto as AddPhotoIcon, 
+  AddAPhoto as AddPhotoIcon,
   Refresh as RefreshIcon,
   Badge as BadgeIcon,
   Email as EmailIcon,
   Phone as PhoneIcon,
   Visibility,
   VisibilityOff,
-  VpnKey as PasswordIcon
-} from '@mui/icons-material';
-import { useAuth } from '../context/AuthContext';
-import Cookies from 'js-cookie';
+  VpnKey as PasswordIcon,
+  Help as HelpIcon,
+} from "@mui/icons-material";
+import { useAuth } from "../context/AuthContext";
+import Cookies from "js-cookie";
+import ticketService from "../services/ticketService";
+import { Ticket, TicketRequest } from "../types/types";
+import toast from "react-hot-toast";
 
 const ProfilePage: React.FC = () => {
-  const { user, updateProfile, changePassword, getUserInfo, loading, error, clearError } = useAuth();
+  const {
+    user,
+    updateProfile,
+    changePassword,
+    getUserInfo,
+    loading,
+    error,
+    clearError,
+  } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
   });
   const [snackbar, setSnackbar] = useState({
     open: false,
-    message: '',
-    severity: 'success' as 'success' | 'error' | 'info',
+    message: "",
+    severity: "success" as "success" | "error" | "info",
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
-  
+
   // Password change state
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [passwordData, setPasswordData] = useState({
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
   const [passwordErrors, setPasswordErrors] = useState({
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
   const [showPasswords, setShowPasswords] = useState({
     oldPassword: false,
     newPassword: false,
-    confirmPassword: false
+    confirmPassword: false,
   });
-  
+
+  // Ticket state
+  const [ticketModalOpen, setTicketModalOpen] = useState(false);
+  const [ticketData, setTicketData] = useState<TicketRequest>({
+    Type: "Shopping",
+    Description: "",
+  });
+  const [ticketAttachments, setTicketAttachments] = useState<File[]>([]);
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [ticketError, setTicketError] = useState<string | null>(null);
+
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [ticketPage, setTicketPage] = useState(1);
+  const [totalTicketPages, setTotalTicketPages] = useState(1);
+  const [isLoadingTickets, setIsLoadingTickets] = useState(false);
+  const [ticketsDialogOpen, setTicketsDialogOpen] = useState(false);
+
   const checkedCookiesRef = useRef(false);
 
   // Fetch user info when component mounts
@@ -83,142 +124,143 @@ const ProfilePage: React.FC = () => {
     const fetchUserInfo = async () => {
       if (checkedCookiesRef.current) return;
       checkedCookiesRef.current = true;
-      
+
       setLoadingProfile(true);
-      
+
       try {
         // Check if cookies exist
-        const deviceId = Cookies.get('DeviceId');
-        const refreshToken = Cookies.get('RefreshToken');
-        
-        console.log('ProfilePage - Cookies before loading:', {
-          DeviceId: deviceId || 'missing',
-          RefreshToken: refreshToken || 'missing'
+        const deviceId = Cookies.get("DeviceId");
+        const refreshToken = Cookies.get("RefreshToken");
+
+        console.log("ProfilePage - Cookies before loading:", {
+          DeviceId: deviceId || "missing",
+          RefreshToken: refreshToken || "missing",
         });
-        
+
         if (!deviceId || !refreshToken) {
-          console.warn('Cookies missing, might need to log in again');
+          console.warn("Cookies missing, might need to log in again");
         }
-        
+
         await getUserInfo();
       } catch (error) {
-        console.error('Error loading profile:', error);
+        console.error("Error loading profile:", error);
       } finally {
         setLoadingProfile(false);
       }
     };
-    
+
     fetchUserInfo();
   }, [getUserInfo]);
-  
+
   // Update edit data when user data changes
   useEffect(() => {
     if (user) {
       setEditData({
-        name: user.name || '',
-        email: user.email || '',
-        phone: user.phone || '',
+        name: user.name || "",
+        email: user.email || "",
+        phone: user.phone || "",
       });
     }
   }, [user]);
 
   const handleEdit = () => setIsEditing(true);
-  
+
   const handleCancel = () => {
     setIsEditing(false);
     setEditData({
-      name: user?.name || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
     });
     setAvatarFile(null);
     setAvatarPreview(null);
   };
-  
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEditData({ ...editData, [name]: value });
   };
-  
+
   const handleSave = async () => {
     try {
       // Only include fields that have changed
       const updateData: Partial<typeof editData> = {};
-      
+
       if (editData.name !== user?.name) {
         updateData.name = editData.name;
       }
-      
+
       if (editData.phone !== user?.phone) {
         updateData.phone = editData.phone;
       }
-      
+
       // Only update if something changed
       if (Object.keys(updateData).length === 0) {
         setSnackbar({
           open: true,
-          message: 'No changes to save',
-          severity: 'info',
+          message: "No changes to save",
+          severity: "info",
         });
         setIsEditing(false);
         return;
       }
-      
+
       await updateProfile(updateData);
-      
+
       setSnackbar({
         open: true,
-        message: 'Profile updated successfully',
-        severity: 'success',
+        message: "Profile updated successfully",
+        severity: "success",
       });
-      
+
       setIsEditing(false);
     } catch (err) {
-      console.error('Error updating profile:', err);
+      console.error("Error updating profile:", err);
       setSnackbar({
         open: true,
-        message: err instanceof Error ? err.message : 'Failed to update profile',
-        severity: 'error',
+        message:
+          err instanceof Error ? err.message : "Failed to update profile",
+        severity: "error",
       });
     }
   };
-  
+
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
   };
-  
+
   const handleRefreshProfile = async () => {
     try {
       setLoadingProfile(true);
-      
+
       // Verify cookies before refresh
-      const deviceId = Cookies.get('DeviceId');
-      const refreshToken = Cookies.get('RefreshToken');
-      
-      console.log('Cookies before refresh:', {
-        DeviceId: deviceId || 'missing',
-        RefreshToken: refreshToken || 'missing'
+      const deviceId = Cookies.get("DeviceId");
+      const refreshToken = Cookies.get("RefreshToken");
+
+      console.log("Cookies before refresh:", {
+        DeviceId: deviceId || "missing",
+        RefreshToken: refreshToken || "missing",
       });
-      
+
       await getUserInfo();
-      
+
       setSnackbar({
         open: true,
-        message: 'Profile refreshed successfully',
-        severity: 'success'
+        message: "Profile refreshed successfully",
+        severity: "success",
       });
     } catch (error) {
-      console.error('Error refreshing profile:', error);
+      console.error("Error refreshing profile:", error);
       setSnackbar({
         open: true,
-        message: 'Failed to refresh profile',
-        severity: 'error'
+        message: "Failed to refresh profile",
+        severity: "error",
       });
     } finally {
       setLoadingProfile(false);
     }
   };
-  
+
   // Password change handlers
   const handlePasswordModalOpen = () => {
     setPasswordModalOpen(true);
@@ -228,14 +270,14 @@ const ProfilePage: React.FC = () => {
     setPasswordModalOpen(false);
     // Reset form data and errors
     setPasswordData({
-      oldPassword: '',
-      newPassword: '',
-      confirmPassword: ''
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     });
     setPasswordErrors({
-      oldPassword: '',
-      newPassword: '',
-      confirmPassword: ''
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     });
   };
 
@@ -243,17 +285,17 @@ const ProfilePage: React.FC = () => {
     const { name, value } = e.target;
     setPasswordData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    
+
     // Clear the specific error when typing
     if (passwordErrors[name as keyof typeof passwordErrors]) {
       setPasswordErrors((prev) => ({
         ...prev,
-        [name]: ''
+        [name]: "",
       }));
     }
-    
+
     // Clear general error
     clearError();
   };
@@ -261,39 +303,39 @@ const ProfilePage: React.FC = () => {
   const togglePasswordVisibility = (field: keyof typeof showPasswords) => {
     setShowPasswords((prev) => ({
       ...prev,
-      [field]: !prev[field]
+      [field]: !prev[field],
     }));
   };
 
   const validatePasswordForm = () => {
     const errors = {
-      oldPassword: '',
-      newPassword: '',
-      confirmPassword: ''
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     };
     let isValid = true;
-    
+
     if (!passwordData.oldPassword) {
-      errors.oldPassword = 'Current password is required';
+      errors.oldPassword = "Current password is required";
       isValid = false;
     }
-    
+
     if (!passwordData.newPassword) {
-      errors.newPassword = 'New password is required';
+      errors.newPassword = "New password is required";
       isValid = false;
     } else if (passwordData.newPassword.length < 8) {
-      errors.newPassword = 'Password must be at least 8 characters';
+      errors.newPassword = "Password must be at least 8 characters";
       isValid = false;
     }
-    
+
     if (!passwordData.confirmPassword) {
-      errors.confirmPassword = 'Please confirm your new password';
+      errors.confirmPassword = "Please confirm your new password";
       isValid = false;
     } else if (passwordData.newPassword !== passwordData.confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
+      errors.confirmPassword = "Passwords do not match";
       isValid = false;
     }
-    
+
     setPasswordErrors(errors);
     return isValid;
   };
@@ -302,59 +344,173 @@ const ProfilePage: React.FC = () => {
     if (!validatePasswordForm()) {
       return;
     }
-    
+
     try {
       await changePassword(passwordData);
-      
+
       // Close the modal and show success message
       handlePasswordModalClose();
       setSnackbar({
         open: true,
-        message: 'Password changed successfully',
-        severity: 'success'
+        message: "Password changed successfully",
+        severity: "success",
       });
     } catch (err) {
-      console.error('Error changing password:', err);
+      console.error("Error changing password:", err);
       // Error is already set in the context, but we can also show it in the snackbar
       if (err instanceof Error) {
         setSnackbar({
           open: true,
           message: err.message,
-          severity: 'error'
+          severity: "error",
         });
       }
     }
   };
 
+  // Ticket handlers
+  const handleTicketModalOpen = () => {
+    setTicketModalOpen(true);
+  };
+
+  const handleTicketModalClose = () => {
+    setTicketModalOpen(false);
+    setTicketData({
+      Type: "Shopping",
+      Description: "",
+    });
+    setTicketAttachments([]);
+    setTicketError(null);
+  };
+
+  const handleTicketTypeChange = (
+    e: SelectChangeEvent<"Shopping" | "Technical">
+  ) => {
+    setTicketData((prev: any) => ({
+      ...prev,
+      Type: e.target.value as "Shopping" | "Technical",
+    }));
+  };
+
+  const handleTicketDescriptionChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>
+  ) => {
+    setTicketData((prev: any) => ({
+      ...prev,
+      Description: e.target.value,
+    }));
+  };
+
+  const handleTicketAttachmentsChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (e.target.files) {
+      setTicketAttachments(Array.from(e.target.files));
+    }
+  };
+
+  const handleSubmitTicket = async () => {
+    if (!ticketData.Description.trim()) {
+      setTicketError("Please provide a description");
+      return;
+    }
+
+    try {
+      setTicketLoading(true);
+      setTicketError(null);
+
+      // Submit ticket with separate attachments
+      await ticketService.createTicket(ticketData, ticketAttachments);
+
+      handleTicketModalClose();
+      setSnackbar({
+        open: true,
+        message: "Ticket submitted successfully",
+        severity: "success",
+      });
+    } catch (error) {
+      console.error("Error submitting ticket:", error);
+      setTicketError(
+        error instanceof Error ? error.message : "Failed to submit ticket"
+      );
+    } finally {
+      setTicketLoading(false);
+    }
+  };
+
+  const handleViewAllTickets = async () => {
+    setIsLoadingTickets(true);
+    try {
+      const response = await ticketService.getAllTickets(ticketPage);
+      setTickets(response.response.data);
+      setTotalTicketPages(response.response.totalPages);
+      setTicketsDialogOpen(true);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      setSnackbar({
+        open: true,
+        message: "Failed to load tickets",
+        severity: "error",
+      });
+    } finally {
+      setIsLoadingTickets(false);
+    }
+  };
+
+  const handleLoadMoreTickets = async () => {
+    if (ticketPage < totalTicketPages) {
+      setIsLoadingTickets(true);
+      try {
+        const nextPage = ticketPage + 1;
+        const response = await ticketService.getAllTickets(nextPage);
+        setTickets((prev: Ticket[]) => [...prev, ...response.response.data]);
+        setTicketPage(nextPage);
+        setTotalTicketPages(response.response.totalPages);
+      } catch (error) {
+        console.error("Error fetching more tickets:", error);
+        toast.error("Failed to load more tickets");
+      } finally {
+        setIsLoadingTickets(false);
+      }
+    }
+  };
+
+  const handleCloseTicketsDialog = () => {
+    setTicketsDialogOpen(false);
+  };
+
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       {loadingProfile ? (
-        <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          height="50vh"
+        >
           <CircularProgress />
         </Box>
       ) : (
-        <Paper 
-          elevation={3} 
-          sx={{ 
-            p: 0, 
+        <Paper
+          elevation={3}
+          sx={{
+            p: 0,
             borderRadius: 2,
-            overflow: 'hidden',
+            overflow: "hidden",
           }}
         >
           {/* Header Section with Background */}
-          <Box 
-            sx={{ 
-              height: 150, 
-              background: 'linear-gradient(120deg, #2196F3, #21CBF3)',
-              position: 'relative',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              p: 3
+          <Box
+            sx={{
+              height: 150,
+              background: "linear-gradient(120deg, #2196F3, #21CBF3)",
+              position: "relative",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              p: 3,
             }}
           >
-           
-            
             <Box>
               {!isEditing ? (
                 <Button
@@ -362,7 +518,10 @@ const ProfilePage: React.FC = () => {
                   variant="contained"
                   color="primary"
                   onClick={handleEdit}
-                  sx={{ bgcolor: 'rgba(255, 255, 255, 0.2)', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.3)' } }}
+                  sx={{
+                    bgcolor: "rgba(255, 255, 255, 0.2)",
+                    "&:hover": { bgcolor: "rgba(255, 255, 255, 0.3)" },
+                  }}
                 >
                   Edit Profile
                 </Button>
@@ -374,7 +533,10 @@ const ProfilePage: React.FC = () => {
                     color="error"
                     onClick={handleCancel}
                     disabled={loading}
-                    sx={{ bgcolor: 'rgba(255, 255, 255, 0.2)', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.3)' } }}
+                    sx={{
+                      bgcolor: "rgba(255, 255, 255, 0.2)",
+                      "&:hover": { bgcolor: "rgba(255, 255, 255, 0.3)" },
+                    }}
                   >
                     Cancel
                   </Button>
@@ -384,37 +546,44 @@ const ProfilePage: React.FC = () => {
                     color="success"
                     onClick={handleSave}
                     disabled={loading}
-                    sx={{ bgcolor: 'rgba(255, 255, 255, 0.2)', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.3)' } }}
+                    sx={{
+                      bgcolor: "rgba(255, 255, 255, 0.2)",
+                      "&:hover": { bgcolor: "rgba(255, 255, 255, 0.3)" },
+                    }}
                   >
-                    {loading ? <CircularProgress size={24} color="inherit" /> : 'Save'}
+                    {loading ? (
+                      <CircularProgress size={24} color="inherit" />
+                    ) : (
+                      "Save"
+                    )}
                   </Button>
                 </Stack>
               )}
             </Box>
           </Box>
-          
+
           {/* Avatar positioned to overlap the header and content */}
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center',
-              position: 'relative',
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              position: "relative",
               mt: -6, // Adjusted for better positioning
               mb: 3,
               px: 3,
-              textAlign: 'center'
+              textAlign: "center",
             }}
           >
             <Box position="relative" display="inline-block">
               <Avatar
                 src={avatarPreview || user?.attachment || undefined}
                 alt={user?.name}
-                sx={{ 
+                sx={{
                   width: 120,
-                  height: 120, 
-                  border: '5px solid white',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                  height: 120,
+                  border: "5px solid white",
+                  boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
                 }}
               />
               {isEditing && (
@@ -423,7 +592,7 @@ const ProfilePage: React.FC = () => {
                     type="file"
                     id="avatar-upload"
                     accept="image/*"
-                    style={{ display: 'none' }}
+                    style={{ display: "none" }}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
@@ -435,12 +604,12 @@ const ProfilePage: React.FC = () => {
                   <IconButton
                     component="span"
                     sx={{
-                      position: 'absolute',
+                      position: "absolute",
                       right: 5,
                       bottom: 5,
-                      backgroundColor: 'white',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                      '&:hover': { backgroundColor: '#f5f5f5' },
+                      backgroundColor: "white",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      "&:hover": { backgroundColor: "#f5f5f5" },
                     }}
                   >
                     <AddPhotoIcon />
@@ -448,13 +617,21 @@ const ProfilePage: React.FC = () => {
                 </label>
               )}
             </Box>
-            
-            <Box sx={{ textAlign: 'center', mt: 2, width: '100%' }}>
+
+            <Box sx={{ textAlign: "center", mt: 2, width: "100%" }}>
               <Typography variant="h5" fontWeight="bold">
                 {user?.name}
               </Typography>
-              
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 1, gap: 1 }}>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  mt: 1,
+                  gap: 1,
+                }}
+              >
                 <Chip
                   icon={<BadgeIcon fontSize="small" />}
                   label={user?.role || "User"}
@@ -462,11 +639,11 @@ const ProfilePage: React.FC = () => {
                   variant="outlined"
                   size="small"
                 />
-                
+
                 {user?.status && (
                   <Chip
                     label={user.status}
-                    color={user.status === 'Active' ? 'success' : 'warning'}
+                    color={user.status === "Active" ? "success" : "warning"}
                     size="small"
                     variant="outlined"
                   />
@@ -474,7 +651,7 @@ const ProfilePage: React.FC = () => {
               </Box>
             </Box>
           </Box>
-          
+
           {error && (
             <Box sx={{ px: 3, mb: 2 }}>
               <Alert severity="error" onClose={clearError}>
@@ -482,14 +659,19 @@ const ProfilePage: React.FC = () => {
               </Alert>
             </Box>
           )}
-          
+
           <Divider />
-          
+
           {/* User Information Form */}
           <Box sx={{ px: 4, py: 3 }}>
             <Stack spacing={3}>
               <Box>
-                <Typography variant="subtitle1" fontWeight="medium" color="text.secondary" gutterBottom>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight="medium"
+                  color="text.secondary"
+                  gutterBottom
+                >
                   Personal Information
                 </Typography>
                 <Card variant="outlined" sx={{ p: 2 }}>
@@ -498,7 +680,7 @@ const ProfilePage: React.FC = () => {
                       fullWidth
                       label="Full Name"
                       name="name"
-                      value={isEditing ? editData.name : user?.name || ''}
+                      value={isEditing ? editData.name : user?.name || ""}
                       onChange={handleChange}
                       disabled={!isEditing || loading}
                       variant={isEditing ? "outlined" : "filled"}
@@ -510,13 +692,13 @@ const ProfilePage: React.FC = () => {
                         ),
                       }}
                     />
-                    
+
                     <TextField
                       fullWidth
                       label="Email"
                       name="email"
                       type="email"
-                      value={isEditing ? editData.email : user?.email || ''}
+                      value={isEditing ? editData.email : user?.email || ""}
                       onChange={handleChange}
                       disabled={true} // Email cannot be changed
                       variant="filled"
@@ -528,12 +710,12 @@ const ProfilePage: React.FC = () => {
                         ),
                       }}
                     />
-                    
+
                     <TextField
                       fullWidth
                       label="Phone Number"
                       name="phone"
-                      value={isEditing ? editData.phone : user?.phone || ''}
+                      value={isEditing ? editData.phone : user?.phone || ""}
                       onChange={handleChange}
                       disabled={!isEditing || loading}
                       variant={isEditing ? "outlined" : "filled"}
@@ -548,20 +730,25 @@ const ProfilePage: React.FC = () => {
                   </Stack>
                 </Card>
               </Box>
-              
+
               {/* Account Actions Section */}
               <Box>
-                <Typography variant="subtitle1" fontWeight="medium" color="text.secondary" gutterBottom>
+                <Typography
+                  variant="subtitle1"
+                  fontWeight="medium"
+                  color="text.secondary"
+                  gutterBottom
+                >
                   Account Actions
                 </Typography>
                 <Card variant="outlined" sx={{ p: 2 }}>
-                  <Stack 
-                    direction={{ xs: 'column', sm: 'row' }} 
-                    spacing={2} 
-                    sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'center',
-                      flexWrap: 'wrap'
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={2}
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      flexWrap: "wrap",
                     }}
                   >
                     <Button
@@ -570,19 +757,43 @@ const ProfilePage: React.FC = () => {
                       startIcon={<RefreshIcon />}
                       onClick={handleRefreshProfile}
                       disabled={loadingProfile}
-                      sx={{ flex: { xs: '1 1 100%', sm: '1 1 0%' } }}
+                      sx={{ flex: { xs: "1 1 100%", sm: "1 1 0%" } }}
                     >
-                      {loadingProfile ? <CircularProgress size={24} /> : 'Refresh Profile'}
+                      {loadingProfile ? (
+                        <CircularProgress size={24} />
+                      ) : (
+                        "Refresh Profile"
+                      )}
                     </Button>
-                    
-                    <Button 
-                      variant="contained" 
+
+                    <Button
+                      variant="contained"
                       color="secondary"
                       startIcon={<PasswordIcon />}
                       onClick={handlePasswordModalOpen}
-                      sx={{ flex: { xs: '1 1 100%', sm: '1 1 0%' } }}
+                      sx={{ flex: { xs: "1 1 100%", sm: "1 1 0%" } }}
                     >
                       Change Password
+                    </Button>
+
+                    <Button
+                      variant="contained"
+                      color="info"
+                      startIcon={<HelpIcon />}
+                      onClick={handleTicketModalOpen}
+                      sx={{ flex: { xs: "1 1 100%", sm: "1 1 0%" } }}
+                    >
+                      Submit Ticket
+                    </Button>
+
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      startIcon={<HelpIcon />}
+                      onClick={handleViewAllTickets}
+                      sx={{ flex: { xs: "1 1 100%", sm: "1 1 0%" } }}
+                    >
+                      View All Tickets
                     </Button>
                   </Stack>
                 </Card>
@@ -591,124 +802,233 @@ const ProfilePage: React.FC = () => {
           </Box>
         </Paper>
       )}
-      
+
+      {/* Tickets Dialog */}
+      <Dialog
+        open={ticketsDialogOpen}
+        onClose={handleCloseTicketsDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6">Your Tickets</Typography>
+        </DialogTitle>
+        <DialogContent>
+          {isLoadingTickets ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Description</TableCell>
+                    <TableCell>Type</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Created At</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {tickets.map((ticket) => (
+                    <TableRow key={ticket.id}>
+                      <TableCell>{ticket.briefDescription}</TableCell>
+                      <TableCell>{ticket.type}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={ticket.status}
+                          color={
+                            ticket.status === "Pending"
+                              ? "warning"
+                              : ticket.status === "InProgress"
+                              ? "info"
+                              : "success"
+                          }
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {new Date(ticket.createdAt).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {ticketPage < totalTicketPages && (
+            <Button
+              onClick={handleLoadMoreTickets}
+              disabled={isLoadingTickets}
+              color="primary"
+            >
+              {isLoadingTickets ? "Loading..." : "Load More"}
+            </Button>
+          )}
+          <Button onClick={handleCloseTicketsDialog} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Password Change Modal */}
       <Modal
         open={passwordModalOpen}
         onClose={handlePasswordModalClose}
         aria-labelledby="change-password-modal"
       >
-        <Box sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: { xs: '90%', sm: 400 },
-          bgcolor: 'background.paper',
-          boxShadow: 24,
-          p: 4,
-          borderRadius: 2,
-        }}>
-          <Typography id="change-password-modal" variant="h5" component="h2" gutterBottom>
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: { xs: "90%", sm: 400 },
+            bgcolor: "background.paper",
+            boxShadow: 24,
+            p: 4,
+            borderRadius: 2,
+          }}
+        >
+          <Typography
+            id="change-password-modal"
+            variant="h5"
+            component="h2"
+            gutterBottom
+          >
             Change Password
           </Typography>
-          
+
           {error && (
             <Alert severity="error" sx={{ mb: 3 }} onClose={clearError}>
               {error}
             </Alert>
           )}
-          
+
           <Box component="form" sx={{ mt: 2 }}>
             <FormControl fullWidth margin="normal" variant="outlined">
               <InputLabel htmlFor="old-password">Current Password</InputLabel>
               <OutlinedInput
                 id="old-password"
                 name="oldPassword"
-                type={showPasswords.oldPassword ? 'text' : 'password'}
+                type={showPasswords.oldPassword ? "text" : "password"}
                 value={passwordData.oldPassword}
                 onChange={handlePasswordChange}
                 error={!!passwordErrors.oldPassword}
                 endAdornment={
                   <InputAdornment position="end">
                     <IconButton
-                      onClick={() => togglePasswordVisibility('oldPassword')}
+                      onClick={() => togglePasswordVisibility("oldPassword")}
                       edge="end"
                     >
-                      {showPasswords.oldPassword ? <VisibilityOff /> : <Visibility />}
+                      {showPasswords.oldPassword ? (
+                        <VisibilityOff />
+                      ) : (
+                        <Visibility />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 }
                 label="Current Password"
               />
               {passwordErrors.oldPassword && (
-                <Typography color="error" variant="caption" sx={{ mt: 0.5, ml: 2 }}>
+                <Typography
+                  color="error"
+                  variant="caption"
+                  sx={{ mt: 0.5, ml: 2 }}
+                >
                   {passwordErrors.oldPassword}
                 </Typography>
               )}
             </FormControl>
-            
+
             <FormControl fullWidth margin="normal" variant="outlined">
               <InputLabel htmlFor="new-password">New Password</InputLabel>
               <OutlinedInput
                 id="new-password"
                 name="newPassword"
-                type={showPasswords.newPassword ? 'text' : 'password'}
+                type={showPasswords.newPassword ? "text" : "password"}
                 value={passwordData.newPassword}
                 onChange={handlePasswordChange}
                 error={!!passwordErrors.newPassword}
                 endAdornment={
                   <InputAdornment position="end">
                     <IconButton
-                      onClick={() => togglePasswordVisibility('newPassword')}
+                      onClick={() => togglePasswordVisibility("newPassword")}
                       edge="end"
                     >
-                      {showPasswords.newPassword ? <VisibilityOff /> : <Visibility />}
+                      {showPasswords.newPassword ? (
+                        <VisibilityOff />
+                      ) : (
+                        <Visibility />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 }
                 label="New Password"
               />
               {passwordErrors.newPassword && (
-                <Typography color="error" variant="caption" sx={{ mt: 0.5, ml: 2 }}>
+                <Typography
+                  color="error"
+                  variant="caption"
+                  sx={{ mt: 0.5, ml: 2 }}
+                >
                   {passwordErrors.newPassword}
                 </Typography>
               )}
             </FormControl>
-            
+
             <FormControl fullWidth margin="normal" variant="outlined">
-              <InputLabel htmlFor="confirm-password">Confirm New Password</InputLabel>
+              <InputLabel htmlFor="confirm-password">
+                Confirm New Password
+              </InputLabel>
               <OutlinedInput
                 id="confirm-password"
                 name="confirmPassword"
-                type={showPasswords.confirmPassword ? 'text' : 'password'}
+                type={showPasswords.confirmPassword ? "text" : "password"}
                 value={passwordData.confirmPassword}
                 onChange={handlePasswordChange}
                 error={!!passwordErrors.confirmPassword}
                 endAdornment={
                   <InputAdornment position="end">
                     <IconButton
-                      onClick={() => togglePasswordVisibility('confirmPassword')}
+                      onClick={() =>
+                        togglePasswordVisibility("confirmPassword")
+                      }
                       edge="end"
                     >
-                      {showPasswords.confirmPassword ? <VisibilityOff /> : <Visibility />}
+                      {showPasswords.confirmPassword ? (
+                        <VisibilityOff />
+                      ) : (
+                        <Visibility />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 }
                 label="Confirm New Password"
               />
               {passwordErrors.confirmPassword && (
-                <Typography color="error" variant="caption" sx={{ mt: 0.5, ml: 2 }}>
+                <Typography
+                  color="error"
+                  variant="caption"
+                  sx={{ mt: 0.5, ml: 2 }}
+                >
                   {passwordErrors.confirmPassword}
                 </Typography>
               )}
             </FormControl>
-            
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={handlePasswordModalClose}
-              >
+
+            <Box
+              sx={{
+                mt: 3,
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 2,
+              }}
+            >
+              <Button variant="outlined" onClick={handlePasswordModalClose}>
                 Cancel
               </Button>
               <Button
@@ -717,18 +1037,136 @@ const ProfilePage: React.FC = () => {
                 onClick={handleSubmitPasswordChange}
                 disabled={loading}
               >
-                {loading ? <CircularProgress size={24} /> : 'Change Password'}
+                {loading ? <CircularProgress size={24} /> : "Change Password"}
               </Button>
             </Box>
           </Box>
         </Box>
       </Modal>
-      
+
+      {/* Ticket Modal */}
+      <Modal
+        open={ticketModalOpen}
+        onClose={handleTicketModalClose}
+        aria-labelledby="submit-ticket-modal"
+      >
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: { xs: "90%", sm: 500 },
+            bgcolor: "background.paper",
+            boxShadow: 24,
+            p: 4,
+            borderRadius: 2,
+          }}
+        >
+          <Typography
+            id="submit-ticket-modal"
+            variant="h5"
+            component="h2"
+            gutterBottom
+          >
+            Submit Ticket
+          </Typography>
+
+          {ticketError && (
+            <Alert
+              severity="error"
+              sx={{ mb: 3 }}
+              onClose={() => setTicketError(null)}
+            >
+              {ticketError}
+            </Alert>
+          )}
+
+          <Box component="form" sx={{ mt: 2 }}>
+            <FormControl fullWidth margin="normal">
+              <InputLabel htmlFor="ticket-type">Ticket Type</InputLabel>
+              <Select
+                id="ticket-type"
+                value={ticketData.Type}
+                onChange={handleTicketTypeChange}
+                label="Ticket Type"
+              >
+                <MenuItem value="Shopping">Shopping</MenuItem>
+                <MenuItem value="Technical">Technical</MenuItem>
+              </Select>
+            </FormControl>
+
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              margin="normal"
+              label="Description"
+              value={ticketData.Description}
+              onChange={handleTicketDescriptionChange}
+              error={!!ticketError}
+              helperText={ticketError}
+            />
+
+            {/* Ticket attachment display */}
+            <Box sx={{ mt: 2 }}>
+              <input
+                accept="image/*"
+                style={{ display: "none" }}
+                id="ticket-attachments"
+                multiple
+                type="file"
+                onChange={handleTicketAttachmentsChange}
+              />
+              <label htmlFor="ticket-attachments">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<AddPhotoIcon />}
+                >
+                  Add Attachments
+                </Button>
+              </label>
+              {ticketAttachments.length > 0 && (
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  {ticketAttachments.length} file(s) selected
+                </Typography>
+              )}
+            </Box>
+
+            <Box
+              sx={{
+                mt: 3,
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 2,
+              }}
+            >
+              <Button variant="outlined" onClick={handleTicketModalClose}>
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleSubmitTicket}
+                disabled={ticketLoading}
+              >
+                {ticketLoading ? (
+                  <CircularProgress size={24} />
+                ) : (
+                  "Submit Ticket"
+                )}
+              </Button>
+            </Box>
+          </Box>
+        </Box>
+      </Modal>
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
           {snackbar.message}

@@ -1,5 +1,5 @@
 // src/pages/LoginPage.tsx
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Container,
   Paper,
@@ -12,16 +12,16 @@ import {
   Typography,
   Snackbar,
   Alert,
-  CircularProgress
-} from '@mui/material';
-import { LockOutlined as LockOutlinedIcon } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import ForgotPasswordModal from '../components/ForgotPasswordModal';
+  CircularProgress,
+} from "@mui/material";
+import { LockOutlined as LockOutlinedIcon } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import ForgotPasswordModal from "../components/ForgotPasswordModal";
 
 const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const { login, loading, error, clearError } = useAuth();
   const navigate = useNavigate();
@@ -30,40 +30,49 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     try {
       await login({ email, password });
-      navigate('/SystemsPage');
+      navigate("/");
     } catch (err) {
       // Error is handled by the context
-      console.error('Login error:', err);
+      console.error("Login error:", err);
     }
   };
 
   return (
     <Container component="main" maxWidth="xs">
-      <Paper 
+      <Paper
         elevation={3}
         sx={{
           mt: 8,
           p: 4,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          borderRadius: 2
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          borderRadius: 2,
         }}
       >
-        <Avatar sx={{ m: 1, bgcolor: 'primary.main' }}>
+        <Avatar sx={{ m: 1, bgcolor: "primary.main" }}>
           <LockOutlinedIcon />
         </Avatar>
         <Typography component="h1" variant="h5">
           Sign In
         </Typography>
-        
+
         {error && (
-          <Alert severity="error" sx={{ mt: 2, width: '100%' }} onClose={clearError}>
+          <Alert
+            severity="error"
+            sx={{ mt: 2, width: "100%" }}
+            onClose={clearError}
+          >
             {error}
           </Alert>
         )}
-        
-        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 3, width: '100%' }}>
+
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          noValidate
+          sx={{ mt: 3, width: "100%" }}
+        >
           <TextField
             margin="normal"
             required
@@ -77,7 +86,7 @@ const LoginPage: React.FC = () => {
             onChange={(e) => setEmail(e.target.value)}
             disabled={loading}
           />
-          
+
           <TextField
             margin="normal"
             required
@@ -91,18 +100,18 @@ const LoginPage: React.FC = () => {
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
           />
-          
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
             <Button
               variant="text"
               color="primary"
               onClick={() => setForgotPasswordOpen(true)}
-              sx={{ textTransform: 'none' }}
+              sx={{ textTransform: "none" }}
             >
               Forgot Password?
             </Button>
           </Box>
-          
+
           <Button
             type="submit"
             fullWidth
@@ -110,15 +119,15 @@ const LoginPage: React.FC = () => {
             sx={{ mt: 3, mb: 2 }}
             disabled={loading}
           >
-            {loading ? <CircularProgress size={24} /> : 'Sign In'}
+            {loading ? <CircularProgress size={24} /> : "Sign In"}
           </Button>
-          
+
           <Grid container justifyContent="center">
             <Grid item>
-              <Link 
-                component="button" 
-                variant="body2" 
-                onClick={() => navigate('/register')}
+              <Link
+                component="button"
+                variant="body2"
+                onClick={() => navigate("/register")}
               >
                 Don't have an account? Sign Up
               </Link>
@@ -126,7 +135,7 @@ const LoginPage: React.FC = () => {
           </Grid>
         </Box>
       </Paper>
-      
+
       {/* Forgot Password Modal */}
       <ForgotPasswordModal
         open={forgotPasswordOpen}

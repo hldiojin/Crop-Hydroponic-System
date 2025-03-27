@@ -112,53 +112,15 @@ const api = axios.create({
   //baseURL: 'http://localhost:5151',
   baseURL: "https://api.hmes.buubuu.id.vn/api",
   headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
+    "Content-Type": "multipart/form-data",
+    Accept: "multipart/form-data",
   },
   withCredentials: true,
 });
 
 api.interceptors.request.use(
   (config) => {
-    // const deviceId = Cookies.get('DeviceId') || localStorage.getItem('DeviceId');
-    // const refreshToken = Cookies.get('RefreshToken') || localStorage.getItem('RefreshToken');
     const authToken = localStorage.getItem("authToken");
-
-    // console.log(`Request to ${config.url}:`, {
-    //   deviceId: deviceId ? 'exists' : 'missing',
-    //   refreshToken: refreshToken ? 'exists' : 'missing',
-    //   authToken: authToken ? 'exists' : 'missing'
-    // });
-
-    // // Create custom cookie header
-    // if (deviceId && refreshToken && config.headers) {
-    //   const cookieString = `DeviceId=${deviceId};RefreshToken=${refreshToken}`;
-    //   config.headers.set('Cookie', cookieString);
-    //   try {
-    //     config.headers.set('Cookie', cookieString);
-    //   } catch (e) {
-    //     config.headers['Cookie'] = cookieString;
-    //   }
-    // }
-
-    // // Add individual headers as before
-    // if (deviceId && config.headers) {
-    //   // Try both methods to set headers for compatibility
-    //   try {
-    //     config.headers.set('DeviceId', deviceId);
-    //   } catch (e) {
-    //     config.headers['DeviceId'] = deviceId;
-    //   }
-    // }
-
-    // // Add refresh token to headers if available
-    // if (refreshToken && config.headers) {
-    //   try {
-    //     config.headers.set('RefreshToken', refreshToken);
-    //   } catch (e) {
-    //     config.headers['RefreshToken'] = refreshToken;
-    //   }
-    // }
 
     // Add authorization header
     if (authToken && config.headers) {
@@ -169,8 +131,8 @@ api.interceptors.request.use(
       }
     }
 
-    // Ensure content type headers are set
-    if (config.headers) {
+    // Only set Content-Type and Accept headers if the data is not FormData
+    if (!(config.data instanceof FormData) && config.headers) {
       try {
         config.headers.set("Content-Type", "application/json");
         config.headers.set("Accept", "application/json");
@@ -449,7 +411,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       //   },
       //   withCredentials: true,
       // });
-      const response = await api.get("/api/user/me");
+      const response = await api.get("user/me");
 
       console.log("User info response:", response.data);
 
