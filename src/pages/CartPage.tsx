@@ -1029,6 +1029,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   fullWidth
                   size="large"
                   startIcon={<Payment />}
+                  onClick={() => navigate('/checkout/shipping')}
                   whileHover={{ scale: 1.02, boxShadow: "0 8px 20px rgba(0,0,0,0.2)" }}
                   whileTap={{ scale: 0.98 }}
                   sx={{ 

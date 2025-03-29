@@ -27,6 +27,8 @@ import FavoritePage from "./pages/FavoritePage";
 import AdminDashboard from "./pages/AdminDashboard";
 import { AdminRoute } from "./components/AdminRoute";
 import CheckoutPage from "./pages/CheckoutPage";
+import ShippingPage from "./pages/ShippingPage";
+import PaymentPage from "./pages/PaymentPage";
 import { productService } from "./services/productService";
 import { config } from "./config";
 import cartService from "./services/cartService";
@@ -344,17 +346,33 @@ const MainContent: React.FC<{
           }
         />
         <Route
-  path="/cart"
-  element={
-    <ProtectedRoute>
-      <CartPage
-        cart={cart}
-        updateQuantity={handleUpdateQuantity}
-        removeFromCart={handleRemoveFromCart}
-      />
-    </ProtectedRoute>
-  }
-/>
+          path="/cart"
+          element={
+            <ProtectedRoute>
+              <CartPage
+                cart={cart}
+                updateQuantity={handleUpdateQuantity}
+                removeFromCart={handleRemoveFromCart}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout/shipping"
+          element={
+            <ProtectedRoute>
+              <ShippingPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout/payment"
+          element={
+            <ProtectedRoute>
+              <PaymentPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/plants"
           element={
