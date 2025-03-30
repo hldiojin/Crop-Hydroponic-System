@@ -89,14 +89,12 @@ const PaymentPage: React.FC = () => {
     saveCard: false
   });
 
-  // Mock cart summary data
   const subtotal = 129.99;
   const shipping = shippingMethod === "standard" ? 0 : 
                  shippingMethod === "express" ? 12.99 : 24.99;
   const discount = 0;
   const total = subtotal + shipping - discount;
   
-  // Redirect to login if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: '/checkout/payment' } });
