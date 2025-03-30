@@ -92,6 +92,9 @@ const CartPage: React.FC<CartPageProps> = ({
         setLoading(true);
         const details = await cartService.getCartDetails();
         setCartDetails(details);
+  
+        // Lưu dữ liệu giỏ hàng vào localStorage
+        localStorage.setItem("cartDetails", JSON.stringify(details));
       } catch (err) {
         console.error("Failed to fetch cart details:", err);
         setError("Failed to load cart items.");
@@ -99,7 +102,7 @@ const CartPage: React.FC<CartPageProps> = ({
         setLoading(false);
       }
     };
-
+  
     fetchCartDetails();
   }, []);
 
@@ -126,6 +129,9 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after any change
       const details = await cartService.getCartDetails();
       setCartDetails(details);
+
+      // Lưu dữ liệu giỏ hàng mới nhất vào localStorage
+      localStorage.setItem("cartDetails", JSON.stringify(details));
     } catch (error) {
       console.error("Failed to update cart item:", error);
     }
@@ -142,6 +148,9 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after removing
       const details = await cartService.getCartDetails();
       setCartDetails(details);
+
+      // Lưu dữ liệu giỏ hàng mới nhất vào localStorage
+      localStorage.setItem("cartDetails", JSON.stringify(details));
     } catch (error) {
       console.error("Failed to remove cart item:", error);
     }

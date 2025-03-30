@@ -93,8 +93,7 @@ const ShippingPage: React.FC = () => {
     saveAddress: true
   });
 
-  // Mock cart summary data similar to CartPage
-  const subtotal = 129.99;
+  const subtotal = cartDetails.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const shipping = formData.shippingMethod === "standard" ? 0 : 
                  formData.shippingMethod === "express" ? 12.99 : 24.99;
   const discount = 0;
@@ -159,6 +158,26 @@ const ShippingPage: React.FC = () => {
       setLoading(false);
     }
   }, [isAuthenticated, token, navigate]);
+
+  useEffect(() => {
+    const syncCartDetails = () => {
+      const cartData = localStorage.getItem("cartDetails");
+      if (cartData) {
+        setCartDetails(JSON.parse(cartData));
+      }
+    };
+
+    // Lấy dữ liệu giỏ hàng khi trang được tải
+    syncCartDetails();
+
+    // Lắng nghe sự thay đổi của localStorage
+    window.addEventListener("storage", syncCartDetails);
+
+    // Cleanup listener khi component bị unmount
+    return () => {
+      window.removeEventListener("storage", syncCartDetails);
+    };
+  }, []);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -921,13 +940,12 @@ const ShippingPage: React.FC = () => {
                 </Typography>
                 
                 <Typography variant="body2" sx={{ mt: 1, opacity: 0.8, position: "relative", zIndex: 1 }}>
-                  3 items in your cart
+                  {cartDetails.reduce((sum, item) => sum + item.quantity, 0)} items in your cart
                 </Typography>
               </Box>
               
               <CardContent sx={{ p: 3 }}>
                 <Stack spacing={3}>
-                  {/* Order items summary */}
                   <Paper
                     elevation={0}
                     sx={{
@@ -941,17 +959,13 @@ const ShippingPage: React.FC = () => {
                     </Typography>
                     
                     <Stack spacing={2}>
-                      {[
-                        { name: "Hydroponic Nutrient Solution", quantity: 1, price: 29.99 },
-                        { name: "LED Grow Light Panel", quantity: 1, price: 79.99 },
-                        { name: "Seedling Starter Kit", quantity: 1, price: 19.99 }
-                      ].map((item, index) => (
+                      {cartDetails.map((item, index) => (
                         <Box key={index} sx={{ display: "flex", justifyContent: "space-between" }}>
                           <Typography variant="body2">
-                            {item.name} <Typography component="span" color="text.secondary">x{item.quantity}</Typography>
+                            {item.productName} <Typography component="span" color="text.secondary">x{item.quantity}</Typography>
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
-                            ${item.price.toFixed(2)}
+                            ${item.unitPrice.toFixed(2)}
                           </Typography>
                         </Box>
                       ))}
@@ -974,7 +988,7 @@ const ShippingPage: React.FC = () => {
                       Subtotal
                     </Typography>
                     <Typography variant="body1" fontWeight="bold">
-                      ${subtotal.toFixed(2)}
+                      ${cartDetails.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0).toFixed(2)}
                     </Typography>
                   </Box>
                   
@@ -1012,25 +1026,9 @@ const ShippingPage: React.FC = () => {
                         WebkitTextFillColor: "transparent"
                       }}
                     >
-                      ${total.toFixed(2)}
+                      ${(cartDetails.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) + shipping).toFixed(2)}
                     </Typography>
                   </Box>
-                  
-                  <Alert 
-                    severity="success"
-                    icon={<CheckCircleOutline />}
-                    sx={{ 
-                      borderRadius: 2,
-                      bgcolor: alpha(theme.palette.success.main, 0.1),
-                      '& .MuiAlert-icon': {
-                        color: theme.palette.success.main
-                      }
-                    }}
-                  >
-                    <Typography variant="body2" fontWeight="medium">
-                      {subtotal > 100 ? "You qualify for free shipping!" : `Add $${(100 - subtotal).toFixed(2)} more to get free shipping`}
-                    </Typography>
-                  </Alert>
                 </Stack>
               </CardContent>
             </MotionCard>

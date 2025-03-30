@@ -70,9 +70,8 @@ interface AuthContextType {
     newPassword: string;
     confirmPassword: string;
   }) => Promise<void>;
-  // ... existing properties
   verifyOtp: (data: { email: string; otp: string }) => Promise<string>;
-  getUserInfo: () => Promise<User>; // Add this line
+  getUserInfo: () => Promise<User>;
   isAuthenticated: boolean;
   isAdmin: boolean;
   loading: boolean;
@@ -99,7 +98,7 @@ const AuthContext = createContext<AuthContextType>({
   resetPasswordWithToken: async () => {},
   submitTicket: async () => {},
   updateTicketStatus: async () => {},
-  getUserInfo: async () => ({} as User), // Add this line
+  getUserInfo: async () => ({} as User),
   isAuthenticated: false,
   isAdmin: false,
   loading: false,
@@ -109,7 +108,6 @@ const AuthContext = createContext<AuthContextType>({
 
 // Create an axios instance for API calls
 const api = axios.create({
-  //baseURL: 'http://localhost:5151',
   baseURL: "https://api.hmes.buubuu.id.vn/api",
   headers: {
     "Content-Type": "multipart/form-data",
@@ -149,6 +147,32 @@ api.interceptors.request.use(
   }
 );
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Nếu lỗi 401 và chưa thử refresh token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const newToken = await refreshAuthToken();
+
+        // Thử lại request với token mới
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        console.error("Failed to retry request after refreshing token:", refreshError);
+        logout();
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -165,163 +189,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Clear any error messages
   const clearError = () => setError(null);
 
-  // Thiết lập các tùy chọn cho cookie
-  // const saveAuthToCookies = (authData: AuthData) => {
-  //   const isLocalhost = window.location.hostname === 'localhost';
-
-  //   const cookieOptions = {
-  //     expires: 7,
-  //     path: '/',
-  //     ...(isLocalhost ? {} : { domain: 'hmes.buubuu.id.vn' }), // Đảm bảo domain phù hợp
-  //     secure: window.location.protocol === 'https:',
-  //     sameSite: (isLocalhost ? 'lax' : 'strict') as 'lax' | 'strict', // Ép kiểu trực tiếp
-  //   };
-
-  //   Cookies.remove('DeviceId', { path: '/' });
-  //   Cookies.remove('RefreshToken', { path: '/' });
-
-  //   Cookies.set('DeviceId', authData.deviceId, cookieOptions);
-  //   Cookies.set('RefreshToken', authData.refeshToken, cookieOptions);
-
-  //   localStorage.setItem('DeviceId', authData.deviceId);
-  //   localStorage.setItem('RefreshToken', authData.refeshToken);
-  //   localStorage.setItem('authToken', authData.token);
-  // };
-
   // Helper function to clear auth cookies
   const clearAuthCookies = () => {
     Cookies.remove("DeviceId", { path: "/" });
     Cookies.remove("RefreshToken", { path: "/" });
   };
 
+  const refreshAuthToken = async () => {
+    try {
+      const refreshToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("refreshToken="))
+        ?.split("=")[1];
+
+      if (!refreshToken) {
+        throw new Error("No refresh token available");
+      }
+
+      const response = await api.post("/auth/refresh-token", { refreshToken });
+
+      if (response.data?.token) {
+        const newToken = response.data.token;
+        setToken(newToken);
+        localStorage.setItem("authToken", newToken);
+
+        // Cập nhật lại thời gian sống của refresh token nếu cần
+        if (response.data.refreshToken) {
+          const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          document.cookie = `refreshToken=${response.data.refreshToken}; path=/; expires=${expires.toUTCString()}; Secure; HttpOnly; SameSite=Strict`;
+        }
+
+        return newToken;
+      }
+
+      throw new Error("Failed to refresh token");
+    } catch (error) {
+      console.error("Refresh token failed:", error);
+      logout(); // Tự động logout nếu refresh thất bại
+      throw error;
+    }
+  };
+
   const login = async (data: { email: string; password: string }) => {
     setLoading(true);
     setError(null);
-  
+
     try {
       const response = await api.post("/auth/login", data);
       console.log("Login response:", response.data);
-  
+
       const userData = response.data;
-  
+
       if (userData && userData.id && userData.email) {
         setUser(userData);
-  
+
         if (userData.auth && userData.auth.token) {
-          setToken(userData.auth.token);
-          localStorage.setItem("authToken", userData.auth.token);
-  
-          const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-          document.cookie = `DeviceId=${
-            userData.auth.deviceId || ""
-          }; path=/; expires=${expires.toUTCString()}`;
-          document.cookie = `RefreshToken=${
-            userData.auth.refeshToken || ""
-          }; path=/; expires=${expires.toUTCString()}`;
-  
-          // Log the cookies
-          setTimeout(() => {
-            console.log("Cookies after login:", {
-              DeviceId: Cookies.get("DeviceId") || "missing",
-              RefreshToken: Cookies.get("RefreshToken") || "missing",
-              AllCookies: document.cookie,
-            });
-          }, 100);
-  
+          const { token, refreshToken, deviceId } = userData.auth;
+
+          // Lưu access token vào localStorage
+          setToken(token);
+          localStorage.setItem("authToken", token);
+
+          // Lưu refresh token vào cookies
+          const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 ngày
+          document.cookie = `refreshToken=${refreshToken}; path=/; expires=${expires.toUTCString()}; Secure; HttpOnly; SameSite=Strict`;
+          document.cookie = `deviceId=${deviceId}; path=/; expires=${expires.toUTCString()}; Secure; HttpOnly; SameSite=Strict`;
+
           return;
         } else {
           throw new Error("Authentication token missing from response");
         }
       }
-      else if (response.data?.data || response.data?.response?.data) {
-        const nestedUserData =
-          response.data?.data || response.data?.response?.data;
-  
-        if (nestedUserData) {
-          setUser(nestedUserData);
-  
-          if (nestedUserData.auth) {
-            setToken(nestedUserData.auth.token);
-            localStorage.setItem("authToken", nestedUserData.auth.token);
-  
-            const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-            document.cookie = `DeviceId=${
-              nestedUserData.auth.deviceId || ""
-            }; path=/; expires=${expires.toUTCString()}`;
-            document.cookie = `RefreshToken=${
-              nestedUserData.auth.refeshToken || ""
-            }; path=/; expires=${expires.toUTCString()}`;
-  
-            setTimeout(() => {
-              console.log("Cookies after login:", {
-                DeviceId: Cookies.get("DeviceId") || "missing",
-                RefreshToken: Cookies.get("RefreshToken") || "missing",
-                AllCookies: document.cookie,
-              });
-            }, 100);
-  
-            return;
-          }
-        }
-      }
-  
-      console.error(
-        "Login response structure unexpected:",
-        JSON.stringify(response.data, null, 2)
-      );
+
+      console.error("Unexpected login response structure:", response.data);
       throw new Error("Invalid response format from server");
     } catch (err: any) {
       console.error("Login error:", err);
-      
-      let errorMessage = "Failed to login. Please try again.";
-      
-      if (axios.isAxiosError(err)) {
-        if (err.response?.data) {
-          const data = err.response.data;
-          
-          if (typeof data === 'object') {
-            if (data.statusCodes && data.message) {
-              errorMessage = data.message;
-            } 
-            else if (data.message) {
-              errorMessage = data.message;
-            }
-            else if (data.response?.message) {
-              errorMessage = data.response.message;
-            }
-            else if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
-              errorMessage = data.errors[0].message || data.errors[0];
-            }
-          } 
-          else if (typeof data === 'string') {
-            try {
-              const parsedData = JSON.parse(data);
-              errorMessage = parsedData.message || data;
-            } catch {
-              errorMessage = data;
-            }
-          }
-        }
-        else if (err.code === 'ERR_NETWORK') {
-          errorMessage = 'Network error: Cannot connect to server';
-        }
-      } 
-      else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      else if (err?.statusCodes && err?.message) {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
-      
-      throw new Error(errorMessage);
+      setError("Failed to login. Please try again.");
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  // Add this function after the login function
   const register = async (data: {
     name: string;
     email: string;
@@ -333,43 +283,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
 
     try {
-      // Send registration request
       const response = await api.post("/auth/register", data);
       console.log("Register response:", response.data);
 
-      // Check if registration was successful
       if (
         response.data?.statusCodes === 200 ||
         response.data?.response?.message
       ) {
-        // Registration successful - now log in with the same credentials
         console.log("Registration successful, attempting login...");
-
-        // Automatically log in the user after successful registration
         try {
           await login({
             email: data.email,
             password: data.password,
           });
-
-          // If login succeeds, function will return naturally
           return;
         } catch (loginErr) {
-          // If auto-login fails, throw a more specific error
           console.error("Auto-login after registration failed:", loginErr);
           throw new Error(
             "Registration successful, but automatic login failed. Please try logging in manually."
           );
         }
       } else if (response.data?.error || response.data?.response?.error) {
-        // API returned an error message
         const errorMessage =
           response.data?.error ||
           response.data?.response?.error ||
           "Registration failed";
         throw new Error(errorMessage);
       } else {
-        // Unexpected response format
         console.error(
           "Register response structure:",
           JSON.stringify(response.data, null, 2)
@@ -378,7 +318,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        // Handle API errors
         const errorMessage =
           err.response?.data?.message ||
           err.response?.data?.response?.message ||
@@ -386,7 +325,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setError(errorMessage);
         console.error("Register error:", errorMessage);
 
-        // For CORS or network errors, provide more specific messages
         if (err.code === "ERR_NETWORK") {
           setError(
             "Network error: Unable to connect to the server. Please try again later."
@@ -399,11 +337,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setError("Invalid information provided. Please check your details.");
         }
       } else if (err instanceof Error) {
-        // Handle custom errors
         setError(err.message);
         console.error("Register error:", err.message);
       } else {
-        // Handle unexpected errors
         setError("An unexpected error occurred");
         console.error("Unexpected register error:", err);
       }
@@ -418,7 +354,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
 
     try {
-      // Lấy authToken từ localStorage
       const authToken = localStorage.getItem("authToken");
 
       if (!authToken) {
@@ -426,27 +361,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Authentication required. Please log in again.");
       }
 
-      // Tạo headers cho request
       console.log("Making request to /api/user/me with cookies included");
 
-      // Gửi request với Axios
       const deviceId = Cookies.get("DeviceId");
       const refreshToken = Cookies.get("RefreshToken");
 
       console.log("DeviceId", deviceId);
       console.log("RefreshToken", refreshToken);
 
-      // const response = await axios({
-      //   method: 'GET',
-      //   url: 'https://api.hmes.buubuu.id.vn/api/user/me',
-      //   headers: {
-      //     'Authorization': `Bearer ${authToken}`,
-      //     'Content-Type': 'application/json',
-      //     'Accept': 'application/json',
-      //     'Cookie': document.cookie,
-      //   },
-      //   withCredentials: true,
-      // });
       const response = await api.get("user/me");
 
       console.log("User info response:", response.data);
@@ -465,17 +387,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       throw new Error("Failed to fetch user information");
     } catch (err: unknown) {
-      // Explicitly type the error as unknown
       console.error("Error fetching user info:", err);
 
-      // Type guard to handle the error properly
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError("An error occurred while fetching user information.");
       }
 
-      // Ensure we return a rejected promise
       return Promise.reject(err);
     } finally {
       setLoading(false);
@@ -493,17 +412,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("Attempting to change password");
 
-      // Validate that new password and confirm password match
       if (data.newPassword !== data.confirmPassword) {
         throw new Error("New password and confirm password do not match");
       }
 
-      // Validate we have a logged-in user
       if (!user || !user.id) {
         throw new Error("You must be logged in to change your password");
       }
 
-      // Get authentication tokens
       const authToken = localStorage.getItem("authToken");
       const deviceId = Cookies.get("DeviceId");
       const refreshToken = Cookies.get("RefreshToken");
@@ -518,14 +434,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Authentication token missing. Please log in again.");
       }
 
-      // Prepare request data
       const requestData = {
         oldPassword: data.oldPassword,
         newPassword: data.newPassword,
         confirmPassword: data.confirmPassword,
       };
 
-      // Make API request
       const response = await api.post(
         "/api/auth/me/change-password",
         requestData
@@ -533,7 +447,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log("Change password response:", response.data);
 
-      // Check for successful response
       if (
         response.data?.statusCode === 200 ||
         response.data?.statusCodes === 200 ||
@@ -541,25 +454,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         response.data?.message?.includes("changed") ||
         response.status === 200
       ) {
-        // Password changed successfully - don't return a value (void)
         return;
       }
 
-      // If we reach here without returning or throwing, something went wrong
       console.error("Unexpected response format:", response.data);
       throw new Error(
         "Server returned an unexpected response. Please try again."
       );
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        // Handle API errors
         let errorMessage = "Failed to change password. Please try again.";
 
         if (err.response) {
           if (err.response.status === 401) {
             errorMessage = "Current password is incorrect.";
           } else if (err.response.status === 400) {
-            // Extract specific error message from API if available
             errorMessage =
               err.response?.data?.message ||
               err.response?.data?.error ||
@@ -570,7 +479,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             errorMessage =
               "Password validation failed. New password may not meet requirements.";
           } else if (err.response.data?.message) {
-            // Use any error message provided by the API
             errorMessage = err.response.data.message;
           }
         } else if (err.code === "ERR_NETWORK") {
@@ -589,15 +497,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Unexpected change password error:", err);
       }
 
-      // Rethrow the error with a clearer message for the component to handle
       throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  // Reset password - request OTP to be sent via email
-  // Reset password - request OTP to be sent via email
   const resetPassword = async (email: string): Promise<void> => {
     setLoading(true);
     setError(null);
@@ -605,10 +510,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("Requesting OTP for password reset for email:", email);
 
-      // The API expects a raw string for email, not an object
       const response = await api.post(
         "/api/otp/send",
-        JSON.stringify(email), // Important: Send as a JSON-encoded string
+        JSON.stringify(email),
         {
           headers: {
             "Content-Type": "application/json",
@@ -679,8 +583,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // New function to verify OTP and get reset token (separate from password reset)
-  // New function to verify OTP and get reset token (separate from password reset)
   const verifyOtp = async (data: {
     email: string;
     otp: string;
@@ -691,7 +593,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("Verifying OTP to get reset token");
 
-      // Verify OTP and get temporary token
       const verifyResponse = await api.post("/api/otp/verify", {
         email: data.email,
         otpCode: data.otp,
@@ -699,7 +600,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log("OTP verification response:", verifyResponse.data);
 
-      // Check if OTP verification was successful
       if (
         !(
           verifyResponse.data?.statusCode === 200 ||
@@ -712,7 +612,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Invalid or expired OTP. Please try again.");
       }
 
-      // Extract the reset token from the response - handle the nested structure
       const tempToken =
         verifyResponse.data?.response?.data?.tempToken ||
         verifyResponse.data?.data?.tempToken ||
@@ -727,7 +626,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log("Successfully retrieved temporary token");
 
-      // Save the reset token to localStorage
       localStorage.setItem("passwordResetToken", tempToken);
 
       return tempToken;
@@ -758,7 +656,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Updated function to reset password using token
   const resetPasswordWithToken = async (data: {
     newPassword: string;
     confirmPassword: string;
@@ -767,12 +664,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
 
     try {
-      // Validate passwords match
       if (data.newPassword !== data.confirmPassword) {
         throw new Error("New password and confirmation do not match");
       }
 
-      // Get the reset token from localStorage
       const resetToken = localStorage.getItem("passwordResetToken");
 
       if (!resetToken) {
@@ -781,7 +676,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log("Resetting password with token");
 
-      // Call the API to reset password with the token in both the request body and header
       const resetResponse = await api.post(
         "/api/auth/me/reset-password",
         {
@@ -790,7 +684,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         },
         {
           headers: {
-            Authorization: `Bearer ${resetToken}`, // Set the token in the Authorization header
+            Authorization: `Bearer ${resetToken}`,
           },
         }
       );
@@ -804,8 +698,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         resetResponse.data?.message?.includes("success") ||
         resetResponse.data?.message?.includes("reset")
       ) {
-        // Password reset was successful
-        // Remove the reset token from localStorage
         localStorage.removeItem("passwordResetToken");
         return;
       }
@@ -818,7 +710,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (axios.isAxiosError(err)) {
         let errorMessage = "Failed to reset password.";
 
-        // Handle token expiration
         if (err.response?.status === 401) {
           errorMessage = "Reset token has expired. Please request a new OTP.";
           localStorage.removeItem("passwordResetToken");
@@ -847,27 +738,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setLoading(true);
     setError(null);
 
-    // Clear user data from state first for immediate UI feedback
     setUser(null);
     setToken(null);
     setError(null);
-    // Clear cookies
     clearAuthCookies();
 
-    // Clear local storage items
     localStorage.removeItem("user");
-    localStorage.removeItem("cart"); // Also clear cart if you have one
+    localStorage.removeItem("cart");
 
-    // Send logout request to the API (don't await it)
     if (user?.email) {
       api
         .post("/api/auth/logout", {
           email: user.email,
-          password: "", // Required by API
+          password: "",
         })
         .catch((err) => {
           console.error("Logout error:", err);
-          // We don't need to handle this error in the UI since user is already logged out locally
         })
         .finally(() => {
           setLoading(false);
@@ -877,7 +763,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Submit a support ticket
   const submitTicket = async (
     ticketData: Omit<Ticket, "id" | "status" | "createdAt" | "updatedAt">
   ) => {
@@ -885,7 +770,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
 
     try {
-      // If API is available, use it
       const response = await api.post("/api/tickets", ticketData);
 
       if (response.data && response.data.data) {
@@ -894,7 +778,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      // Fallback to local storage if API fails or doesn't exist
       const newTicket: Ticket = {
         ...ticketData,
         id: Date.now().toString(),
@@ -929,7 +812,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Update ticket status
   const updateTicketStatus = async (
     ticketId: string,
     status: Ticket["status"]
@@ -938,11 +820,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
 
     try {
-      // If API is available, use it
       const response = await api.patch(`/api/tickets/${ticketId}`, { status });
 
       if (response.data && response.data.success) {
-        // Update local tickets state with the updated ticket
         const updatedTickets = tickets.map((ticket) => {
           if (ticket.id === ticketId) {
             return { ...ticket, status, updatedAt: new Date() };
@@ -954,7 +834,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      // Fallback to local storage if API fails
       const updatedTickets = tickets.map((ticket) => {
         if (ticket.id === ticketId) {
           return { ...ticket, status, updatedAt: new Date() };
@@ -981,7 +860,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Update user profile
   const updateProfile = async (data: Partial<User>) => {
     setLoading(true);
     setError(null);
@@ -989,14 +867,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("Updating profile with data:", data);
 
-      // Get authentication token
       const authToken = localStorage.getItem("authToken");
 
       if (!authToken) {
         throw new Error("Authentication required. Please log in again.");
       }
 
-      // Use PUT method to update user information at api/user/me
       const response = await api.put("/api/user/me", {
         name: data.name,
         phone: data.phone,
@@ -1004,21 +880,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log("Profile update response:", response.data);
 
-      // Check if update was successful
       if (response.data) {
-        // Get the updated user data - either from the response or the original data
         const updatedUserData = response.data.data || response.data;
 
-        // Update user state with the new data
         setUser((prevUser) => ({
           ...prevUser,
           ...(updatedUserData || {}),
-          // If the response doesn't include updated fields, use our input data
           name: updatedUserData?.name || data.name || prevUser?.name,
           phone: updatedUserData?.phone || data.phone || prevUser?.phone,
         }));
 
-        // Try to refresh the complete user info
         try {
           await getUserInfo();
         } catch (refreshErr) {
@@ -1026,7 +897,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             "Could not refresh user data after profile update:",
             refreshErr
           );
-          // Continue since the update was still successful
         }
 
         return;
@@ -1042,7 +912,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Error status:", err.response?.status);
         console.error("Error details:", err.response?.data);
 
-        // Handle specific status codes
         if (err.response?.status === 401) {
           throw new Error("Your session has expired. Please log in again.");
         } else if (err.response?.status === 400) {
@@ -1063,52 +932,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Check if user is already logged in on component mount
   useEffect(() => {
-    const checkAuth = async () => {
-      // Check if we have auth cookies
-      const savedToken = Cookies.get("token");
-      const savedDeviceId = Cookies.get("DeviceId");
+    const initializeAuth = async () => {
+      const authToken = localStorage.getItem("authToken");
+      const refreshToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("refreshToken="))
+        ?.split("=")[1];
 
-      if (savedToken && savedDeviceId) {
-        setLoading(true);
-
+      if (authToken) {
         try {
-          // Get user info using the saved token
-          const response = await api.get("/api/auth/me");
-
-          if (response.data && response.data.data) {
-            setUser(response.data.data);
-            setToken(savedToken);
+          // Thử lấy thông tin user với token hiện tại
+          const userInfo = await getUserInfo();
+          setUser(userInfo);
+        } catch (error) {
+          // Nếu token hết hạn, thử refresh token
+          if (axios.isAxiosError(error) && error.response?.status === 401) {
+            try {
+              await refreshAuthToken();
+              const userInfo = await getUserInfo();
+              setUser(userInfo);
+            } catch (refreshError) {
+              console.error("Failed to refresh token:", refreshError);
+              logout();
+            }
           }
-        } catch (err) {
-          console.error("Failed to restore session:", err);
-          // If token is invalid or expired, clear everything
-          //clearAuthCookies();
-          setToken(null);
-        } finally {
-          setLoading(false);
         }
-      }
-
-      // Load tickets from localStorage for fallback
-      const storedTickets = localStorage.getItem("tickets");
-      if (storedTickets) {
-        setTickets(JSON.parse(storedTickets));
+      } else if (refreshToken) {
+        // Có refresh token nhưng không có auth token
+        try {
+          await refreshAuthToken();
+          const userInfo = await getUserInfo();
+          setUser(userInfo);
+        } catch (error) {
+          console.error("Failed to refresh token:", error);
+          logout();
+        }
       }
     };
 
-    checkAuth();
-
-    // Optional: Setup WebSocket connection for real-time updates
-    // socket.current = io('wss://api.hmes.buubuu.id.vn');
-    // socket.current.on('connect', () => {
-    //   console.log('Connected to WebSocket');
-    // });
-
-    // return () => {
-    //   socket.current?.disconnect();
-    // };
+    initializeAuth();
   }, []);
 
   return (
@@ -1148,4 +1011,12 @@ export const useAuth = () => {
   return context;
 };
 
-export default api; // Export the API instance for direct use
+export default api;
+function refreshAuthToken() {
+  throw new Error("Function not implemented.");
+}
+
+function logout() {
+  throw new Error("Function not implemented.");
+}
+
