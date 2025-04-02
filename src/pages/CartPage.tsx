@@ -20,33 +20,34 @@ import {
   Stack,
   Badge,
   Alert,
-  useMediaQuery
+  useMediaQuery,
+  Checkbox,
 } from "@mui/material";
-import { 
-  Add, 
-  Remove, 
-  Delete, 
-  ShoppingCart, 
-  ArrowBack, 
-  LocalShipping, 
-  Payment, 
-  ReceiptLong, 
-  ShoppingBag, 
+import {
+  Add,
+  Remove,
+  Delete,
+  ShoppingCart,
+  ArrowBack,
+  LocalShipping,
+  Payment,
+  ReceiptLong,
+  ShoppingBag,
   LocalOffer,
   CheckCircleOutline,
   CreditCard,
-  LocalMall
+  LocalMall,
 } from "@mui/icons-material";
 import { CartItem } from "../types/types";
 import { cartService, CartDetailItem } from "../services/cartService";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  MotionBox, 
-  MotionButton, 
-  itemVariants, 
+import {
+  MotionBox,
+  MotionButton,
+  itemVariants,
   containerVariants,
-  buttonVariants 
+  buttonVariants,
 } from "../utils/motion";
 
 // Create properly typed motion components to fix TypeScript errors
@@ -68,7 +69,7 @@ const CartPage: React.FC<CartPageProps> = ({
   const theme = useTheme();
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  
+
   const [cartDetails, setCartDetails] = useState<CartDetailItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,12 +78,54 @@ const CartPage: React.FC<CartPageProps> = ({
   const [discount, setDiscount] = useState<number>(0);
   const [activeStep, setActiveStep] = useState<number>(0);
 
+  // Thêm state để theo dõi các sản phẩm được chọn
+  const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
+  const [selectAll, setSelectAll] = useState<boolean>(false);
+
+  // Tính toán tổng tiền dựa trên các sản phẩm được chọn
+  const selectedSubtotal = cartDetails
+    .filter(item => selectedItems[item.id])
+    .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    
+  const selectedShipping = selectedSubtotal > 100 ? 0 : 15;
+  const selectedTotal = selectedSubtotal + selectedShipping - discount;
+
+  // Số lượng sản phẩm được chọn
+  const selectedCount = Object.values(selectedItems).filter(Boolean).length;
+
+  // Hàm xử lý khi chọn/bỏ chọn tất cả
+  const handleSelectAll = () => {
+    const newSelectAll = !selectAll;
+    setSelectAll(newSelectAll);
+    
+    const newSelectedItems = {...selectedItems};
+    cartDetails.forEach(item => {
+      newSelectedItems[item.id] = newSelectAll;
+    });
+    
+    setSelectedItems(newSelectedItems);
+  };
+
+  // Hàm xử lý khi chọn/bỏ chọn một sản phẩm
+  const handleSelectItem = (id: string) => {
+    const newSelectedItems = {
+      ...selectedItems,
+      [id]: !selectedItems[id]
+    };
+    
+    setSelectedItems(newSelectedItems);
+    
+    // Kiểm tra xem tất cả đã được chọn chưa
+    const allSelected = cartDetails.every(item => newSelectedItems[item.id]);
+    setSelectAll(allSelected);
+  };
+
   // Calculate total based on cart details from API
   const subtotal = cartDetails.reduce(
     (sum, item) => sum + item.unitPrice * item.quantity,
     0
   );
-  
+
   const shipping = subtotal > 100 ? 0 : 15;
   const total = subtotal + shipping - discount;
 
@@ -92,7 +135,7 @@ const CartPage: React.FC<CartPageProps> = ({
         setLoading(true);
         const details = await cartService.getCartDetails();
         setCartDetails(details);
-  
+
         // Lưu dữ liệu giỏ hàng vào localStorage
         localStorage.setItem("cartDetails", JSON.stringify(details));
       } catch (err) {
@@ -102,9 +145,27 @@ const CartPage: React.FC<CartPageProps> = ({
         setLoading(false);
       }
     };
-  
+
     fetchCartDetails();
   }, []);
+
+  // Cập nhật useEffect để khởi tạo selectedItems khi cartDetails thay đổi
+  useEffect(() => {
+    if (cartDetails.length > 0) {
+      const initialSelectedItems: Record<string, boolean> = {};
+      cartDetails.forEach(item => {
+        // Nếu sản phẩm chưa có trong state, mặc định chọn tất cả
+        initialSelectedItems[item.id] = selectedItems[item.id] !== undefined 
+          ? selectedItems[item.id] 
+          : true;
+      });
+      setSelectedItems(initialSelectedItems);
+      
+      // Kiểm tra xem tất cả đã được chọn chưa
+      const allSelected = cartDetails.every(item => initialSelectedItems[item.id]);
+      setSelectAll(allSelected);
+    }
+  }, [cartDetails]);
 
   const handleUpdateQuantity = async (
     id: string,
@@ -150,7 +211,7 @@ const CartPage: React.FC<CartPageProps> = ({
       setCartDetails(details);
 
       // Lưu dữ liệu giỏ hàng mới nhất vào localStorage
-      localStorage.setItem("cartDetails", JSON.stringify(details));
+      localStorage.setItem("cartDetails", JSON.stringify(details)); 
     } catch (error) {
       console.error("Failed to remove cart item:", error);
     }
@@ -169,6 +230,18 @@ const CartPage: React.FC<CartPageProps> = ({
     }
   };
 
+  // Hàm xử lý khi nhấn "Proceed to Checkout"
+  const handleProceedToCheckout = () => {
+    // Lọc các sản phẩm được chọn
+    const selectedProducts = cartDetails.filter(item => selectedItems[item.id]);
+    
+    // Lưu danh sách sản phẩm được chọn vào localStorage
+    localStorage.setItem("selectedCartDetails", JSON.stringify(selectedProducts));
+    
+    // Chuyển đến trang shipping
+    navigate('/checkout/shipping');
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -179,25 +252,27 @@ const CartPage: React.FC<CartPageProps> = ({
           justifyContent: "center",
           alignItems: "center",
           minHeight: "100vh",
-          background: "linear-gradient(to bottom, #f9f9f9, #e8f5e9)"
+          background: "linear-gradient(to bottom, #f9f9f9, #e8f5e9)",
         }}
       >
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ 
-            scale: 1, 
+          animate={{
+            scale: 1,
             opacity: 1,
             rotate: [0, 0, 270, 270, 0],
           }}
-          transition={{ 
+          transition={{
             duration: 3,
             ease: "easeInOut",
             times: [0, 0.2, 0.5, 0.8, 1],
             repeat: Infinity,
-            repeatDelay: 1
+            repeatDelay: 1,
           }}
         >
-          <ShoppingCart sx={{ fontSize: 80, color: theme.palette.primary.main }} />
+          <ShoppingCart
+            sx={{ fontSize: 80, color: theme.palette.primary.main }}
+          />
         </motion.div>
         <Typography variant="h6" color="textSecondary" sx={{ mt: 3 }}>
           Loading your cart...
@@ -212,22 +287,22 @@ const CartPage: React.FC<CartPageProps> = ({
       <MotionContainer
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        sx={{ 
-          py: 8, 
-          display: "flex", 
-          flexDirection: "column", 
+        sx={{
+          py: 8,
+          display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           minHeight: "100vh",
-          background: "linear-gradient(to bottom, #f9f9f9, #e8f5e9)"
+          background: "linear-gradient(to bottom, #f9f9f9, #e8f5e9)",
         }}
       >
         <MotionPaper
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ 
+          transition={{
             type: "spring",
             stiffness: 300,
-            damping: 25
+            damping: 25,
           }}
           elevation={3}
           sx={{
@@ -235,17 +310,17 @@ const CartPage: React.FC<CartPageProps> = ({
             textAlign: "center",
             borderRadius: 4,
             maxWidth: 600,
-            boxShadow: "0 8px 40px rgba(0,0,0,0.12)"
+            boxShadow: "0 8px 40px rgba(0,0,0,0.12)",
           }}
         >
-          <Alert 
-            severity="error" 
-            sx={{ 
+          <Alert
+            severity="error"
+            sx={{
               mb: 3,
               borderRadius: 2,
-              '& .MuiAlert-icon': {
-                fontSize: 28
-              }
+              "& .MuiAlert-icon": {
+                fontSize: 28,
+              },
             }}
             icon={<Delete fontSize="inherit" />}
           >
@@ -255,13 +330,14 @@ const CartPage: React.FC<CartPageProps> = ({
             We couldn't load your cart
           </Typography>
           <Typography color="textSecondary" paragraph>
-            There was a problem connecting to our services. Please try again later.
+            There was a problem connecting to our services. Please try again
+            later.
           </Typography>
           <MotionButton
-            variant="contained" 
-            color="primary" 
+            variant="contained"
+            color="primary"
             startIcon={<ArrowBack />}
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             sx={{ mt: 2 }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -279,22 +355,22 @@ const CartPage: React.FC<CartPageProps> = ({
       <MotionContainer
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        sx={{ 
-          py: 8, 
-          display: "flex", 
-          flexDirection: "column", 
+        sx={{
+          py: 8,
+          display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           minHeight: "100vh",
-          background: "linear-gradient(to bottom, #f9f9f9, #e8f5e9)"
+          background: "linear-gradient(to bottom, #f9f9f9, #e8f5e9)",
         }}
       >
         <MotionPaper
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ 
+          transition={{
             type: "spring",
-            stiffness: 300,
-            damping: 25
+            stiffness: 100,
+            damping: 25,
           }}
           elevation={3}
           sx={{
@@ -304,7 +380,7 @@ const CartPage: React.FC<CartPageProps> = ({
             maxWidth: 600,
             boxShadow: "0 20px 60px rgba(0,0,0,0.1)",
             overflow: "hidden",
-            position: "relative"
+            position: "relative",
           }}
         >
           {/* Decorative elements */}
@@ -330,86 +406,92 @@ const CartPage: React.FC<CartPageProps> = ({
               background: alpha(theme.palette.secondary.light, 0.15),
             }}
           />
-          
+
           <MotionBox
             initial={{ scale: 0.8, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            transition={{ 
-              type: "spring", 
+            transition={{
+              type: "spring",
               stiffness: 100,
-              delay: 0.2
+              delay: 0.2,
             }}
             sx={{ mb: 4 }}
           >
             <motion.div
-              animate={{ 
+              animate={{
                 y: [0, -10, 0],
               }}
-              transition={{ 
+              transition={{
                 repeat: Infinity,
                 duration: 2,
-                ease: "easeInOut"
+                ease: "easeInOut",
               }}
             >
-              <ShoppingCart 
-                sx={{ 
-                  fontSize: 100, 
+              <ShoppingCart
+                sx={{
+                  fontSize: 100,
                   color: alpha(theme.palette.primary.main, 0.7),
-                  filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.1))"
-                }} 
+                  filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.1))",
+                }}
               />
             </motion.div>
           </MotionBox>
-          
-          <Typography 
-            variant="h4" 
-            gutterBottom 
+
+          <Typography
+            variant="h4"
+            gutterBottom
             fontWeight="bold"
             sx={{
               background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              mb: 2
+              mb: 2,
             }}
           >
             Your cart is empty
           </Typography>
-          
-          <Typography 
-            color="textSecondary" 
-            paragraph 
-            sx={{ 
+
+          <Typography
+            color="textSecondary"
+            paragraph
+            sx={{
               mb: 4,
               maxWidth: 400,
               mx: "auto",
-              lineHeight: 1.6
+              lineHeight: 1.6,
             }}
           >
-            Looks like you haven't added any items to your cart yet.
-            Browse our products and discover the best hydroponic solutions for your garden!
+            Looks like you haven't added any items to your cart yet. Browse our
+            products and discover the best hydroponic solutions for your garden!
           </Typography>
-          
+
           <MotionButton
-  variant="contained"
-  color="primary"
-  size="large"
-  startIcon={<ShoppingBag />}
-  onClick={() => navigate('/products')}  
-  whileHover={{ scale: 1.05, boxShadow: "0 8px 16px rgba(0,0,0,0.1)" }}
-  whileTap={{ scale: 0.95 }}
-  sx={{ 
-    py: 1.5, 
-    px: 4,
-    borderRadius: 2,
-    fontWeight: "bold"
-  }}
->
-  Explore Products
-</MotionButton>
-          
+            variant="contained"
+            color="primary"
+            size="large"
+            startIcon={<ShoppingBag />}
+            onClick={() => navigate("/")}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+            }}
+            whileTap={{ scale: 0.95 }}
+            sx={{
+              py: 1.5,
+              px: 4,
+              borderRadius: 2,
+              fontWeight: "bold",
+            }}
+          >
+            Explore Products
+          </MotionButton>
+
           <Box sx={{ mt: 3 }}>
             <Typography variant="body2" color="textSecondary">
-              Need help? <Button size="small" color="primary">Contact Support</Button>
+              Need help?{" "}
+              <Button size="small" color="primary">
+                Contact Support
+              </Button>
             </Typography>
           </Box>
         </MotionPaper>
@@ -419,17 +501,17 @@ const CartPage: React.FC<CartPageProps> = ({
 
   // Main cart view
   return (
-    <MotionContainer 
+    <MotionContainer
       initial="hidden"
       animate="visible"
       variants={containerVariants}
       maxWidth="lg"
-      sx={{ 
-        py: 6, 
+      sx={{
+        py: 6,
         minHeight: "100vh",
         background: `linear-gradient(to bottom, #f9f9f9, #e8f5e9)`,
         position: "relative",
-        overflow: "hidden"
+        overflow: "hidden",
       }}
     >
       {/* Decorative shapes */}
@@ -442,7 +524,7 @@ const CartPage: React.FC<CartPageProps> = ({
           height: 300,
           borderRadius: "50%",
           background: alpha(theme.palette.primary.light, 0.1),
-          zIndex: 0
+          zIndex: 0,
         }}
       />
       <Box
@@ -454,69 +536,74 @@ const CartPage: React.FC<CartPageProps> = ({
           height: 200,
           borderRadius: "50%",
           background: alpha(theme.palette.secondary.light, 0.08),
-          zIndex: 0
+          zIndex: 0,
         }}
       />
-      
+
       {/* Header section */}
-      <MotionBox 
-        variants={itemVariants} 
-        sx={{ 
-          mb: 5, 
-          display: "flex", 
+      <MotionBox
+        variants={itemVariants}
+        sx={{
+          mb: 5,
+          display: "flex",
           alignItems: "center",
           position: "relative",
-          zIndex: 1
+          zIndex: 1,
         }}
       >
-        <IconButton 
+        <IconButton
           onClick={() => navigate(-1)}
-          sx={{ 
+          sx={{
             mr: 2,
             bgcolor: alpha(theme.palette.primary.main, 0.1),
-            "&:hover": { 
+            "&:hover": {
               bgcolor: alpha(theme.palette.primary.main, 0.2),
-              transform: "scale(1.1)"
+              transform: "scale(1.1)",
             },
             transition: "all 0.3s ease",
-            boxShadow: "0 4px 8px rgba(0,0,0,0.05)"
+            boxShadow: "0 4px 8px rgba(0,0,0,0.05)",
           }}
         >
           <ArrowBack />
         </IconButton>
-        
-        <Typography 
-          variant="h4" 
+
+        <Typography
+          variant="h4"
           component="h1"
           fontWeight="bold"
           sx={{
             background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
-            letterSpacing: "0.5px"
+            letterSpacing: "0.5px",
           }}
         >
           Your Shopping Cart
         </Typography>
-        
-        <Badge 
-          badgeContent={cartDetails.reduce((sum, item) => sum + item.quantity, 0)} 
+
+        <Badge
+          badgeContent={cartDetails.reduce(
+            (sum, item) => sum + item.quantity,
+            0
+          )}
           color="secondary"
           sx={{ ml: "auto" }}
         >
-          <ShoppingCart sx={{ fontSize: 28, color: theme.palette.primary.main }} />
+          <ShoppingCart
+            sx={{ fontSize: 28, color: theme.palette.primary.main }}
+          />
         </Badge>
       </MotionBox>
 
       {/* Steps indicator for checkout process */}
-      <MotionBox 
-        variants={itemVariants} 
-        sx={{ 
+      <MotionBox
+        variants={itemVariants}
+        sx={{
           mb: 5,
           display: { xs: "none", md: "flex" },
           justifyContent: "center",
           position: "relative",
-          zIndex: 1
+          zIndex: 1,
         }}
       >
         <Paper
@@ -530,60 +617,67 @@ const CartPage: React.FC<CartPageProps> = ({
             width: "80%",
             bgcolor: alpha(theme.palette.background.paper, 0.8),
             backdropFilter: "blur(8px)",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.05)"
+            boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
           }}
         >
           {[
             { label: "Cart", icon: <ShoppingCart /> },
             { label: "Shipping", icon: <LocalShipping /> },
             { label: "Payment", icon: <CreditCard /> },
-            { label: "Confirmation", icon: <CheckCircleOutline /> }
+            { label: "Confirmation", icon: <CheckCircleOutline /> },
           ].map((step, index) => (
-            <Box 
-              key={step.label} 
-              sx={{ 
-                display: "flex", 
+            <Box
+              key={step.label}
+              sx={{
+                display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 width: "25%",
-                position: "relative"
+                position: "relative",
               }}
             >
-              <Box 
-                sx={{ 
+              <Box
+                sx={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   width: 50,
                   height: 50,
                   borderRadius: "50%",
-                  bgcolor: index === activeStep ? theme.palette.primary.main : alpha(theme.palette.primary.main, 0.1),
-                  color: index === activeStep ? "white" : theme.palette.primary.main,
+                  bgcolor:
+                    index === activeStep
+                      ? theme.palette.primary.main
+                      : alpha(theme.palette.primary.main, 0.1),
+                  color:
+                    index === activeStep ? "white" : theme.palette.primary.main,
                   mb: 1,
-                  transition: "all 0.3s ease"
+                  transition: "all 0.3s ease",
                 }}
               >
                 {step.icon}
               </Box>
-              <Typography 
-                variant="body2" 
+              <Typography
+                variant="body2"
                 fontWeight={index === activeStep ? "bold" : "normal"}
                 color={index === activeStep ? "primary" : "text.secondary"}
               >
                 {step.label}
               </Typography>
-              
+
               {/* Connector line */}
               {index < 3 && (
-                <Box 
-                  sx={{ 
+                <Box
+                  sx={{
                     position: "absolute",
                     top: 25,
                     right: "-50%",
                     width: "100%",
                     height: 3,
-                    bgcolor: index < activeStep ? theme.palette.primary.main : alpha(theme.palette.primary.main, 0.1),
-                    zIndex: -1
+                    bgcolor:
+                      index < activeStep
+                        ? theme.palette.primary.main
+                        : alpha(theme.palette.primary.main, 0.1),
+                    zIndex: -1,
                   }}
                 />
               )}
@@ -597,26 +691,40 @@ const CartPage: React.FC<CartPageProps> = ({
         {/* Cart items */}
         <Grid item xs={12} md={8}>
           <MotionBox variants={itemVariants}>
-            <Paper 
+            <Paper
               elevation={0}
-              sx={{ 
+              sx={{
                 bgcolor: alpha(theme.palette.background.paper, 0.8),
                 mb: 2,
                 p: 2,
                 borderRadius: 2,
                 boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-                backdropFilter: "blur(8px)"
+                backdropFilter: "blur(8px)",
               }}
             >
               <Grid container alignItems="center">
-                <Grid item xs={5} sm={6}>
-                  <Typography variant="subtitle1" fontWeight="bold">Product</Typography>
+                <Grid item xs={1}>
+                  <Checkbox
+                    checked={selectAll}
+                    onChange={handleSelectAll}
+                    color="primary"
+                    sx={{ p: 0.5 }}
+                  />
+                </Grid>
+                <Grid item xs={4} sm={5}>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    Product
+                  </Typography>
                 </Grid>
                 <Grid item xs={3} sm={2} sx={{ textAlign: "center" }}>
-                  <Typography variant="subtitle1" fontWeight="bold">Quantity</Typography>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    Quantity
+                  </Typography>
                 </Grid>
                 <Grid item xs={4} sm={4} sx={{ textAlign: "right" }}>
-                  <Typography variant="subtitle1" fontWeight="bold">Subtotal</Typography>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    Subtotal
+                  </Typography>
                 </Grid>
               </Grid>
             </Paper>
@@ -627,14 +735,18 @@ const CartPage: React.FC<CartPageProps> = ({
               <MotionCard
                 key={item.id}
                 initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0, transition: { delay: index * 0.1 } }}
-                exit={{ opacity: 0, x: -100, transition: { duration: 0.3 } }}
-                whileHover={{ 
-                  scale: 1.02, 
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-                  transition: { duration: 0.2 }
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  transition: { delay: index * 0.1 },
                 }}
-                sx={{ 
+                exit={{ opacity: 0, x: -100, transition: { duration: 0.3 } }}
+                whileHover={{
+                  scale: 1.02,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+                  transition: { duration: 0.2 },
+                }}
+                sx={{
                   mb: 2,
                   borderRadius: 3,
                   overflow: "hidden",
@@ -642,7 +754,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   bgcolor: "white",
                   position: "relative",
                   p: 0,
-                  transition: "all 0.3s ease"
+                  transition: "all 0.3s ease",
                 }}
               >
                 {item.quantity >= 5 && (
@@ -650,18 +762,29 @@ const CartPage: React.FC<CartPageProps> = ({
                     label="Bulk Purchase"
                     color="secondary"
                     size="small"
-                    sx={{ 
-                      position: "absolute", 
-                      top: 12, 
-                      left: 12, 
+                    sx={{
+                      position: "absolute",
+                      top: 12,
+                      left: 12,
                       zIndex: 2,
                       fontWeight: "bold",
-                      boxShadow: "0 4px 8px rgba(0,0,0,0.1)"
+                      boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
                     }}
                   />
                 )}
-                
+
                 <Grid container alignItems="center" spacing={0}>
+                  <Grid item xs={1}>
+                    <Checkbox
+                      checked={selectedItems[item.id] || false}
+                      onChange={() => handleSelectItem(item.id)}
+                      color="primary"
+                      sx={{ 
+                        p: 0.5,
+                        color: selectedItems[item.id] ? theme.palette.primary.main : alpha(theme.palette.text.primary, 0.3)
+                      }}
+                    />
+                  </Grid>
                   <Grid item xs={12} sm={6}>
                     <Box sx={{ display: "flex", p: 2 }}>
                       <Box
@@ -671,7 +794,7 @@ const CartPage: React.FC<CartPageProps> = ({
                           height: 100,
                           marginRight: 2,
                           overflow: "hidden",
-                          borderRadius: 2
+                          borderRadius: 2,
                         }}
                       >
                         <CardMedia
@@ -682,37 +805,37 @@ const CartPage: React.FC<CartPageProps> = ({
                             objectFit: "cover",
                             transition: "all 0.5s ease",
                             "&:hover": {
-                              transform: "scale(1.1)"
-                            }
+                              transform: "scale(1.1)",
+                            },
                           }}
                           image={item.productImage || "/placeholder-image.jpg"}
                           alt={item.productName}
                         />
                       </Box>
-                      
+
                       <Box>
-                        <Typography 
-                          variant="h6" 
-                          fontWeight="bold" 
+                        <Typography
+                          variant="h6"
+                          fontWeight="bold"
                           gutterBottom
-                          sx={{ 
+                          sx={{
                             color: theme.palette.primary.dark,
-                            lineHeight: 1.2
+                            lineHeight: 1.2,
                           }}
                         >
                           {item.productName}
                         </Typography>
-                        
-                        <Chip 
-                          label={`$${item.unitPrice.toLocaleString()}`} 
+
+                        <Chip
+                          label={`$${item.unitPrice.toLocaleString()}`}
                           size="small"
                           color="primary"
                           variant="outlined"
                           sx={{ fontWeight: "medium" }}
                         />
-                        
-                        <Typography 
-                          variant="body2" 
+
+                        <Typography
+                          variant="body2"
                           color="text.secondary"
                           sx={{ mt: 1 }}
                         >
@@ -721,19 +844,22 @@ const CartPage: React.FC<CartPageProps> = ({
                       </Box>
                     </Box>
                   </Grid>
-                  
+
                   <Grid item xs={6} sm={2} sx={{ textAlign: "center" }}>
-                    <Stack 
-                      direction="row" 
-                      alignItems="center" 
+                    <Stack
+                      direction="row"
+                      alignItems="center"
                       justifyContent="center"
                       sx={{
-                        border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                        border: `1px solid ${alpha(
+                          theme.palette.divider,
+                          0.5
+                        )}`,
                         borderRadius: 2,
                         width: "fit-content",
                         mx: "auto",
                         overflow: "hidden",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
                       }}
                     >
                       <IconButton
@@ -747,29 +873,29 @@ const CartPage: React.FC<CartPageProps> = ({
                             -1
                           )
                         }
-                        sx={{ 
+                        sx={{
                           color: theme.palette.primary.main,
                           bgcolor: alpha(theme.palette.primary.main, 0.05),
                           borderRadius: 0,
-                          '&:hover': {
-                            bgcolor: alpha(theme.palette.primary.main, 0.1)
-                          }
+                          "&:hover": {
+                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          },
                         }}
                       >
                         <Remove fontSize="small" />
                       </IconButton>
-                      
-                      <Typography 
-                        sx={{ 
-                          mx: 2, 
-                          minWidth: 24, 
+
+                      <Typography
+                        sx={{
+                          mx: 2,
+                          minWidth: 24,
                           textAlign: "center",
-                          fontWeight: "bold" 
+                          fontWeight: "bold",
                         }}
                       >
                         {item.quantity}
                       </Typography>
-                      
+
                       <IconButton
                         size="small"
                         onClick={() =>
@@ -781,45 +907,47 @@ const CartPage: React.FC<CartPageProps> = ({
                             1
                           )
                         }
-                        sx={{ 
+                        sx={{
                           color: theme.palette.primary.main,
                           bgcolor: alpha(theme.palette.primary.main, 0.05),
                           borderRadius: 0,
-                          '&:hover': {
-                            bgcolor: alpha(theme.palette.primary.main, 0.1)
-                          }
+                          "&:hover": {
+                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          },
                         }}
                       >
                         <Add fontSize="small" />
                       </IconButton>
                     </Stack>
                   </Grid>
-                  
+
                   <Grid item xs={6} sm={4} sx={{ textAlign: "right", pr: 3 }}>
-                    <Typography 
-                      variant="h6" 
-                      color="primary.dark" 
+                    <Typography
+                      variant="h6"
+                      color="primary.dark"
                       fontWeight="bold"
-                      sx={{ 
+                      sx={{
                         background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
                         WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent" 
+                        WebkitTextFillColor: "transparent",
                       }}
                     >
                       ${(item.unitPrice * item.quantity).toLocaleString()}
                     </Typography>
-                    
+
                     <Button
                       color="error"
                       size="small"
-                      onClick={() => handleRemoveFromCart(item.id, item.productId)}
+                      onClick={() =>
+                        handleRemoveFromCart(item.id, item.productId)
+                      }
                       startIcon={<Delete fontSize="small" />}
-                      sx={{ 
-                        mt: 1, 
+                      sx={{
+                        mt: 1,
                         fontWeight: "medium",
-                        '&:hover': {
-                          bgcolor: alpha(theme.palette.error.main, 0.1)
-                        }
+                        "&:hover": {
+                          bgcolor: alpha(theme.palette.error.main, 0.1),
+                        },
                       }}
                     >
                       Remove
@@ -829,24 +957,27 @@ const CartPage: React.FC<CartPageProps> = ({
               </MotionCard>
             ))}
           </AnimatePresence>
-          
-          <MotionBox variants={itemVariants} sx={{ mt: 4, display: "flex", justifyContent: "space-between" }}>
+
+          <MotionBox
+            variants={itemVariants}
+            sx={{ mt: 4, display: "flex", justifyContent: "space-between" }}
+          >
             <MotionButton
               variants={buttonVariants}
               whileHover="hover"
               whileTap="tap"
               startIcon={<ArrowBack />}
               variant="outlined"
-              onClick={() => navigate('/')}
-              sx={{ 
+              onClick={() => navigate("/")}
+              sx={{
                 fontWeight: "medium",
                 borderRadius: 2,
-                px: 3
+                px: 3,
               }}
             >
               Continue Shopping
             </MotionButton>
-            
+
             <MotionButton
               variants={buttonVariants}
               whileHover="hover"
@@ -860,28 +991,30 @@ const CartPage: React.FC<CartPageProps> = ({
             </MotionButton>
           </MotionBox>
         </Grid>
-        
+
         {/* Order summary */}
         <Grid item xs={12} md={4}>
           <MotionCard
             variants={itemVariants}
-            sx={{ 
-              borderRadius: 3, 
+            sx={{
+              borderRadius: 3,
               overflow: "hidden",
               boxShadow: "0 15px 35px rgba(0,0,0,0.1)",
               position: "sticky",
               top: 100,
               bgcolor: alpha(theme.palette.background.paper, 0.8),
-              backdropFilter: "blur(10px)"
+              backdropFilter: "blur(10px)",
             }}
           >
-            <Box sx={{ 
-              p: 3, 
-              background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
-              color: "white",
-              position: "relative",
-              overflow: "hidden"
-            }}>
+            <Box
+              sx={{
+                p: 3,
+                background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                color: "white",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
               <Box
                 sx={{
                   position: "absolute",
@@ -893,89 +1026,137 @@ const CartPage: React.FC<CartPageProps> = ({
                   background: "rgba(255,255,255,0.1)",
                 }}
               />
-              
-              <Typography variant="h6" fontWeight="bold" sx={{ position: "relative", zIndex: 1 }}>
+
+              <Typography
+                variant="h6"
+                fontWeight="bold"
+                sx={{ position: "relative", zIndex: 1 }}
+              >
                 Order Summary
               </Typography>
-              
-              <Typography variant="body2" sx={{ mt: 1, opacity: 0.8, position: "relative", zIndex: 1 }}>
-                {cartDetails.reduce((sum, item) => sum + item.quantity, 0)} items in your cart
+
+              <Typography
+                variant="body2"
+                sx={{ mt: 1, opacity: 0.8, position: "relative", zIndex: 1 }}
+              >
+                {cartDetails.reduce((sum, item) => sum + item.quantity, 0)}{" "}
+                items in your cart
               </Typography>
             </Box>
-            
+
             <CardContent sx={{ p: 3 }}>
               <Stack spacing={3}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
                   <Typography variant="body1" color="text.secondary">
-                    Subtotal
+                    Subtotal ({selectedCount} {selectedCount > 1 ? 'items' : 'item'})
                   </Typography>
                   <Typography variant="body1" fontWeight="bold">
-                    ${subtotal.toLocaleString()}
+                    ${selectedSubtotal.toLocaleString()}
                   </Typography>
                 </Box>
-                
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
                   <Typography variant="body1" color="text.secondary">
                     Shipping
                   </Typography>
                   <Typography variant="body1" fontWeight="medium">
-                    {shipping === 0 ? (
-                      <Chip 
-                        label="FREE" 
-                        color="success" 
+                    {selectedShipping === 0 ? (
+                      <Chip
+                        label="FREE"
+                        color="success"
                         size="small"
-                        sx={{ fontWeight: "bold" }} 
+                        sx={{ fontWeight: "bold" }}
                       />
                     ) : (
-                      `$${shipping.toLocaleString()}`
+                      `$${selectedShipping.toLocaleString()}`
                     )}
                   </Typography>
                 </Box>
-                
+
                 {discount > 0 && (
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="body1" color="error.main" sx={{ display: "flex", alignItems: "center" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Typography
+                      variant="body1"
+                      color="error.main"
+                      sx={{ display: "flex", alignItems: "center" }}
+                    >
                       <LocalOffer fontSize="small" sx={{ mr: 1 }} /> Discount
                     </Typography>
-                    <Typography variant="body1" fontWeight="medium" color="error.main">
+                    <Typography
+                      variant="body1"
+                      fontWeight="medium"
+                      color="error.main"
+                    >
                       -${discount.toLocaleString()}
                     </Typography>
                   </Box>
                 )}
-                
+
                 <Divider />
-                
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
                   <Typography variant="h6" fontWeight="bold">
                     Total
                   </Typography>
-                  <Typography 
-                    variant="h5" 
-                    fontWeight="bold" 
+                  <Typography
+                    variant="h5"
+                    fontWeight="bold"
                     color="primary.dark"
-                    sx={{ 
+                    sx={{
                       background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
                       WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent"
+                      WebkitTextFillColor: "transparent",
                     }}
                   >
-                    ${total.toLocaleString()}
+                    ${selectedTotal.toLocaleString()}
                   </Typography>
                 </Box>
-                
+
                 <Paper
                   elevation={0}
                   sx={{
                     p: 2,
                     bgcolor: alpha(theme.palette.primary.light, 0.1),
                     borderRadius: 2,
-                    border: `1px dashed ${alpha(theme.palette.primary.main, 0.3)}`
+                    border: `1px dashed ${alpha(
+                      theme.palette.primary.main,
+                      0.3
+                    )}`,
                   }}
                 >
-                  <Typography variant="subtitle2" color="primary" gutterBottom sx={{ fontWeight: "medium" }}>
+                  <Typography
+                    variant="subtitle2"
+                    color="primary"
+                    gutterBottom
+                    sx={{ fontWeight: "medium" }}
+                  >
                     Apply Coupon
                   </Typography>
-                  
+
                   <TextField
                     fullWidth
                     placeholder="Enter code"
@@ -990,16 +1171,16 @@ const CartPage: React.FC<CartPageProps> = ({
                       ),
                       endAdornment: (
                         <InputAdornment position="end">
-                          <Button 
-                            size="small" 
+                          <Button
+                            size="small"
                             onClick={handleApplyCoupon}
                             disabled={!couponCode.trim()}
                             variant="contained"
                             color="primary"
-                            sx={{ 
+                            sx={{
                               borderRadius: 1,
                               minWidth: "auto",
-                              px: 2
+                              px: 2,
                             }}
                           >
                             Apply
@@ -1007,22 +1188,22 @@ const CartPage: React.FC<CartPageProps> = ({
                         </InputAdornment>
                       ),
                       sx: {
-                        borderRadius: 1.5
-                      }
+                        borderRadius: 1.5,
+                      },
                     }}
                     sx={{ mb: 1 }}
                   />
-                  
+
                   {couponApplied && (
-                    <Alert 
+                    <Alert
                       icon={<CheckCircleOutline />}
-                      severity="success" 
-                      sx={{ 
+                      severity="success"
+                      sx={{
                         mt: 1,
                         borderRadius: 1.5,
-                        '& .MuiAlert-icon': {
-                          color: theme.palette.success.main
-                        }
+                        "& .MuiAlert-icon": {
+                          color: theme.palette.success.main,
+                        },
                       }}
                     >
                       <Typography variant="body2" fontWeight="medium">
@@ -1031,122 +1212,163 @@ const CartPage: React.FC<CartPageProps> = ({
                     </Alert>
                   )}
                 </Paper>
-                
+
                 <MotionButton
                   variant="contained"
                   color="primary"
                   fullWidth
                   size="large"
                   startIcon={<Payment />}
-                  onClick={() => navigate('/checkout/shipping')}
-                  whileHover={{ scale: 1.02, boxShadow: "0 8px 20px rgba(0,0,0,0.2)" }}
+                  onClick={handleProceedToCheckout}
+                  disabled={selectedCount === 0} // Vô hiệu hóa nút nếu không có sản phẩm nào được chọn
+                  whileHover={{
+                    scale: 1.02,
+                    boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
+                  }}
                   whileTap={{ scale: 0.98 }}
-                  sx={{ 
+                  sx={{
                     py: 1.5,
                     fontWeight: "bold",
                     borderRadius: 2,
                     background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
-                    boxShadow: "0 8px 16px rgba(0,0,0,0.1)"
+                    boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
                   }}
                 >
-                  Proceed to Checkout
+                  {selectedCount > 0 
+                    ? `Checkout (${selectedCount} item${selectedCount > 1 ? 's' : ''})`
+                    : 'Select items to checkout'}
                 </MotionButton>
-                
-                <Box sx={{ 
-                  mt: 2, 
-                  p: 2, 
-                  bgcolor: alpha(theme.palette.success.main, 0.1),
-                  borderRadius: 2,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 1
-                }}>
+
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 2,
+                    bgcolor: alpha(theme.palette.success.main, 0.1),
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 1,
+                  }}
+                >
                   <LocalShipping sx={{ color: theme.palette.success.main }} />
-                  <Typography variant="body2" color="success.dark" fontWeight="medium">
+                  <Typography
+                    variant="body2"
+                    color="success.dark"
+                    fontWeight="medium"
+                  >
                     Free shipping on orders over $100
                   </Typography>
                 </Box>
-                
+
                 {/* Payment methods */}
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    gutterBottom
+                  >
                     We Accept:
                   </Typography>
                   <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                    {['visa', 'mastercard', 'paypal', 'apple-pay'].map(method => (
-                      <Box 
-                        key={method}
-                        component="img"
-                        src={`/assets/payment/${method}.svg`}
-                        alt={method}
-                        sx={{ 
-                          height: 24,
-                          opacity: 0.7,
-                          filter: "grayscale(100%)",
-                          transition: "all 0.3s ease",
-                          "&:hover": {
-                            opacity: 1,
-                            filter: "grayscale(0%)"
-                          }
-                        }}
-                      />
-                    ))}
+                    {["visa", "mastercard", "paypal", "apple-pay"].map(
+                      (method) => (
+                        <Box
+                          key={method}
+                          component="img"
+                          src={`/assets/payment/${method}.svg`}
+                          alt={method}
+                          sx={{
+                            height: 24,
+                            opacity: 0.7,
+                            filter: "grayscale(100%)",
+                            transition: "all 0.3s ease",
+                            "&:hover": {
+                              opacity: 1,
+                              filter: "grayscale(0%)",
+                            },
+                          }}
+                        />
+                      )
+                    )}
                   </Stack>
                 </Box>
               </Stack>
             </CardContent>
           </MotionCard>
-          
+
           {/* Additional recommendation card */}
           <MotionCard
             variants={itemVariants}
             whileHover={{ y: -5, boxShadow: "0 15px 30px rgba(0,0,0,0.1)" }}
-            sx={{ 
+            sx={{
               mt: 3,
               borderRadius: 3,
               overflow: "hidden",
               boxShadow: "0 8px 16px rgba(0,0,0,0.06)",
-              transition: "all 0.3s ease"
+              transition: "all 0.3s ease",
             }}
           >
             <CardContent sx={{ p: 0 }}>
-              <Box sx={{ p: 2, bgcolor: alpha(theme.palette.secondary.light, 0.1) }}>
-                <Typography variant="subtitle1" fontWeight="bold" color="secondary.dark">
+              <Box
+                sx={{
+                  p: 2,
+                  bgcolor: alpha(theme.palette.secondary.light, 0.1),
+                }}
+              >
+                <Typography
+                  variant="subtitle1"
+                  fontWeight="bold"
+                  color="secondary.dark"
+                >
                   Recommended for You
                 </Typography>
               </Box>
-              
+
               <Box sx={{ display: "flex", p: 2 }}>
                 <CardMedia
                   component="img"
-                  sx={{ 
-                    width: 70, 
-                    height: 70, 
+                  sx={{
+                    width: 70,
+                    height: 70,
                     borderRadius: 1,
                     mr: 2,
-                    objectFit: "cover"
+                    objectFit: "cover",
                   }}
                   image="/assets/products/hydroponic-starter.jpg"
                   alt="Hydroponic Starter Kit"
                 />
-                
+
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle2" fontWeight="medium">
                     Hydroponic Starter Kit
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
                     Complete setup for beginners
                   </Typography>
-                  
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <Typography variant="subtitle2" color="primary.main" fontWeight="bold">
+
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      color="primary.main"
+                      fontWeight="bold"
+                    >
                       $49.99
                     </Typography>
-                    
-                    <Button 
-                      size="small" 
-                      variant="outlined" 
+
+                    <Button
+                      size="small"
+                      variant="outlined"
                       color="primary"
                       startIcon={<Add fontSize="small" />}
                       sx={{ borderRadius: 1 }}

@@ -123,12 +123,11 @@ const ShippingPage: React.FC = () => {
           headers: {
             Authorization: `Bearer ${authToken}`
           },
-          withCredentials: true  // Important: send cookies with the request
+          withCredentials: true  
         });
         
         setUserAddress(response.data);
         
-        // Pre-fill form with existing address
         setFormData(prev => ({
           ...prev,
           name: response.data.name,
@@ -161,9 +160,15 @@ const ShippingPage: React.FC = () => {
 
   useEffect(() => {
     const syncCartDetails = () => {
-      const cartData = localStorage.getItem("cartDetails");
-      if (cartData) {
-        setCartDetails(JSON.parse(cartData));
+      const selectedCartData = localStorage.getItem("selectedCartDetails");
+      if (selectedCartData) {
+        setCartDetails(JSON.parse(selectedCartData));
+      } else {
+        // Fallback to regular cart if no selected items
+        const cartData = localStorage.getItem("cartDetails");
+        if (cartData) {
+          setCartDetails(JSON.parse(cartData));
+        }
       }
     };
 
@@ -271,6 +276,13 @@ const ShippingPage: React.FC = () => {
       phone: formData.phone,
       address: formData.address
     }));
+    
+    // Đảm bảo thông tin sản phẩm đã chọn được truyền đến trang payment
+    const selectedCartData = localStorage.getItem("selectedCartDetails");
+    if (selectedCartData) {
+      // Chỉ lưu vào selectedCartDetails nếu có sản phẩm được chọn
+      localStorage.setItem("selectedCartDetails", selectedCartData);
+    }
     
     // Navigate to payment page
     navigate('/checkout/payment');
@@ -544,49 +556,49 @@ const ShippingPage: React.FC = () => {
                   <LocationOn fontSize="small" color="primary" /> Saved Address
                 </Typography>
                 
-                <FormControlLabel
-                  control={
-                    <Radio
-                      checked={useExistingAddress}
-                      onChange={() => setUseExistingAddress(true)}
-                      name="useExistingAddress"
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight="medium">
-                        Use my existing address
-                      </Typography>
-                      
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          mt: 1,
-                          borderRadius: 2,
-                          bgcolor: alpha(theme.palette.background.default, 0.7),
-                          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                          maxWidth: 500
-                        }}
-                      >
-                        <Typography variant="body1" gutterBottom fontWeight="medium">
-                          {userAddress.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          {userAddress.phone}
-                        </Typography>
-                        <Typography variant="body2">
-                          {userAddress.address}
-                        </Typography>
-                      </Paper>
-                    </Box>
-                  }
+                <Paper
+                  elevation={0}
+                  onClick={() => setUseExistingAddress(true)}
                   sx={{
-                    alignItems: "flex-start",
-                    m: 0
+                    p: 2,
+                    mt: 1,
+                    mb: 2,
+                    borderRadius: 2,
+                    bgcolor: alpha(theme.palette.background.default, 0.7),
+                    border: useExistingAddress ? `2px solid ${theme.palette.primary.main}` : `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                    maxWidth: 500,
+                    cursor: "pointer",
+                    position: "relative",
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      borderColor: theme.palette.primary.main
+                    }
                   }}
-                />
+                >
+                  {useExistingAddress && (
+                    <Chip 
+                      label="Selected" 
+                      size="small" 
+                      color="primary" 
+                      sx={{ 
+                        position: "absolute", 
+                        top: 10, 
+                        right: 10,
+                        fontWeight: "medium" 
+                      }}
+                    />
+                  )}
+                  <Typography variant="body1" gutterBottom fontWeight="medium">
+                    {userAddress.name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    {userAddress.phone}
+                  </Typography>
+                  <Typography variant="body2">
+                    {userAddress.address}
+                  </Typography>
+                </Paper>
                 
                 <FormControlLabel
                   control={<Radio

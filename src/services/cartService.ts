@@ -35,6 +35,7 @@ export interface SingleCartItemResponse {
 }
 
 export interface CartDetailItem {
+  isDevice: unknown;
   id: string;
   productId: string;
   productName: string;

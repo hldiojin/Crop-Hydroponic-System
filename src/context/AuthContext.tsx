@@ -1,4 +1,3 @@
-// src/context/AuthContext.tsx
 import React, {
   createContext,
   useState,
@@ -8,7 +7,7 @@ import React, {
 } from "react";
 import { io, Socket } from "socket.io-client";
 import axios from "axios";
-import Cookies from "js-cookie"; // Make sure to install: npm install js-cookie @types/js-cookie
+import Cookies from "js-cookie"; 
 
 interface Ticket {
   id: string;
@@ -106,9 +105,8 @@ const AuthContext = createContext<AuthContextType>({
   clearError: () => {},
 });
 
-// Create an axios instance for API calls
 const api = axios.create({
-  baseURL: "https://api.hmes.buubuu.id.vn/api",
+  baseURL: "https://api.hmes.site/api",
   headers: {
     "Content-Type": "multipart/form-data",
     Accept: "multipart/form-data",
@@ -116,11 +114,13 @@ const api = axios.create({
   withCredentials: true,
 });
 
+let authRefreshFunction: () => Promise<string>;
+let authLogoutFunction: () => void;
+
 api.interceptors.request.use(
   (config) => {
     const authToken = localStorage.getItem("authToken");
 
-    // Add authorization header
     if (authToken && config.headers) {
       try {
         config.headers.set("Authorization", `Bearer ${authToken}`);
@@ -129,7 +129,6 @@ api.interceptors.request.use(
       }
     }
 
-    // Only set Content-Type and Accept headers if the data is not FormData
     if (!(config.data instanceof FormData) && config.headers) {
       try {
         config.headers.set("Content-Type", "application/json");
@@ -152,19 +151,25 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Nếu lỗi 401 và chưa thử refresh token
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        const newToken = await refreshAuthToken();
+        if (!authRefreshFunction) {
+          throw new Error("Authentication refresh function not initialized");
+        }
+        
+        const newToken = await authRefreshFunction();
 
-        // Thử lại request với token mới
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         console.error("Failed to retry request after refreshing token:", refreshError);
-        logout();
+        
+        if (authLogoutFunction) {
+          authLogoutFunction();
+        }
+        
         return Promise.reject(refreshError);
       }
     }
@@ -186,10 +191,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const isAuthenticated = !!user;
   const isAdmin = user?.role === "admin";
 
-  // Clear any error messages
   const clearError = () => setError(null);
 
-  // Helper function to clear auth cookies
   const clearAuthCookies = () => {
     Cookies.remove("DeviceId", { path: "/" });
     Cookies.remove("RefreshToken", { path: "/" });
@@ -213,7 +216,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setToken(newToken);
         localStorage.setItem("authToken", newToken);
 
-        // Cập nhật lại thời gian sống của refresh token nếu cần
         if (response.data.refreshToken) {
           const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
           document.cookie = `refreshToken=${response.data.refreshToken}; path=/; expires=${expires.toUTCString()}; Secure; HttpOnly; SameSite=Strict`;
@@ -225,7 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error("Failed to refresh token");
     } catch (error) {
       console.error("Refresh token failed:", error);
-      logout(); // Tự động logout nếu refresh thất bại
+      logout(); 
       throw error;
     }
   };
@@ -238,34 +240,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await api.post("/auth/login", data);
       console.log("Login response:", response.data);
 
-      const userData = response.data;
+      // Xử lý định dạng response mới
+      if (
+        response.data?.statusCodes === 200 &&
+        response.data?.response?.data
+      ) {
+        const userData = response.data.response.data;
 
-      if (userData && userData.id && userData.email) {
-        setUser(userData);
+        if (userData && userData.id && userData.email) {
+          setUser(userData);
 
-        if (userData.auth && userData.auth.token) {
-          const { token, refreshToken, deviceId } = userData.auth;
+          if (userData.auth && userData.auth.token) {
+            const { token } = userData.auth;
+            
+            // Lưu access token vào localStorage
+            setToken(token);
+            localStorage.setItem("authToken", token);
 
-          // Lưu access token vào localStorage
-          setToken(token);
-          localStorage.setItem("authToken", token);
+            // Lưu refresh token và deviceId vào cookies từ response headers
+            // Lưu ý: refresh token và deviceId thường được trả về trong cookies của response
+            const cookies = document.cookie.split(';');
+            console.log("Cookies received:", cookies);
 
-          // Lưu refresh token vào cookies
-          const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 ngày
-          document.cookie = `refreshToken=${refreshToken}; path=/; expires=${expires.toUTCString()}; Secure; HttpOnly; SameSite=Strict`;
-          document.cookie = `deviceId=${deviceId}; path=/; expires=${expires.toUTCString()}; Secure; HttpOnly; SameSite=Strict`;
+            // Bước này không cần thiết nếu server đã tự động thiết lập cookies
+            // Nhưng để an toàn, chúng ta vẫn kiểm tra và lưu lại
+            const refreshTokenCookie = cookies.find(cookie => cookie.trim().startsWith('RefreshToken='));
+            const deviceIdCookie = cookies.find(cookie => cookie.trim().startsWith('DeviceId='));
 
-          return;
-        } else {
-          throw new Error("Authentication token missing from response");
+            if (refreshTokenCookie && deviceIdCookie) {
+              console.log("Found refresh token and device ID in cookies");
+            } else {
+              console.log("No refresh token or device ID found in cookies, server might have set them automatically");
+            }
+
+            return;
+          } else {
+            throw new Error("Authentication token missing from response");
+          }
         }
-      }
 
-      console.error("Unexpected login response structure:", response.data);
-      throw new Error("Invalid response format from server");
+        console.error("Unexpected login response structure:", response.data);
+        throw new Error("Invalid response format from server");
+      } else if (response.data?.statusCodes !== 200) {
+        const errorMessage = 
+          response.data?.response?.message || 
+          response.data?.message || 
+          "Login failed. Please check your credentials.";
+        throw new Error(errorMessage);
+      } else {
+        console.error("Unexpected login response structure:", response.data);
+        throw new Error("Invalid response format from server");
+      }
     } catch (err: any) {
       console.error("Login error:", err);
-      setError("Failed to login. Please try again.");
+      
+      if (axios.isAxiosError(err)) {
+        const errorMessage = 
+          err.response?.data?.response?.message || 
+          err.response?.data?.message || 
+          "Failed to login. Please try again.";
+        
+        setError(errorMessage);
+        
+        if (err.response?.status === 401) {
+          setError("Invalid email or password. Please try again.");
+        } else if (err.response?.status === 403) {
+          setError("Your account is locked. Please contact support.");
+        } else if (err.response?.status === 404) {
+          setError("Account not found. Please check your email or register.");
+        }
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred during login");
+      }
+      
       throw err;
     } finally {
       setLoading(false);
@@ -937,7 +986,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const authToken = localStorage.getItem("authToken");
       const refreshToken = document.cookie
         .split("; ")
-        .find((row) => row.startsWith("refreshToken="))
+        .find((row) => row.startsWith("RefreshToken="))
         ?.split("=")[1];
 
       if (authToken) {
@@ -945,6 +994,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           // Thử lấy thông tin user với token hiện tại
           const userInfo = await getUserInfo();
           setUser(userInfo);
+          setToken(authToken); // Đảm bảo token cũng được đặt trong state
         } catch (error) {
           // Nếu token hết hạn, thử refresh token
           if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -959,7 +1009,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
       } else if (refreshToken) {
-        // Có refresh token nhưng không có auth token
         try {
           await refreshAuthToken();
           const userInfo = await getUserInfo();
@@ -972,6 +1021,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     initializeAuth();
+  }, []);
+
+  useEffect(() => {
+    authRefreshFunction = refreshAuthToken;
+    authLogoutFunction = logout;
   }, []);
 
   return (
@@ -1012,11 +1066,4 @@ export const useAuth = () => {
 };
 
 export default api;
-function refreshAuthToken() {
-  throw new Error("Function not implemented.");
-}
-
-function logout() {
-  throw new Error("Function not implemented.");
-}
 

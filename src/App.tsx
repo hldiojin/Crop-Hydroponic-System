@@ -32,6 +32,7 @@ import PaymentPage from "./pages/PaymentPage";
 import { productService } from "./services/productService";
 import { config } from "./config";
 import cartService from "./services/cartService";
+import OrderConfirmation from "./pages/OrderConfirmation";
 
 const theme = createTheme({
   palette: {
@@ -56,35 +57,45 @@ const theme = createTheme({
 });
 
 // Helper component to determine if layout elements should be shown
-const AppLayout = ({ children, cartItemsCount, onLogout }: { 
-  children: React.ReactNode,
-  cartItemsCount: number,
-  onLogout: () => void 
+const AppLayout = ({
+  children,
+  cartItemsCount,
+  onLogout,
+}: {
+  children: React.ReactNode;
+  cartItemsCount: number;
+  onLogout: () => void;
 }) => {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
-  
+
   // Define paths where Navbar and Footer should be hidden
-  const noLayoutPaths = ['/login', '/register', '/cart', '/checkout', '/profile', '/admin', '/favorites'];
-  
+  const noLayoutPaths = [
+    "/login",
+    "/register",
+    "/cart",
+    "/checkout",
+    "/profile",
+    "/admin",
+    "/favorites",
+  ];
+
   // Check if current path is in the noLayoutPaths list or user is not authenticated
-  const hideLayout = 
-    noLayoutPaths.some(path => 
-      location.pathname === path || location.pathname.startsWith(path + '/')
-    ) || !isAuthenticated && (location.pathname === '/login' || location.pathname === '/register');
+  const hideLayout =
+    noLayoutPaths.some(
+      (path) =>
+        location.pathname === path || location.pathname.startsWith(path + "/")
+    ) ||
+    (!isAuthenticated &&
+      (location.pathname === "/login" || location.pathname === "/register"));
 
   // Only show Navbar and Footer for main pages when user is authenticated
   return hideLayout ? (
     <>{children}</>
   ) : (
     <>
-      <Navbar 
-        cartItemsCount={cartItemsCount}
-        onLogout={onLogout}
-      />
-      <Box sx={{ flex: "1 0 auto" }}>
-        {children}
-      </Box>
+      <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+      <Box sx={{ flex: "1 0 auto" }}>{children}</Box>
       <Footer />
     </>
   );
@@ -247,8 +258,11 @@ const App: React.FC = () => {
               minHeight: "100vh",
             }}
           >
-            <AppLayout 
-              cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)} 
+            <AppLayout
+              cartItemsCount={cart.reduce(
+                (sum, item) => sum + item.quantity,
+                0
+              )}
               onLogout={handleLogout}
             >
               <MainContent
@@ -262,7 +276,10 @@ const App: React.FC = () => {
                 favorites={favorites}
                 loading={loading}
                 onLogout={handleLogout}
-                cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
+                cartItemsCount={cart.reduce(
+                  (sum, item) => sum + item.quantity,
+                  0
+                )}
               />
             </AppLayout>
           </Box>
@@ -295,18 +312,27 @@ const MainContent: React.FC<{
   favorites,
   loading,
   onLogout,
-  cartItemsCount
+  cartItemsCount,
 }) => {
   const location = useLocation();
-  
+
   // Define paths where Navbar and Footer should be hidden
-  const noLayoutPaths = ['/login', '/register', '/cart', '/checkout', '/profile', '/admin', '/favorites'];
-  
+  const noLayoutPaths = [
+    "/login",
+    "/register",
+    "/cart",
+    "/checkout",
+    "/profile",
+    "/admin",
+    "/favorites",
+  ];
+
   // Check if current path is in the noLayoutPaths list
-  const hideLayout = noLayoutPaths.some(path => 
-    location.pathname === path || location.pathname.startsWith(path + '/')
+  const hideLayout = noLayoutPaths.some(
+    (path) =>
+      location.pathname === path || location.pathname.startsWith(path + "/")
   );
-  
+
   // Only show HeroSection on homepage
   const showHeroSection = location.pathname === "/";
 
@@ -370,6 +396,14 @@ const MainContent: React.FC<{
           element={
             <ProtectedRoute>
               <PaymentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout/confirmation"
+          element={
+            <ProtectedRoute>
+              <OrderConfirmation />
             </ProtectedRoute>
           }
         />
