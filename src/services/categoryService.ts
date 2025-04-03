@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://api.hmes.buubuu.id.vn/api';
+const API_BASE_URL = 'https://api.hmes.site/api';
 
 export interface Category {
   id: string;

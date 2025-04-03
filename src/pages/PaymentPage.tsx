@@ -54,6 +54,7 @@ import {
 } from "../utils/motion";
 import { useAuth } from "../context/AuthContext";
 import { submitOrder, processTransaction } from "../services/orderSevice";
+import { deviceService, Device } from "../services/deviceService";
 
 // Create properly typed motion components to fix TypeScript errors
 const MotionCard = motion(Card);
@@ -89,6 +90,10 @@ const PaymentPage: React.FC = () => {
     saveCard: false,
   });
   const [cartDetails, setCartDetails] = useState<CartDetailItem[]>([]);
+  const [selectedDevices, setSelectedDevices] = useState<
+    Record<string, number>
+  >({});
+  const [devices, setDevices] = useState<Device[]>([]);
 
   const subtotal = 129.99;
   const shipping =
@@ -110,13 +115,16 @@ const PaymentPage: React.FC = () => {
   useEffect(() => {
     const address = localStorage.getItem("shippingAddress");
     const method = localStorage.getItem("shippingMethod");
+    const devices = localStorage.getItem("selectedDevices");
 
     if (!address || !method) {
-      // If shipping information is missing, redirect to shipping page
       navigate("/checkout/shipping");
     } else {
       setShippingAddress(JSON.parse(address));
       setShippingMethod(method);
+      if (devices) {
+        setSelectedDevices(JSON.parse(devices));
+      }
     }
   }, [navigate]);
 
@@ -139,6 +147,22 @@ const PaymentPage: React.FC = () => {
       window.removeEventListener("storage", syncCartDetails);
     };
   }, []);
+
+  // Add new useEffect for fetching devices
+  useEffect(() => {
+    const fetchDevices = async () => {
+      try {
+        const deviceData = await deviceService.getAll();
+        setDevices(deviceData);
+      } catch (error) {
+        console.error("Failed to fetch devices:", error);
+      }
+    };
+
+    if (isAuthenticated) {
+      fetchDevices();
+    }
+  }, [isAuthenticated]);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -229,39 +253,65 @@ const PaymentPage: React.FC = () => {
     try {
       setProcessingPayment(true);
 
-      // Cấu trúc lại dữ liệu đơn hàng theo đúng interface OrderData
+      // Get selected cart items
+      const selectedCartData = localStorage.getItem("selectedCartDetails");
+      const selectedItems = selectedCartData
+        ? JSON.parse(selectedCartData)
+        : [];
+
+      // Calculate totals
+      const productsTotal = selectedItems.reduce(
+        (sum: number, item: CartDetailItem) =>
+          sum + item.unitPrice * item.quantity,
+        0
+      );
+      const devicesTotal = Object.entries(selectedDevices)
+        .filter(([_, quantity]) => quantity > 0)
+        .reduce((sum: number, [deviceId, quantity]) => {
+          const device = devices.find((d) => d.id === deviceId);
+          return sum + (device?.price || 0) * quantity;
+        }, 0);
+      const subtotal = productsTotal + devicesTotal;
+      const total = subtotal + shipping - discount;
+
+      // Prepare order data with new structure
       const orderData = {
-        items: cartDetails.map(item => ({
-          id: item.id, // ID của mục giỏ hàng
-          productId: item.productId, // ID của sản phẩm - cần thiết theo interface OrderItem
-          productName: item.productName, // Tên sản phẩm - cần thiết theo interface OrderItem
+        products: selectedItems.map((item: CartDetailItem) => ({
+          id: item.productId,
           unitPrice: item.unitPrice,
           quantity: item.quantity,
-          type: item.isDevice ? 'device' : 'product' // Thêm trường để phân biệt loại item
         })),
-        shippingAddress: shippingAddress,
-        shippingMethod: shippingMethod,
-        paymentMethod: formData.paymentMethod,
-        subtotal: cartDetails.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
-        shipping: shipping,
-        discount: discount,
-        total: cartDetails.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0) + shipping - discount
+        devices: Object.entries(selectedDevices)
+          .filter(([_, quantity]) => quantity > 0)
+          .map(([deviceId, quantity]) => {
+            const device = devices.find((d) => d.id === deviceId);
+            return {
+              id: deviceId,
+              unitPrice: device?.price || 0,
+              quantity: quantity,
+            };
+          }),
       };
 
       if (formData.paymentMethod === "cashOnDelivery") {
         try {
-          // Submit order to API
           const orderResponse = await submitOrder(orderData);
-          
-          if (orderResponse && orderResponse.statusCodes === 200 && orderResponse.response?.data) {
+
+          if (
+            orderResponse &&
+            orderResponse.statusCodes === 200 &&
+            orderResponse.response?.data
+          ) {
             const orderId = orderResponse.response.data;
-            
+
             localStorage.setItem("paymentMethod", formData.paymentMethod);
             localStorage.setItem("orderId", orderId);
-            
+            localStorage.setItem("orderTotal", total.toString());
+
             localStorage.removeItem("cartDetails");
             localStorage.removeItem("selectedCartDetails");
-            
+            localStorage.removeItem("selectedDevices");
+
             navigate("/checkout/confirmation");
           } else {
             throw new Error("Failed to create order");
@@ -273,7 +323,6 @@ const PaymentPage: React.FC = () => {
       }
       // For PayOS payment method
       else if (formData.paymentMethod === "payos") {
-        // Submit order to API
         const orderResponse = await submitOrder(orderData);
 
         if (
@@ -283,24 +332,31 @@ const PaymentPage: React.FC = () => {
         ) {
           const transactionId = orderResponse.response.data;
 
-          // Make transaction call with the response data
+          // Add returnUrl to the transaction request
+          const returnUrl = `${window.location.origin}/payos-callback`;
           const transactionResponse = await processTransaction(transactionId);
 
-          // If the transaction is successful, navigate to confirmation
-          if (transactionResponse.success) {
-            // Store payment info and order ID
-            localStorage.setItem("paymentMethod", formData.paymentMethod);
-            localStorage.setItem("orderId", transactionId);
-            
-            // Xóa giỏ hàng sau khi đặt hàng thành công
-            localStorage.removeItem("cartDetails");
-            localStorage.removeItem("selectedCartDetails");
-            
-            navigate("/checkout/confirmation");
-          } else {
-            // Handle transaction error
-            throw new Error("Transaction failed");
-          }
+          // Store payment info and order ID
+          localStorage.setItem("paymentMethod", formData.paymentMethod);
+          localStorage.setItem("orderId", transactionId);
+          localStorage.setItem("orderTotal", total.toString());
+
+          // Store cart data for later use after payment
+          localStorage.setItem(
+            "pendingOrder",
+            JSON.stringify({
+              cartDetails: selectedItems,
+              selectedDevices,
+              shippingAddress,
+              shippingMethod,
+              total,
+            })
+          );
+
+          // Navigate to PayOS payment page with returnUrl
+          window.location.href = `${transactionResponse}?returnUrl=${encodeURIComponent(
+            returnUrl
+          )}`;
         } else {
           throw new Error("Failed to create order");
         }
@@ -1015,6 +1071,60 @@ const PaymentPage: React.FC = () => {
                       Edit Cart
                     </Button>
                   </Paper>
+
+                  {/* Add selected devices section */}
+                  {Object.entries(selectedDevices).some(
+                    ([_, quantity]) => quantity > 0
+                  ) && (
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        bgcolor: alpha(theme.palette.background.default, 0.5),
+                      }}
+                    >
+                      <Typography
+                        variant="subtitle2"
+                        fontWeight="bold"
+                        sx={{ mb: 2 }}
+                      >
+                        Selected Devices
+                      </Typography>
+
+                      <Stack spacing={2}>
+                        {Object.entries(selectedDevices)
+                          .filter(([_, quantity]) => quantity > 0)
+                          .map(([deviceId, quantity]) => {
+                            const device = devices.find(
+                              (d) => d.id === deviceId
+                            );
+                            return (
+                              <Box
+                                key={deviceId}
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                }}
+                              >
+                                <Typography variant="body2">
+                                  {device?.name}{" "}
+                                  <Typography
+                                    component="span"
+                                    color="text.secondary"
+                                  >
+                                    x{quantity}
+                                  </Typography>
+                                </Typography>
+                                <Typography variant="body2" fontWeight="medium">
+                                  ${(device?.price || 0) * quantity}
+                                </Typography>
+                              </Box>
+                            );
+                          })}
+                      </Stack>
+                    </Paper>
+                  )}
 
                   <Divider />
 

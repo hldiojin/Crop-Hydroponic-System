@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Product, ApiResponse, BaseProduct } from '../types/types';
 
-const API_BASE_URL = 'https://api.hmes.buubuu.id.vn/api';
+const API_BASE_URL = 'https://api.hmes.site/api';
 
 // Helper function để đơn giản hóa xử lý response từ API
 const mapToDomainModel = (apiProduct: BaseProduct): Product => {

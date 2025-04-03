@@ -1,25 +1,20 @@
 import api from "../context/AuthContext";
 
-export interface OrderItem {
-  productId: string;
-  productName: string;
-  quantity: number;
+export interface OrderProduct {
+  id: string;
   unitPrice: number;
+  quantity: number;
+}
+
+export interface OrderDevice {
+  id: string;
+  unitPrice: number;
+  quantity: number;
 }
 
 export interface OrderData {
-  items: OrderItem[];
-  shippingAddress: {
-    name: string;
-    phone: string;
-    address: string;
-  };
-  shippingMethod: string;
-  paymentMethod: string;
-  subtotal: number;
-  shipping: number;
-  discount: number;
-  total: number;
+  products: OrderProduct[];
+  devices: OrderDevice[];
 }
 
 export const submitOrder = async (orderData: OrderData): Promise<any> => {

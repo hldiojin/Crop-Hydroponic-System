@@ -79,14 +79,16 @@ const CartPage: React.FC<CartPageProps> = ({
   const [activeStep, setActiveStep] = useState<number>(0);
 
   // Thêm state để theo dõi các sản phẩm được chọn
-  const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
+  const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>(
+    {}
+  );
   const [selectAll, setSelectAll] = useState<boolean>(false);
 
   // Tính toán tổng tiền dựa trên các sản phẩm được chọn
   const selectedSubtotal = cartDetails
-    .filter(item => selectedItems[item.id])
+    .filter((item) => selectedItems[item.id])
     .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-    
+
   const selectedShipping = selectedSubtotal > 100 ? 0 : 15;
   const selectedTotal = selectedSubtotal + selectedShipping - discount;
 
@@ -97,12 +99,12 @@ const CartPage: React.FC<CartPageProps> = ({
   const handleSelectAll = () => {
     const newSelectAll = !selectAll;
     setSelectAll(newSelectAll);
-    
-    const newSelectedItems = {...selectedItems};
-    cartDetails.forEach(item => {
+
+    const newSelectedItems = { ...selectedItems };
+    cartDetails.forEach((item) => {
       newSelectedItems[item.id] = newSelectAll;
     });
-    
+
     setSelectedItems(newSelectedItems);
   };
 
@@ -110,13 +112,13 @@ const CartPage: React.FC<CartPageProps> = ({
   const handleSelectItem = (id: string) => {
     const newSelectedItems = {
       ...selectedItems,
-      [id]: !selectedItems[id]
+      [id]: !selectedItems[id],
     };
-    
+
     setSelectedItems(newSelectedItems);
-    
+
     // Kiểm tra xem tất cả đã được chọn chưa
-    const allSelected = cartDetails.every(item => newSelectedItems[item.id]);
+    const allSelected = cartDetails.every((item) => newSelectedItems[item.id]);
     setSelectAll(allSelected);
   };
 
@@ -153,16 +155,17 @@ const CartPage: React.FC<CartPageProps> = ({
   useEffect(() => {
     if (cartDetails.length > 0) {
       const initialSelectedItems: Record<string, boolean> = {};
-      cartDetails.forEach(item => {
+      cartDetails.forEach((item) => {
         // Nếu sản phẩm chưa có trong state, mặc định chọn tất cả
-        initialSelectedItems[item.id] = selectedItems[item.id] !== undefined 
-          ? selectedItems[item.id] 
-          : true;
+        initialSelectedItems[item.id] =
+          selectedItems[item.id] !== undefined ? selectedItems[item.id] : true;
       });
       setSelectedItems(initialSelectedItems);
-      
+
       // Kiểm tra xem tất cả đã được chọn chưa
-      const allSelected = cartDetails.every(item => initialSelectedItems[item.id]);
+      const allSelected = cartDetails.every(
+        (item) => initialSelectedItems[item.id]
+      );
       setSelectAll(allSelected);
     }
   }, [cartDetails]);
@@ -211,7 +214,7 @@ const CartPage: React.FC<CartPageProps> = ({
       setCartDetails(details);
 
       // Lưu dữ liệu giỏ hàng mới nhất vào localStorage
-      localStorage.setItem("cartDetails", JSON.stringify(details)); 
+      localStorage.setItem("cartDetails", JSON.stringify(details));
     } catch (error) {
       console.error("Failed to remove cart item:", error);
     }
@@ -233,13 +236,18 @@ const CartPage: React.FC<CartPageProps> = ({
   // Hàm xử lý khi nhấn "Proceed to Checkout"
   const handleProceedToCheckout = () => {
     // Lọc các sản phẩm được chọn
-    const selectedProducts = cartDetails.filter(item => selectedItems[item.id]);
-    
+    const selectedProducts = cartDetails.filter(
+      (item) => selectedItems[item.id]
+    );
+
     // Lưu danh sách sản phẩm được chọn vào localStorage
-    localStorage.setItem("selectedCartDetails", JSON.stringify(selectedProducts));
-    
+    localStorage.setItem(
+      "selectedCartDetails",
+      JSON.stringify(selectedProducts)
+    );
+
     // Chuyển đến trang shipping
-    navigate('/checkout/shipping');
+    navigate("/checkout/shipping");
   };
 
   // Loading state
@@ -779,9 +787,11 @@ const CartPage: React.FC<CartPageProps> = ({
                       checked={selectedItems[item.id] || false}
                       onChange={() => handleSelectItem(item.id)}
                       color="primary"
-                      sx={{ 
+                      sx={{
                         p: 0.5,
-                        color: selectedItems[item.id] ? theme.palette.primary.main : alpha(theme.palette.text.primary, 0.3)
+                        color: selectedItems[item.id]
+                          ? theme.palette.primary.main
+                          : alpha(theme.palette.text.primary, 0.3),
                       }}
                     />
                   </Grid>
@@ -1054,7 +1064,8 @@ const CartPage: React.FC<CartPageProps> = ({
                   }}
                 >
                   <Typography variant="body1" color="text.secondary">
-                    Subtotal ({selectedCount} {selectedCount > 1 ? 'items' : 'item'})
+                    Subtotal ({selectedCount}{" "}
+                    {selectedCount > 1 ? "items" : "item"})
                   </Typography>
                   <Typography variant="body1" fontWeight="bold">
                     ${selectedSubtotal.toLocaleString()}
@@ -1234,9 +1245,11 @@ const CartPage: React.FC<CartPageProps> = ({
                     boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
                   }}
                 >
-                  {selectedCount > 0 
-                    ? `Checkout (${selectedCount} item${selectedCount > 1 ? 's' : ''})`
-                    : 'Select items to checkout'}
+                  {selectedCount > 0
+                    ? `Checkout (${selectedCount} item${
+                        selectedCount > 1 ? "s" : ""
+                      })`
+                    : "Select items to checkout"}
                 </MotionButton>
 
                 <Box

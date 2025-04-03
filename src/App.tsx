@@ -33,6 +33,7 @@ import { productService } from "./services/productService";
 import { config } from "./config";
 import cartService from "./services/cartService";
 import OrderConfirmation from "./pages/OrderConfirmation";
+import PayOSCallback from './pages/PayOSCallback';
 
 const theme = createTheme({
   palette: {
@@ -489,6 +490,7 @@ const MainContent: React.FC<{
             </ProtectedRoute>
           }
         />
+        <Route path="/payos-callback" element={<PayOSCallback />} />
       </Routes>
     </>
   );
