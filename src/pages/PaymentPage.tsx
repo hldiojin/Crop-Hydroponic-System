@@ -330,21 +330,20 @@ const PaymentPage: React.FC = () => {
           orderResponse.statusCodes === 200 &&
           orderResponse.response?.data
         ) {
-          const transactionId = orderResponse.response.data;
+          const orderId = orderResponse.response.data;
 
-          // Add returnUrl to the transaction request
-          const returnUrl = `${window.location.origin}/payos-callback`;
-          const transactionResponse = await processTransaction(transactionId);
-
-          // Store payment info and order ID
+          // Lưu orderId vào localStorage để sử dụng khi callback
           localStorage.setItem("paymentMethod", formData.paymentMethod);
-          localStorage.setItem("orderId", transactionId);
+          localStorage.setItem("orderId", orderId);
           localStorage.setItem("orderTotal", total.toString());
+          // Đặt trạng thái thanh toán là pending
+          localStorage.setItem("paymentStatus", "pending");
 
           // Store cart data for later use after payment
           localStorage.setItem(
             "pendingOrder",
             JSON.stringify({
+              orderId: orderId, // Đảm bảo lưu orderId vào pendingOrder
               cartDetails: selectedItems,
               selectedDevices,
               shippingAddress,
@@ -353,12 +352,27 @@ const PaymentPage: React.FC = () => {
             })
           );
 
-          // Navigate to PayOS payment page with returnUrl
-          window.location.href = `${transactionResponse}?returnUrl=${encodeURIComponent(
-            returnUrl
-          )}`;
+          // Tạo transaction và lấy URL thanh toán
+          try {
+            const transactionResponse = await processTransaction(orderId);
+            
+            if (transactionResponse && transactionResponse.response?.data) {
+              const paymentUrl = transactionResponse.response.data;
+              
+              // Chuyển hướng tới trang thanh toán PayOS
+              const returnUrl = `${window.location.origin}/payos-callback`;
+              
+              // Chuyển hướng tới URL thanh toán
+              window.location.href = paymentUrl;
+            } else {
+              throw new Error("Không nhận được URL thanh toán từ server");
+            }
+          } catch (transactionError) {
+            console.error("Lỗi khi tạo giao dịch:", transactionError);
+            throw new Error("Không thể tạo giao dịch thanh toán");
+          }
         } else {
-          throw new Error("Failed to create order");
+          throw new Error("Không thể tạo đơn hàng");
         }
       }
     } catch (error) {

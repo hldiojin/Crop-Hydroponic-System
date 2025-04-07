@@ -36,3 +36,15 @@ export const processTransaction = async (transactionId: string): Promise<any> =>
     throw error;
   }
 };
+
+// Thêm hàm mới để kiểm tra trạng thái thanh toán và cập nhật đơn hàng
+export const checkTransactionStatus = async (orderId: string): Promise<any> => {
+  try {
+    console.log(`Checking transaction status for order ${orderId}`);
+    const response = await api.post("/transaction/check", { orderId });
+    return response.data;
+  } catch (error) {
+    console.error("Error checking transaction status:", error);
+    throw error;
+  }
+};

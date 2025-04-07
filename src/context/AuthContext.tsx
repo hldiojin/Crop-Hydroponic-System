@@ -797,7 +797,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (user?.email) {
       api
-        .post("/api/auth/logout", {
+        .post("/auth/logout", {
           email: user.email,
           password: "",
         })
