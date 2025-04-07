@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
   Typography,
-  Card,
-  CardContent,
   Grid,
   IconButton,
   Button,
   Box,
   Container,
-  Divider,
   Paper,
   Chip,
   useTheme,
@@ -18,11 +15,8 @@ import {
   Badge,
   Alert,
   useMediaQuery,
-  RadioGroup,
   FormControlLabel,
   Radio,
-  FormControl,
-  FormHelperText,
   Checkbox,
   CircularProgress,
 } from "@mui/material";
@@ -36,11 +30,6 @@ import {
   Home,
   LocationOn,
   NavigateNext,
-  ErrorOutline,
-  AccessTime,
-  BusinessCenter,
-  Info,
-  DevicesOther,
 } from "@mui/icons-material";
 import { CartDetailItem } from "../services/cartService";
 import { useNavigate } from "react-router-dom";
@@ -54,10 +43,8 @@ import {
 } from "../utils/motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import { deviceService, Device } from "../services/deviceService";
 
-// Create properly typed motion components to fix TypeScript errors
-const MotionCard = motion(Card);
+// Create properly typed motion components
 const MotionContainer = motion(Container);
 const MotionPaper = motion(Paper);
 
@@ -66,6 +53,9 @@ interface UserAddress {
   name: string;
   phone: string;
   address: string;
+  ward: string;
+  district: string;
+  province: string;
   isDefault: boolean;
 }
 
@@ -73,7 +63,9 @@ interface ShippingFormData {
   name: string;
   phone: string;
   address: string;
-  shippingMethod: string;
+  ward: string;
+  district: string;
+  province: string;
   saveAddress: boolean;
 }
 
@@ -106,25 +98,11 @@ const ShippingPage: React.FC = () => {
     name: "",
     phone: "",
     address: "",
-    shippingMethod: "standard",
+    ward: "",
+    district: "",
+    province: "",
     saveAddress: true,
   });
-  const [devices, setDevices] = useState<Device[]>([]);
-  const [selectedDevices, setSelectedDevices] = useState<Record<string, number>>({});
-  const [deviceLoading, setDeviceLoading] = useState<boolean>(true);
-
-  const subtotal = cartDetails.reduce(
-    (sum, item) => sum + item.unitPrice * item.quantity,
-    0
-  );
-  const shipping =
-    formData.shippingMethod === "standard"
-      ? 0
-      : formData.shippingMethod === "express"
-      ? 12.99
-      : 24.99;
-  const discount = 0;
-  const total = subtotal + shipping - discount;
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -170,6 +148,9 @@ const ShippingPage: React.FC = () => {
               name: defaultAddress.name,
               phone: defaultAddress.phone,
               address: defaultAddress.address,
+              ward: defaultAddress.ward || "",
+              district: defaultAddress.district || "",
+              province: defaultAddress.province || "",
             }));
           }
         } else {
@@ -218,36 +199,17 @@ const ShippingPage: React.FC = () => {
       }
     };
 
-    // Lấy dữ liệu giỏ hàng khi trang được tải
+    // Get cart data when the page loads
     syncCartDetails();
 
-    // Lắng nghe sự thay đổi của localStorage
+    // Listen for localStorage changes
     window.addEventListener("storage", syncCartDetails);
 
-    // Cleanup listener khi component bị unmount
+    // Cleanup listener when component unmounts
     return () => {
       window.removeEventListener("storage", syncCartDetails);
     };
   }, []);
-
-  // Add new useEffect for fetching devices
-  useEffect(() => {
-    const fetchDevices = async () => {
-      try {
-        setDeviceLoading(true);
-        const deviceData = await deviceService.getAll();
-        setDevices(deviceData);
-      } catch (error) {
-        console.error("Failed to fetch devices:", error);
-      } finally {
-        setDeviceLoading(false);
-      }
-    };
-
-    if (isAuthenticated) {
-      fetchDevices();
-    }
-  }, [isAuthenticated]);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -281,23 +243,22 @@ const ShippingPage: React.FC = () => {
       errors.address = "Address is required";
     }
 
-    if (!formData.shippingMethod) {
-      errors.shippingMethod = "Please select a shipping method";
+    if (!formData.ward?.trim()) {
+      errors.ward = "Ward is required";
+    }
+
+    if (!formData.district?.trim()) {
+      errors.district = "District is required";
+    }
+
+    if (!formData.province?.trim()) {
+      errors.province = "Province is required";
     }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  // Add handler for device selection
-  const handleDeviceQuantityChange = (deviceId: string, quantity: number) => {
-    setSelectedDevices(prev => ({
-      ...prev,
-      [deviceId]: quantity
-    }));
-  };
-
-  // Update handleSubmit to include devices
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -312,7 +273,10 @@ const ShippingPage: React.FC = () => {
       (!selectedAddress ||
         formData.name !== selectedAddress.name ||
         formData.phone !== selectedAddress.phone ||
-        formData.address !== selectedAddress.address)
+        formData.address !== selectedAddress.address ||
+        formData.ward !== selectedAddress.ward ||
+        formData.district !== selectedAddress.district ||
+        formData.province !== selectedAddress.province)
     ) {
       try {
         const authToken = token || localStorage.getItem("accessToken");
@@ -327,6 +291,9 @@ const ShippingPage: React.FC = () => {
             name: formData.name,
             phone: formData.phone,
             address: formData.address,
+            ward: formData.ward,
+            district: formData.district,
+            province: formData.province,
           },
           {
             headers: {
@@ -348,19 +315,18 @@ const ShippingPage: React.FC = () => {
       }
     }
 
-    // Save shipping method to session/local storage for later use
-    localStorage.setItem("shippingMethod", formData.shippingMethod);
+    // Save address to local storage for later use
     localStorage.setItem(
       "shippingAddress",
       JSON.stringify({
         name: formData.name,
         phone: formData.phone,
         address: formData.address,
+        ward: formData.ward,
+        district: formData.district,
+        province: formData.province,
       })
     );
-
-    // Save selected devices
-    localStorage.setItem("selectedDevices", JSON.stringify(selectedDevices));
 
     // Navigate to payment page
     navigate("/checkout/payment");
@@ -487,7 +453,7 @@ const ShippingPage: React.FC = () => {
           Shipping Information
         </Typography>
 
-        <Badge badgeContent={3} color="secondary" sx={{ ml: "auto" }}>
+        <Badge badgeContent={cartDetails.length} color="secondary" sx={{ ml: "auto" }}>
           <ShoppingCart
             sx={{ fontSize: 28, color: theme.palette.primary.main }}
           />
@@ -594,9 +560,9 @@ const ShippingPage: React.FC = () => {
 
       {/* Main content */}
       <form onSubmit={handleSubmit}>
-        <Grid container spacing={4}>
-          {/* Shipping form */}
-          <Grid item xs={12} md={8}>
+        <Grid container spacing={4} justifyContent="center">
+          {/* Shipping form - now centered and wider */}
+          <Grid item xs={12} md={10} lg={8}>
             {userAddresses.length > 0 && (
               <MotionPaper
                 variants={itemVariants}
@@ -651,6 +617,9 @@ const ShippingPage: React.FC = () => {
                           name: address.name,
                           phone: address.phone,
                           address: address.address,
+                          ward: address.ward || "",
+                          district: address.district || "",
+                          province: address.province || "",
                         }));
                       }}
                       sx={{
@@ -664,7 +633,6 @@ const ShippingPage: React.FC = () => {
                                 theme.palette.primary.main,
                                 0.2
                               )}`,
-                        maxWidth: 500,
                         cursor: "pointer",
                         position: "relative",
                         transition: "all 0.2s ease",
@@ -715,7 +683,14 @@ const ShippingPage: React.FC = () => {
                       >
                         {address.phone}
                       </Typography>
-                      <Typography variant="body2">{address.address}</Typography>
+                      <Typography variant="body2" gutterBottom>
+                        {address.address}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {address.ward && `${address.ward}, `}
+                        {address.district && `${address.district}, `}
+                        {address.province}
+                      </Typography>
                     </Paper>
                   ))}
                 </Stack>
@@ -780,7 +755,7 @@ const ShippingPage: React.FC = () => {
                 </Typography>
 
                 <Grid container spacing={2}>
-                  <Grid item xs={12}>
+                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       id="name"
@@ -793,7 +768,7 @@ const ShippingPage: React.FC = () => {
                       sx={{ mb: 2 }}
                     />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       id="phone"
@@ -811,13 +786,51 @@ const ShippingPage: React.FC = () => {
                       fullWidth
                       id="address"
                       name="address"
-                      label="Full Address"
-                      multiline
-                      rows={3}
+                      label="Street Address"
                       value={formData.address}
                       onChange={handleFormChange}
                       error={!!formErrors.address}
                       helperText={formErrors.address}
+                      sx={{ mb: 2 }}
+                      placeholder="House number, Street name"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      id="ward"
+                      name="ward"
+                      label="Ward"
+                      value={formData.ward}
+                      onChange={handleFormChange}
+                      error={!!formErrors.ward}
+                      helperText={formErrors.ward}
+                      sx={{ mb: 2 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      id="district"
+                      name="district"
+                      label="District"
+                      value={formData.district}
+                      onChange={handleFormChange}
+                      error={!!formErrors.district}
+                      helperText={formErrors.district}
+                      sx={{ mb: 2 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      id="province"
+                      name="province"
+                      label="Province/City"
+                      value={formData.province}
+                      onChange={handleFormChange}
+                      error={!!formErrors.province}
+                      helperText={formErrors.province}
                       sx={{ mb: 2 }}
                     />
                   </Grid>
@@ -837,309 +850,6 @@ const ShippingPage: React.FC = () => {
                 </Grid>
               </MotionPaper>
             )}
-
-            <MotionPaper
-              variants={itemVariants}
-              sx={{
-                p: 3,
-                borderRadius: 3,
-                boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
-                mb: 3,
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: -30,
-                  right: -30,
-                  width: 100,
-                  height: 100,
-                  borderRadius: "50%",
-                  background: alpha(theme.palette.info.light, 0.1),
-                  zIndex: 0,
-                }}
-              />
-
-              <Typography
-                variant="h6"
-                fontWeight="bold"
-                sx={{
-                  mb: 3,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
-                <LocalShipping fontSize="small" color="primary" /> Shipping
-                Method
-              </Typography>
-
-              <FormControl
-                component="fieldset"
-                error={!!formErrors.shippingMethod}
-                sx={{ width: "100%" }}
-              >
-                <RadioGroup
-                  name="shippingMethod"
-                  value={formData.shippingMethod}
-                  onChange={handleFormChange}
-                >
-                  {[
-                    {
-                      id: "standard",
-                      name: "Standard Shipping",
-                      description: "Delivery in 5-7 business days",
-                      price: 0,
-                      icon: <LocalShipping />,
-                    },
-                    {
-                      id: "express",
-                      name: "Express Shipping",
-                      description: "Delivery in 2-3 business days",
-                      price: 12.99,
-                      icon: <AccessTime />,
-                    },
-                    {
-                      id: "overnight",
-                      name: "Overnight Shipping",
-                      description: "Next day delivery (order before 2pm)",
-                      price: 24.99,
-                      icon: <BusinessCenter />,
-                    },
-                  ].map((method) => (
-                    <MotionCard
-                      key={method.id}
-                      whileHover={{ scale: 1.01 }}
-                      sx={{
-                        mb: 2,
-                        borderRadius: 2,
-                        border:
-                          formData.shippingMethod === method.id
-                            ? `2px solid ${theme.palette.primary.main}`
-                            : `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                        boxShadow:
-                          formData.shippingMethod === method.id
-                            ? `0 4px 12px ${alpha(
-                                theme.palette.primary.main,
-                                0.2
-                              )}`
-                            : "0 2px 8px rgba(0,0,0,0.05)",
-                        transition: "all 0.2s ease",
-                      }}
-                    >
-                      <FormControlLabel
-                        value={method.id}
-                        control={<Radio color="primary" />}
-                        label={
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              py: 1,
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                mr: 2,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                width: 40,
-                                height: 40,
-                                borderRadius: "50%",
-                                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                              }}
-                            >
-                              {method.icon}
-                            </Box>
-                            <Box>
-                              <Typography variant="subtitle2" fontWeight="bold">
-                                {method.name}
-                              </Typography>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                              >
-                                {method.description}
-                              </Typography>
-                            </Box>
-                            <Typography
-                              variant="subtitle2"
-                              fontWeight="bold"
-                              sx={{ ml: "auto", pr: 2 }}
-                            >
-                              {method.price === 0 ? (
-                                <Chip
-                                  label="FREE"
-                                  size="small"
-                                  color="success"
-                                  sx={{ fontWeight: "bold" }}
-                                />
-                              ) : (
-                                `$${method.price.toFixed(2)}`
-                              )}
-                            </Typography>
-                          </Box>
-                        }
-                        sx={{
-                          width: "100%",
-                          m: 0,
-                          "& .MuiFormControlLabel-label": { width: "100%" },
-                        }}
-                      />
-                    </MotionCard>
-                  ))}
-                </RadioGroup>
-                {formErrors.shippingMethod && (
-                  <FormHelperText>{formErrors.shippingMethod}</FormHelperText>
-                )}
-              </FormControl>
-
-              <Alert
-                severity="info"
-                icon={<Info />}
-                sx={{ mt: 2, borderRadius: 2 }}
-              >
-                <Typography variant="body2">
-                  Order will be delivered within the estimated timeframe shown
-                  for each shipping method. All orders are processed Monday
-                  through Friday, excluding holidays.
-                </Typography>
-              </Alert>
-            </MotionPaper>
-
-            <MotionPaper
-              variants={itemVariants}
-              sx={{
-                p: 3,
-                borderRadius: 3,
-                boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
-                mb: 3,
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: -30,
-                  right: -30,
-                  width: 100,
-                  height: 100,
-                  borderRadius: "50%",
-                  background: alpha(theme.palette.info.light, 0.1),
-                  zIndex: 0,
-                }}
-              />
-
-              <Typography
-                variant="h6"
-                fontWeight="bold"
-                sx={{
-                  mb: 3,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
-                <DevicesOther fontSize="small" color="primary" /> Select Devices
-              </Typography>
-
-              {deviceLoading ? (
-                <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
-                  <CircularProgress />
-                </Box>
-              ) : (
-                <Grid container spacing={2}>
-                  {devices.map((device) => (
-                    <Grid item xs={12} sm={6} key={device.id}>
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          borderRadius: 2,
-                          bgcolor: alpha(theme.palette.background.default, 0.7),
-                          border: `1px solid ${alpha(
-                            theme.palette.primary.main,
-                            0.2
-                          )}`,
-                          height: "100%",
-                        }}
-                      >
-                        <Box sx={{ display: "flex", gap: 2 }}>
-                          <Box
-                            component="img"
-                            src={device.attachment}
-                            alt={device.name}
-                            sx={{
-                              width: 80,
-                              height: 80,
-                              borderRadius: 1,
-                              objectFit: "cover",
-                            }}
-                          />
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="subtitle1" fontWeight="bold">
-                              {device.name}
-                            </Typography>
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ mb: 1 }}
-                            >
-                              {device.description}
-                            </Typography>
-                            <Typography
-                              variant="subtitle2"
-                              color="primary"
-                              fontWeight="bold"
-                              sx={{ mb: 1 }}
-                            >
-                              ${device.price}
-                            </Typography>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                              <Typography variant="body2" color="text.secondary">
-                                Quantity:
-                              </Typography>
-                              <TextField
-                                size="small"
-                                type="number"
-                                value={selectedDevices[device.id] || 0}
-                                onChange={(e) =>
-                                  handleDeviceQuantityChange(
-                                    device.id,
-                                    Math.max(0, Math.min(device.quantity, parseInt(e.target.value) || 0))
-                                  )
-                                }
-                                inputProps={{
-                                  min: 0,
-                                  max: device.quantity,
-                                }}
-                                sx={{
-                                  width: 80,
-                                  "& .MuiOutlinedInput-root": {
-                                    height: 32,
-                                  },
-                                }}
-                              />
-                              <Typography variant="body2" color="text.secondary">
-                                Available: {device.quantity}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Box>
-                      </Paper>
-                    </Grid>
-                  ))}
-                </Grid>
-              )}
-            </MotionPaper>
 
             <MotionBox
               variants={itemVariants}
@@ -1185,191 +895,6 @@ const ShippingPage: React.FC = () => {
                 Continue to Payment
               </MotionButton>
             </MotionBox>
-          </Grid>
-
-          {/* Order summary */}
-          <Grid item xs={12} md={4}>
-            <MotionCard
-              variants={itemVariants}
-              sx={{
-                borderRadius: 3,
-                overflow: "hidden",
-                boxShadow: "0 15px 35px rgba(0,0,0,0.1)",
-                position: "sticky",
-                top: 100,
-                bgcolor: alpha(theme.palette.background.paper, 0.8),
-                backdropFilter: "blur(10px)",
-              }}
-            >
-              <Box
-                sx={{
-                  p: 3,
-                  background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
-                  color: "white",
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: -20,
-                    right: -20,
-                    width: 100,
-                    height: 100,
-                    borderRadius: "50%",
-                    background: "rgba(255,255,255,0.1)",
-                  }}
-                />
-
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  sx={{ position: "relative", zIndex: 1 }}
-                >
-                  Order Summary
-                </Typography>
-
-                <Typography
-                  variant="body2"
-                  sx={{ mt: 1, opacity: 0.8, position: "relative", zIndex: 1 }}
-                >
-                  {cartDetails.reduce((sum, item) => sum + item.quantity, 0)}{" "}
-                  items in your cart
-                </Typography>
-              </Box>
-
-              <CardContent sx={{ p: 3 }}>
-                <Stack spacing={3}>
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: alpha(theme.palette.background.default, 0.5),
-                    }}
-                  >
-                    <Typography
-                      variant="subtitle2"
-                      fontWeight="bold"
-                      sx={{ mb: 2 }}
-                    >
-                      Order Items
-                    </Typography>
-
-                    <Stack spacing={2}>
-                      {cartDetails.map((item, index) => (
-                        <Box
-                          key={index}
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                          }}
-                        >
-                          <Typography variant="body2">
-                            {item.productName}{" "}
-                            <Typography component="span" color="text.secondary">
-                              x{item.quantity}
-                            </Typography>
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
-                            ${item.unitPrice.toFixed(2)}
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Stack>
-
-                    <Button
-                      size="small"
-                      startIcon={<ArrowBack fontSize="small" />}
-                      sx={{ mt: 2 }}
-                      onClick={() => navigate("/cart")}
-                    >
-                      Edit Cart
-                    </Button>
-                  </Paper>
-
-                  <Divider />
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Typography variant="body1" color="text.secondary">
-                      Subtotal
-                    </Typography>
-                    <Typography variant="body1" fontWeight="bold">
-                      $
-                      {cartDetails
-                        .reduce(
-                          (sum, item) => sum + item.unitPrice * item.quantity,
-                          0
-                        )
-                        .toFixed(2)}
-                    </Typography>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Typography variant="body1" color="text.secondary">
-                      Shipping
-                    </Typography>
-                    <Typography variant="body1" fontWeight="medium">
-                      {shipping === 0 ? (
-                        <Chip
-                          label="FREE"
-                          color="success"
-                          size="small"
-                          sx={{ fontWeight: "bold" }}
-                        />
-                      ) : (
-                        `$${shipping.toFixed(2)}`
-                      )}
-                    </Typography>
-                  </Box>
-
-                  <Divider />
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Typography variant="h6" fontWeight="bold">
-                      Total
-                    </Typography>
-                    <Typography
-                      variant="h5"
-                      fontWeight="bold"
-                      color="primary.dark"
-                      sx={{
-                        background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                      }}
-                    >
-                      $
-                      {(
-                        cartDetails.reduce(
-                          (sum, item) => sum + item.unitPrice * item.quantity,
-                          0
-                        ) + shipping
-                      ).toFixed(2)}
-                    </Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </MotionCard>
           </Grid>
         </Grid>
       </form>

@@ -33,10 +33,10 @@ import {
   Payment,
   ReceiptLong,
   ShoppingBag,
-  LocalOffer,
   CheckCircleOutline,
   CreditCard,
   LocalMall,
+  MonetizationOn,
 } from "@mui/icons-material";
 import { CartItem } from "../types/types";
 import { cartService, CartDetailItem } from "../services/cartService";
@@ -73,9 +73,6 @@ const CartPage: React.FC<CartPageProps> = ({
   const [cartDetails, setCartDetails] = useState<CartDetailItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [couponCode, setCouponCode] = useState<string>("");
-  const [couponApplied, setCouponApplied] = useState<boolean>(false);
-  const [discount, setDiscount] = useState<number>(0);
   const [activeStep, setActiveStep] = useState<number>(0);
 
   // Thêm state để theo dõi các sản phẩm được chọn
@@ -90,7 +87,7 @@ const CartPage: React.FC<CartPageProps> = ({
     .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
   const selectedShipping = selectedSubtotal > 100 ? 0 : 15;
-  const selectedTotal = selectedSubtotal + selectedShipping - discount;
+  const selectedTotal = selectedSubtotal + selectedShipping;
 
   // Số lượng sản phẩm được chọn
   const selectedCount = Object.values(selectedItems).filter(Boolean).length;
@@ -129,7 +126,7 @@ const CartPage: React.FC<CartPageProps> = ({
   );
 
   const shipping = subtotal > 100 ? 0 : 15;
-  const total = subtotal + shipping - discount;
+  const total = subtotal + shipping;
 
   useEffect(() => {
     const fetchCartDetails = async () => {
@@ -217,19 +214,6 @@ const CartPage: React.FC<CartPageProps> = ({
       localStorage.setItem("cartDetails", JSON.stringify(details));
     } catch (error) {
       console.error("Failed to remove cart item:", error);
-    }
-  };
-
-  const handleApplyCoupon = () => {
-    if (couponCode.toLowerCase() === "hydro25") {
-      setDiscount(subtotal * 0.25);
-      setCouponApplied(true);
-    } else if (couponCode.toLowerCase() === "eco10") {
-      setDiscount(subtotal * 0.1);
-      setCouponApplied(true);
-    } else {
-      setDiscount(0);
-      setCouponApplied(false);
     }
   };
 
@@ -1014,6 +998,7 @@ const CartPage: React.FC<CartPageProps> = ({
               top: 100,
               bgcolor: alpha(theme.palette.background.paper, 0.8),
               backdropFilter: "blur(10px)",
+              height: "fit-content",
             }}
           >
             <Box
@@ -1096,31 +1081,6 @@ const CartPage: React.FC<CartPageProps> = ({
                   </Typography>
                 </Box>
 
-                {discount > 0 && (
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Typography
-                      variant="body1"
-                      color="error.main"
-                      sx={{ display: "flex", alignItems: "center" }}
-                    >
-                      <LocalOffer fontSize="small" sx={{ mr: 1 }} /> Discount
-                    </Typography>
-                    <Typography
-                      variant="body1"
-                      fontWeight="medium"
-                      color="error.main"
-                    >
-                      -${discount.toLocaleString()}
-                    </Typography>
-                  </Box>
-                )}
-
                 <Divider />
 
                 <Box
@@ -1146,83 +1106,6 @@ const CartPage: React.FC<CartPageProps> = ({
                     ${selectedTotal.toLocaleString()}
                   </Typography>
                 </Box>
-
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2,
-                    bgcolor: alpha(theme.palette.primary.light, 0.1),
-                    borderRadius: 2,
-                    border: `1px dashed ${alpha(
-                      theme.palette.primary.main,
-                      0.3
-                    )}`,
-                  }}
-                >
-                  <Typography
-                    variant="subtitle2"
-                    color="primary"
-                    gutterBottom
-                    sx={{ fontWeight: "medium" }}
-                  >
-                    Apply Coupon
-                  </Typography>
-
-                  <TextField
-                    fullWidth
-                    placeholder="Enter code"
-                    size="small"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <LocalOffer fontSize="small" color="primary" />
-                        </InputAdornment>
-                      ),
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <Button
-                            size="small"
-                            onClick={handleApplyCoupon}
-                            disabled={!couponCode.trim()}
-                            variant="contained"
-                            color="primary"
-                            sx={{
-                              borderRadius: 1,
-                              minWidth: "auto",
-                              px: 2,
-                            }}
-                          >
-                            Apply
-                          </Button>
-                        </InputAdornment>
-                      ),
-                      sx: {
-                        borderRadius: 1.5,
-                      },
-                    }}
-                    sx={{ mb: 1 }}
-                  />
-
-                  {couponApplied && (
-                    <Alert
-                      icon={<CheckCircleOutline />}
-                      severity="success"
-                      sx={{
-                        mt: 1,
-                        borderRadius: 1.5,
-                        "& .MuiAlert-icon": {
-                          color: theme.palette.success.main,
-                        },
-                      }}
-                    >
-                      <Typography variant="body2" fontWeight="medium">
-                        Coupon applied successfully!
-                      </Typography>
-                    </Alert>
-                  )}
-                </Paper>
 
                 <MotionButton
                   variant="contained"
@@ -1252,145 +1135,84 @@ const CartPage: React.FC<CartPageProps> = ({
                     : "Select items to checkout"}
                 </MotionButton>
 
-                <Box
-                  sx={{
-                    mt: 2,
-                    p: 2,
-                    bgcolor: alpha(theme.palette.success.main, 0.1),
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 1,
-                  }}
-                >
-                  <LocalShipping sx={{ color: theme.palette.success.main }} />
-                  <Typography
-                    variant="body2"
-                    color="success.dark"
-                    fontWeight="medium"
-                  >
-                    Free shipping on orders over $100
-                  </Typography>
-                </Box>
-
-                {/* Payment methods */}
-                <Box>
+                {/* Payment methods - Updated */}
+                <Box sx={{ mt: 2 }}>
                   <Typography
                     variant="subtitle2"
                     color="text.secondary"
                     gutterBottom
+                    sx={{ fontWeight: "medium" }}
                   >
                     We Accept:
                   </Typography>
-                  <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                    {["visa", "mastercard", "paypal", "apple-pay"].map(
-                      (method) => (
-                        <Box
-                          key={method}
-                          component="img"
-                          src={`/assets/payment/${method}.svg`}
-                          alt={method}
-                          sx={{
-                            height: 24,
-                            opacity: 0.7,
-                            filter: "grayscale(100%)",
-                            transition: "all 0.3s ease",
-                            "&:hover": {
-                              opacity: 1,
-                              filter: "grayscale(0%)",
-                            },
-                          }}
-                        />
-                      )
-                    )}
-                  </Stack>
-                </Box>
-              </Stack>
-            </CardContent>
-          </MotionCard>
-
-          {/* Additional recommendation card */}
-          <MotionCard
-            variants={itemVariants}
-            whileHover={{ y: -5, boxShadow: "0 15px 30px rgba(0,0,0,0.1)" }}
-            sx={{
-              mt: 3,
-              borderRadius: 3,
-              overflow: "hidden",
-              boxShadow: "0 8px 16px rgba(0,0,0,0.06)",
-              transition: "all 0.3s ease",
-            }}
-          >
-            <CardContent sx={{ p: 0 }}>
-              <Box
-                sx={{
-                  p: 2,
-                  bgcolor: alpha(theme.palette.secondary.light, 0.1),
-                }}
-              >
-                <Typography
-                  variant="subtitle1"
-                  fontWeight="bold"
-                  color="secondary.dark"
-                >
-                  Recommended for You
-                </Typography>
-              </Box>
-
-              <Box sx={{ display: "flex", p: 2 }}>
-                <CardMedia
-                  component="img"
-                  sx={{
-                    width: 70,
-                    height: 70,
-                    borderRadius: 1,
-                    mr: 2,
-                    objectFit: "cover",
-                  }}
-                  image="/assets/products/hydroponic-starter.jpg"
-                  alt="Hydroponic Starter Kit"
-                />
-
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle2" fontWeight="medium">
-                    Hydroponic Starter Kit
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ mb: 1 }}
-                  >
-                    Complete setup for beginners
-                  </Typography>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
+                  <Box 
+                    sx={{ 
+                      display: "flex", 
+                      justifyContent: "space-between", 
+                      mt: 1.5,
+                      px: 2
                     }}
                   >
-                    <Typography
-                      variant="subtitle2"
-                      color="primary.main"
-                      fontWeight="bold"
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        p: 1.5,
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                        bgcolor: alpha(theme.palette.primary.light, 0.05),
+                        width: "48%",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                          borderColor: theme.palette.primary.main,
+                          transform: "translateY(-2px)"
+                        }
+                      }}
                     >
-                      $49.99
-                    </Typography>
+                      <CreditCard 
+                        sx={{ 
+                          color: theme.palette.primary.main,
+                          mr: 1,
+                          fontSize: 22
+                        }} 
+                      />
+                      <Typography variant="body2" fontWeight="medium">
+                        PayOS
+                      </Typography>
+                    </Box>
 
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<Add fontSize="small" />}
-                      sx={{ borderRadius: 1 }}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        p: 1.5,
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                        bgcolor: alpha(theme.palette.primary.light, 0.05),
+                        width: "48%",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                          borderColor: theme.palette.primary.main,
+                          transform: "translateY(-2px)"
+                        }
+                      }}
                     >
-                      Add
-                    </Button>
+                      <MonetizationOn 
+                        sx={{ 
+                          color: theme.palette.primary.main,
+                          mr: 1,
+                          fontSize: 22
+                        }} 
+                      />
+                      <Typography variant="body2" fontWeight="medium">
+                        Cash on Delivery
+                      </Typography>
+                    </Box>
                   </Box>
                 </Box>
-              </Box>
+              </Stack>
             </CardContent>
           </MotionCard>
         </Grid>
