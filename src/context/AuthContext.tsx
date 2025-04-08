@@ -198,29 +198,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     Cookies.remove("RefreshToken", { path: "/" });
   };
 
+  // Update the refreshAuthToken function
   const refreshAuthToken = async () => {
     try {
-      const refreshToken = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("refreshToken="))
-        ?.split("=")[1];
-
+      console.log("Attempting to refresh auth token");
+      
+      // Get the refresh token from cookies
+      const refreshToken = Cookies.get("RefreshToken");
+      const deviceId = Cookies.get("DeviceId");
+      
+      console.log("Refresh token available:", !!refreshToken);
+      console.log("Device ID available:", !!deviceId);
+      
       if (!refreshToken) {
         throw new Error("No refresh token available");
       }
 
-      const response = await api.post("/auth/refresh-token", { refreshToken });
+      // No need to send the refresh token in the body since it's in cookies
+      const response = await api.post("/auth/refresh-token", {}, {
+        withCredentials: true // Ensure cookies are sent with the request
+      });
+      
+      console.log("Refresh token response:", response.data);
 
-      if (response.data?.token) {
+      if (response.data?.statusCodes === 200 && response.data?.response?.data?.auth?.token) {
+        // Extract the new token from the response
+        const newToken = response.data.response.data.auth.token;
+        console.log("New token received:", !!newToken);
+        
+        // Update token in state and localStorage
+        setToken(newToken);
+        localStorage.setItem("authToken", newToken);
+        
+        return newToken;
+      } else if (response.data?.token) {
+        // Alternative response format
         const newToken = response.data.token;
         setToken(newToken);
         localStorage.setItem("authToken", newToken);
-
-        if (response.data.refreshToken) {
-          const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-          document.cookie = `refreshToken=${response.data.refreshToken}; path=/; expires=${expires.toUTCString()}; Secure; HttpOnly; SameSite=Strict`;
-        }
-
         return newToken;
       }
 
@@ -981,42 +996,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // Add this useEffect to handle initialization
   useEffect(() => {
     const initializeAuth = async () => {
-      const authToken = localStorage.getItem("authToken");
-      const refreshToken = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("RefreshToken="))
-        ?.split("=")[1];
-
-      if (authToken) {
-        try {
-          // Thử lấy thông tin user với token hiện tại
-          const userInfo = await getUserInfo();
-          setUser(userInfo);
-          setToken(authToken); // Đảm bảo token cũng được đặt trong state
-        } catch (error) {
-          // Nếu token hết hạn, thử refresh token
-          if (axios.isAxiosError(error) && error.response?.status === 401) {
-            try {
-              await refreshAuthToken();
-              const userInfo = await getUserInfo();
-              setUser(userInfo);
-            } catch (refreshError) {
-              console.error("Failed to refresh token:", refreshError);
+      try {
+        setLoading(true);
+        console.log("Initializing authentication state");
+        
+        // Check for existing token in localStorage
+        const authToken = localStorage.getItem("authToken");
+        // Check for refresh token in cookies
+        const refreshToken = Cookies.get("RefreshToken");
+        const deviceId = Cookies.get("DeviceId");
+        
+        console.log("Auth state on init:", {
+          authToken: authToken ? "exists" : "missing",
+          refreshToken: refreshToken ? "exists" : "missing",
+          deviceId: deviceId ? "exists" : "missing"
+        });
+        
+        if (authToken) {
+          try {
+            // Try to get user info with the current token
+            console.log("Getting user info with existing token");
+            const userData = await getUserInfo();
+            setUser(userData);
+            setToken(authToken);
+            console.log("Successfully authenticated with existing token");
+          } catch (error) {
+            console.error("Error using existing token:", error);
+            
+            // If the token is invalid but we have a refresh token, try to refresh
+            if (refreshToken) {
+              try {
+                console.log("Trying to refresh token");
+                const newToken = await refreshAuthToken();
+                // After refresh, get user info
+                const userData = await getUserInfo();
+                setUser(userData);
+                setToken(newToken);
+                console.log("Successfully refreshed token and authenticated");
+              } catch (refreshError) {
+                console.error("Error refreshing token:", refreshError);
+                // Clear everything if refresh fails
+                logout();
+              }
+            } else {
+              console.log("No refresh token available, logging out");
               logout();
             }
           }
+        } 
+        // If no token but we have a refresh token, try to refresh
+        else if (refreshToken) {
+          try {
+            console.log("No auth token but refresh token exists, attempting refresh");
+            const newToken = await refreshAuthToken();
+            const userData = await getUserInfo();
+            setUser(userData);
+            setToken(newToken);
+            console.log("Successfully obtained new token via refresh");
+          } catch (error) {
+            console.error("Error refreshing token during init:", error);
+            logout();
+          }
+        } else {
+          console.log("No authentication tokens found, user is not logged in");
         }
-      } else if (refreshToken) {
-        try {
-          await refreshAuthToken();
-          const userInfo = await getUserInfo();
-          setUser(userInfo);
-        } catch (error) {
-          console.error("Failed to refresh token:", error);
-          logout();
-        }
+      } catch (error) {
+        console.error("Unexpected error during auth initialization:", error);
+        logout();
+      } finally {
+        setLoading(false);
       }
     };
 

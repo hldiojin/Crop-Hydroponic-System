@@ -70,12 +70,15 @@ interface ShippingFormData {
 }
 
 interface UserAddressResponse {
-  data: UserAddress[];
-  currentPage: number;
-  totalPages: number;
-  totalItems: number;
-  pageSize: number;
-  lastPage: boolean;
+  statusCodes: number;
+  response: {
+    data: UserAddress[];
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    pageSize: number;
+    lastPage: boolean;
+  };
 }
 
 const ShippingPage: React.FC = () => {
@@ -134,11 +137,17 @@ const ShippingPage: React.FC = () => {
           }
         );
 
-        if (response.data && response.data.data) {
-          setUserAddresses(response.data.data);
+        // Check if the response has the correct structure with nested data
+        if (
+          response.data &&
+          response.data.response &&
+          response.data.response.data &&
+          response.data.response.data.length > 0
+        ) {
+          setUserAddresses(response.data.response.data);
 
           // Set default address if available
-          const defaultAddress = response.data.data.find(
+          const defaultAddress = response.data.response.data.find(
             (addr) => addr.isDefault
           );
           if (defaultAddress) {
@@ -328,6 +337,13 @@ const ShippingPage: React.FC = () => {
       })
     );
 
+    // Make sure we have the current order ID (created in CartPage)
+    const orderId = localStorage.getItem("currentOrderId");
+    if (!orderId) {
+      navigate("/cart");
+      return;
+    }
+
     // Navigate to payment page
     navigate("/checkout/payment");
   };
@@ -453,7 +469,11 @@ const ShippingPage: React.FC = () => {
           Shipping Information
         </Typography>
 
-        <Badge badgeContent={cartDetails.length} color="secondary" sx={{ ml: "auto" }}>
+        <Badge
+          badgeContent={cartDetails.length}
+          color="secondary"
+          sx={{ ml: "auto" }}
+        >
           <ShoppingCart
             sx={{ fontSize: 28, color: theme.palette.primary.main }}
           />

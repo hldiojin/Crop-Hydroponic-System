@@ -49,6 +49,8 @@ import {
   containerVariants,
   buttonVariants,
 } from "../utils/motion";
+import { deviceService, Device } from "../services/deviceService";
+import { submitOrder } from "../services/orderSevice";
 
 // Create properly typed motion components to fix TypeScript errors
 const MotionCard = motion(Card);
@@ -74,6 +76,10 @@ const CartPage: React.FC<CartPageProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState<number>(0);
+  const [selectedDevices, setSelectedDevices] = useState<
+    Record<string, number>
+  >({});
+  const [devices, setDevices] = useState<Device[]>([]);
 
   // Thêm state để theo dõi các sản phẩm được chọn
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>(
@@ -132,8 +138,33 @@ const CartPage: React.FC<CartPageProps> = ({
     const fetchCartDetails = async () => {
       try {
         setLoading(true);
+
+        // Load cart details from API
         const details = await cartService.getCartDetails();
-        setCartDetails(details);
+
+        // Check if we have selected products from the device selection page
+        const selectedCartData = localStorage.getItem("selectedCartDetails");
+        if (selectedCartData) {
+          const selectedProducts = JSON.parse(selectedCartData);
+          // Combine existing cart details with selected products
+          setCartDetails([...details, ...selectedProducts]);
+        } else {
+          setCartDetails(details);
+        }
+
+        // Check if we have selected devices from the device selection page
+        const devicesData = localStorage.getItem("selectedDevices");
+        if (devicesData) {
+          setSelectedDevices(JSON.parse(devicesData));
+
+          // Load device details to display them
+          try {
+            const devicesList = await deviceService.getAll();
+            setDevices(devicesList);
+          } catch (err) {
+            console.error("Failed to fetch devices:", err);
+          }
+        }
 
         // Lưu dữ liệu giỏ hàng vào localStorage
         localStorage.setItem("cartDetails", JSON.stringify(details));
@@ -218,20 +249,61 @@ const CartPage: React.FC<CartPageProps> = ({
   };
 
   // Hàm xử lý khi nhấn "Proceed to Checkout"
-  const handleProceedToCheckout = () => {
-    // Lọc các sản phẩm được chọn
-    const selectedProducts = cartDetails.filter(
-      (item) => selectedItems[item.id]
-    );
+  const handleProceedToCheckout = async () => {
+    try {
+      // Lọc các sản phẩm được chọn
+      const selectedProducts = cartDetails.filter(
+        (item) => selectedItems[item.id]
+      );
 
-    // Lưu danh sách sản phẩm được chọn vào localStorage
-    localStorage.setItem(
-      "selectedCartDetails",
-      JSON.stringify(selectedProducts)
-    );
+      // Lưu danh sách sản phẩm được chọn vào localStorage
+      localStorage.setItem(
+        "selectedCartDetails",
+        JSON.stringify(selectedProducts)
+      );
 
-    // Chuyển đến trang shipping
-    navigate("/checkout/shipping");
+      // Prepare order data
+      const orderData = {
+        products: selectedProducts.map((item) => ({
+          id: item.productId,
+          unitPrice: item.unitPrice,
+          quantity: item.quantity,
+        })),
+        devices: Object.entries(selectedDevices)
+          .filter(([_, quantity]) => quantity > 0)
+          .map(([deviceId, quantity]) => {
+            const device = devices.find((d) => d.id === deviceId);
+            return {
+              id: deviceId,
+              unitPrice: device?.price || 0,
+              quantity: quantity,
+            };
+          }),
+      };
+
+      // Call API to create order
+      const orderResponse = await submitOrder(orderData);
+
+      if (
+        orderResponse &&
+        orderResponse.statusCodes === 200 &&
+        orderResponse.response?.data
+      ) {
+        const orderId = orderResponse.response.data;
+
+        // Save order ID to localStorage
+        localStorage.setItem("currentOrderId", orderId);
+
+        // Chuyển đến trang shipping
+        navigate("/checkout/shipping");
+      } else {
+        throw new Error("Failed to create order");
+      }
+    } catch (error) {
+      console.error("Order creation failed:", error);
+      // Show error to user
+      alert("Failed to create order. Please try again.");
+    }
   };
 
   // Loading state
@@ -544,7 +616,7 @@ const CartPage: React.FC<CartPageProps> = ({
         }}
       >
         <IconButton
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/devices")}
           sx={{
             mr: 2,
             bgcolor: alpha(theme.palette.primary.main, 0.1),
@@ -1145,12 +1217,12 @@ const CartPage: React.FC<CartPageProps> = ({
                   >
                     We Accept:
                   </Typography>
-                  <Box 
-                    sx={{ 
-                      display: "flex", 
-                      justifyContent: "space-between", 
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
                       mt: 1.5,
-                      px: 2
+                      px: 2,
                     }}
                   >
                     <Box
@@ -1159,23 +1231,26 @@ const CartPage: React.FC<CartPageProps> = ({
                         alignItems: "center",
                         p: 1.5,
                         borderRadius: 2,
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                        border: `1px solid ${alpha(
+                          theme.palette.primary.main,
+                          0.2
+                        )}`,
                         bgcolor: alpha(theme.palette.primary.light, 0.05),
                         width: "48%",
                         transition: "all 0.2s ease",
                         "&:hover": {
                           boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                           borderColor: theme.palette.primary.main,
-                          transform: "translateY(-2px)"
-                        }
+                          transform: "translateY(-2px)",
+                        },
                       }}
                     >
-                      <CreditCard 
-                        sx={{ 
+                      <CreditCard
+                        sx={{
                           color: theme.palette.primary.main,
                           mr: 1,
-                          fontSize: 22
-                        }} 
+                          fontSize: 22,
+                        }}
                       />
                       <Typography variant="body2" fontWeight="medium">
                         PayOS
@@ -1188,23 +1263,26 @@ const CartPage: React.FC<CartPageProps> = ({
                         alignItems: "center",
                         p: 1.5,
                         borderRadius: 2,
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                        border: `1px solid ${alpha(
+                          theme.palette.primary.main,
+                          0.2
+                        )}`,
                         bgcolor: alpha(theme.palette.primary.light, 0.05),
                         width: "48%",
                         transition: "all 0.2s ease",
                         "&:hover": {
                           boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                           borderColor: theme.palette.primary.main,
-                          transform: "translateY(-2px)"
-                        }
+                          transform: "translateY(-2px)",
+                        },
                       }}
                     >
-                      <MonetizationOn 
-                        sx={{ 
+                      <MonetizationOn
+                        sx={{
                           color: theme.palette.primary.main,
                           mr: 1,
-                          fontSize: 22
-                        }} 
+                          fontSize: 22,
+                        }}
                       />
                       <Typography variant="body2" fontWeight="medium">
                         Cash on Delivery
@@ -1217,6 +1295,124 @@ const CartPage: React.FC<CartPageProps> = ({
           </MotionCard>
         </Grid>
       </Grid>
+
+      {/* Add selected devices section */}
+      {Object.entries(selectedDevices).some(([_, quantity]) => quantity > 0) &&
+        devices.length > 0 && (
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 3,
+              bgcolor: alpha(theme.palette.background.paper, 0.8),
+              backdropFilter: "blur(10px)",
+              mb: 3,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            }}
+          >
+            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+              Selected Devices
+            </Typography>
+
+            {Object.entries(selectedDevices)
+              .filter(([_, quantity]) => quantity > 0)
+              .map(([deviceId, quantity]) => {
+                const device = devices.find((d) => d.id === deviceId);
+                return (
+                  device && (
+                    <MotionCard
+                      key={deviceId}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -100 }}
+                      sx={{
+                        mb: 2,
+                        borderRadius: 2,
+                        overflow: "hidden",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+                      }}
+                    >
+                      <Grid container alignItems="center">
+                        <Grid item xs={12} sm={6}>
+                          <Box sx={{ display: "flex", p: 2 }}>
+                            <Box
+                              sx={{
+                                width: 80,
+                                height: 80,
+                                borderRadius: 1,
+                                overflow: "hidden",
+                                mr: 2,
+                              }}
+                            >
+                              <CardMedia
+                                component="img"
+                                sx={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
+                                image={
+                                  device.attachment || "/placeholder-device.jpg"
+                                }
+                                alt={device.name}
+                              />
+                            </Box>
+                            <Box>
+                              <Typography variant="h6" fontWeight="bold">
+                                {device.name}
+                              </Typography>
+                              <Chip
+                                label={`$${device.price.toLocaleString()}`}
+                                size="small"
+                                color="primary"
+                                sx={{ mt: 1 }}
+                              />
+                            </Box>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6} sm={2} sx={{ textAlign: "center" }}>
+                          <Typography variant="body1" fontWeight="medium">
+                            Quantity: {quantity}
+                          </Typography>
+                        </Grid>
+                        <Grid
+                          item
+                          xs={6}
+                          sm={4}
+                          sx={{ textAlign: "right", pr: 3 }}
+                        >
+                          <Typography
+                            variant="h6"
+                            color="primary"
+                            fontWeight="bold"
+                          >
+                            ${(device.price * quantity).toLocaleString()}
+                          </Typography>
+                          <Button
+                            color="error"
+                            size="small"
+                            onClick={() => {
+                              const newSelectedDevices = { ...selectedDevices };
+                              delete newSelectedDevices[deviceId];
+                              setSelectedDevices(newSelectedDevices);
+                              localStorage.setItem(
+                                "selectedDevices",
+                                JSON.stringify(newSelectedDevices)
+                              );
+                            }}
+                            startIcon={<Delete fontSize="small" />}
+                            sx={{ mt: 1 }}
+                          >
+                            Remove
+                          </Button>
+                        </Grid>
+                      </Grid>
+                    </MotionCard>
+                  )
+                );
+              })}
+          </Paper>
+        )}
     </MotionContainer>
   );
 };

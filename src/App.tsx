@@ -29,11 +29,13 @@ import { AdminRoute } from "./components/AdminRoute";
 import CheckoutPage from "./pages/CheckoutPage";
 import ShippingPage from "./pages/ShippingPage";
 import PaymentPage from "./pages/PaymentPage";
+import DeviceSelectionPage from "./pages/DeviceSelectionPage";
 import { productService } from "./services/productService";
 import { config } from "./config";
 import cartService from "./services/cartService";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import PayOSCallback from './pages/PayOSCallback';
+import NotFoundPage from './pages/NotFoundPage';
 
 const theme = createTheme({
   palette: {
@@ -373,6 +375,14 @@ const MainContent: React.FC<{
           }
         />
         <Route
+          path="/devices"
+          element={
+            <ProtectedRoute>
+              <DeviceSelectionPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/cart"
           element={
             <ProtectedRoute>
@@ -491,6 +501,7 @@ const MainContent: React.FC<{
           }
         />
         <Route path="/payos-callback" element={<PayOSCallback />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </>
   );

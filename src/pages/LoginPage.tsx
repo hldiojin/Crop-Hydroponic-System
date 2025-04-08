@@ -80,7 +80,7 @@ const LoginPage: React.FC = () => {
       
       // Redirect after a short delay to allow the toast to be visible
       const redirectTimer = setTimeout(() => {
-        navigate("/");
+        navigate("/devices");
       }, 1500);
       
       return () => clearTimeout(redirectTimer);

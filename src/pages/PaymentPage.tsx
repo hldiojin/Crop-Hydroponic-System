@@ -53,7 +53,12 @@ import {
   buttonVariants,
 } from "../utils/motion";
 import { useAuth } from "../context/AuthContext";
-import { submitOrder, processTransaction } from "../services/orderSevice";
+import {
+  submitOrder,
+  processTransaction,
+  getOrderById,
+  processCodTransaction,
+} from "../services/orderSevice";
 import { deviceService, Device } from "../services/deviceService";
 
 // Create properly typed motion components to fix TypeScript errors
@@ -113,19 +118,116 @@ const PaymentPage: React.FC = () => {
 
   // Fetch shipping info from localStorage
   useEffect(() => {
-    const address = localStorage.getItem("shippingAddress");
-    const method = localStorage.getItem("shippingMethod");
-    const devices = localStorage.getItem("selectedDevices");
-
-    if (!address || !method) {
-      navigate("/checkout/shipping");
-    } else {
-      setShippingAddress(JSON.parse(address));
-      setShippingMethod(method);
-      if (devices) {
-        setSelectedDevices(JSON.parse(devices));
+    const loadFallbackCartData = () => {
+      // Try to get selected cart details
+      const selectedCartData = localStorage.getItem("selectedCartDetails");
+      if (selectedCartData) {
+        setCartDetails(JSON.parse(selectedCartData));
+      } else {
+        // Fallback to regular cart details
+        const cartData = localStorage.getItem("cartDetails");
+        if (cartData) {
+          setCartDetails(JSON.parse(cartData));
+        }
       }
-    }
+
+      // Try to get selected devices
+      const devicesData = localStorage.getItem("selectedDevices");
+      if (devicesData) {
+        setSelectedDevices(JSON.parse(devicesData));
+
+        // Fetch device details
+        deviceService
+          .getAll()
+          .then((devicesList) => setDevices(devicesList))
+          .catch((error) => console.error("Failed to fetch devices:", error));
+      }
+    };
+
+    const fetchOrderDetails = async () => {
+      try {
+        setLoading(true);
+
+        const address = localStorage.getItem("shippingAddress");
+        const method = localStorage.getItem("shippingMethod");
+        const orderId = localStorage.getItem("currentOrderId");
+
+        if (!address || !method) {
+          navigate("/checkout/shipping");
+          return;
+        }
+
+        setShippingAddress(JSON.parse(address));
+        setShippingMethod(method);
+
+        // If we have an order ID, try to fetch order details
+        if (orderId) {
+          try {
+            // Fetch order details from API
+            const orderResponse = await getOrderById(orderId);
+
+            if (
+              orderResponse &&
+              orderResponse.statusCodes === 200 &&
+              orderResponse.response?.data
+            ) {
+              const orderData = orderResponse.response.data;
+
+              // Set cart details from order data
+              if (orderData.products) {
+                setCartDetails(
+                  orderData.products.map((product: any) => ({
+                    id: product.id,
+                    productId: product.id,
+                    productName: product.name,
+                    unitPrice: product.unitPrice,
+                    quantity: product.quantity,
+                    productImage: product.image || product.mainImage,
+                  }))
+                );
+              }
+
+              // Set device details from order data
+              if (orderData.devices) {
+                const deviceMap: Record<string, number> = {};
+                orderData.devices.forEach((device: any) => {
+                  deviceMap[device.id] = device.quantity;
+                });
+                setSelectedDevices(deviceMap);
+
+                // Fetch device details
+                try {
+                  const devicesList = await deviceService.getAll();
+                  setDevices(devicesList);
+                } catch (deviceError) {
+                  console.error("Failed to fetch devices:", deviceError);
+                  // Continue without device details
+                }
+              }
+            } else {
+              console.error("Invalid order data format");
+              // Continue with fallback data
+              loadFallbackCartData();
+            }
+          } catch (orderError) {
+            console.error("Failed to fetch order details:", orderError);
+            // Continue with fallback data from localStorage
+            loadFallbackCartData();
+          }
+        } else {
+          // No order ID, use fallback cart data
+          loadFallbackCartData();
+        }
+      } catch (err) {
+        console.error("Error in payment page setup:", err);
+        // Don't navigate away, just show the payment UI with any available data
+        loadFallbackCartData();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrderDetails();
   }, [navigate]);
 
   useEffect(() => {
@@ -253,126 +355,79 @@ const PaymentPage: React.FC = () => {
     try {
       setProcessingPayment(true);
 
-      // Get selected cart items
-      const selectedCartData = localStorage.getItem("selectedCartDetails");
-      const selectedItems = selectedCartData
-        ? JSON.parse(selectedCartData)
-        : [];
+      // Get the current order ID
+      const orderId = localStorage.getItem("currentOrderId");
 
-      // Calculate totals
-      const productsTotal = selectedItems.reduce(
-        (sum: number, item: CartDetailItem) =>
-          sum + item.unitPrice * item.quantity,
-        0
-      );
-      const devicesTotal = Object.entries(selectedDevices)
-        .filter(([_, quantity]) => quantity > 0)
-        .reduce((sum: number, [deviceId, quantity]) => {
-          const device = devices.find((d) => d.id === deviceId);
-          return sum + (device?.price || 0) * quantity;
-        }, 0);
-      const subtotal = productsTotal + devicesTotal;
-      const total = subtotal + shipping - discount;
-
-      // Prepare order data with new structure
-      const orderData = {
-        products: selectedItems.map((item: CartDetailItem) => ({
-          id: item.productId,
-          unitPrice: item.unitPrice,
-          quantity: item.quantity,
-        })),
-        devices: Object.entries(selectedDevices)
-          .filter(([_, quantity]) => quantity > 0)
-          .map(([deviceId, quantity]) => {
-            const device = devices.find((d) => d.id === deviceId);
-            return {
-              id: deviceId,
-              unitPrice: device?.price || 0,
-              quantity: quantity,
-            };
-          }),
-      };
+      if (!orderId) {
+        setFormErrors({
+          paymentMethod:
+            "Order information not found. Please try again or create a new order.",
+        });
+        console.error("Order ID not found in localStorage");
+        setProcessingPayment(false);
+        return;
+      }
 
       if (formData.paymentMethod === "cashOnDelivery") {
         try {
-          const orderResponse = await submitOrder(orderData);
+          // Process COD transaction
+          const transactionResponse = await processCodTransaction(orderId);
 
-          if (
-            orderResponse &&
-            orderResponse.statusCodes === 200 &&
-            orderResponse.response?.data
-          ) {
-            const orderId = orderResponse.response.data;
-
-            localStorage.setItem("paymentMethod", formData.paymentMethod);
-            localStorage.setItem("orderId", orderId);
-            localStorage.setItem("orderTotal", total.toString());
-
+          if (transactionResponse && transactionResponse.statusCodes === 200) {
+            // Clear cart data
             localStorage.removeItem("cartDetails");
             localStorage.removeItem("selectedCartDetails");
             localStorage.removeItem("selectedDevices");
+            localStorage.removeItem("currentOrderId");
 
+            // Save payment method for confirmation page
+            localStorage.setItem("paymentMethod", formData.paymentMethod);
+            localStorage.setItem("completedOrderId", orderId);
+
+            // Navigate to confirmation page
             navigate("/checkout/confirmation");
           } else {
-            throw new Error("Failed to create order");
+            throw new Error("Failed to process COD transaction");
           }
         } catch (error) {
-          console.error("Order creation failed:", error);
-          throw error;
+          console.error("COD transaction failed:", error);
+          setFormErrors({
+            paymentMethod:
+              "Failed to process cash on delivery. Please try again.",
+          });
         }
       }
       // For PayOS payment method
       else if (formData.paymentMethod === "payos") {
-        const orderResponse = await submitOrder(orderData);
+        try {
+          // Process PayOS transaction
+          const transactionResponse = await processTransaction(orderId);
 
-        if (
-          orderResponse &&
-          orderResponse.statusCodes === 200 &&
-          orderResponse.response?.data
-        ) {
-          const orderId = orderResponse.response.data;
+          if (
+            transactionResponse &&
+            transactionResponse.statusCodes === 200 &&
+            transactionResponse.response?.data
+          ) {
+            const paymentUrl = transactionResponse.response.data;
 
-          // Lưu orderId vào localStorage để sử dụng khi callback
-          localStorage.setItem("paymentMethod", formData.paymentMethod);
-          localStorage.setItem("orderId", orderId);
-          localStorage.setItem("orderTotal", total.toString());
-          // Đặt trạng thái thanh toán là pending
-          localStorage.setItem("paymentStatus", "pending");
+            // Save payment method for callback handling
+            localStorage.setItem("paymentMethod", formData.paymentMethod);
+            localStorage.setItem("completedOrderId", orderId);
 
-          // Store cart data for later use after payment
-          localStorage.setItem(
-            "pendingOrder",
-            JSON.stringify({
-              orderId: orderId, // Đảm bảo lưu orderId vào pendingOrder
-              cartDetails: selectedItems,
-              selectedDevices,
-              shippingAddress,
-              shippingMethod,
-              total,
-            })
-          );
+            // Set payment status to pending
+            localStorage.setItem("paymentStatus", "pending");
 
-          // Tạo transaction và lấy URL thanh toán
-          try {
-            const transactionResponse = await processTransaction(orderId);
-            
-            if (transactionResponse && transactionResponse.response?.data) {
-              const paymentUrl = transactionResponse.response.data;
-              
-              // Chuyển hướng tới trang thanh toán PayOS
-              const returnUrl = `${window.location.origin}/payos-callback`;
-              
-              // Chuyển hướng tới URL thanh toán
-              window.location.href = paymentUrl;
-            } else {
-              throw new Error("Không nhận được URL thanh toán từ server");
-            }
-          } catch (transactionError) {
-            console.error("Lỗi khi tạo giao dịch:", transactionError);
-            throw new Error("Không thể tạo giao dịch thanh toán");
+            // Redirect to PayOS payment page
+            window.location.href = paymentUrl;
+          } else {
+            throw new Error("Failed to get payment URL");
           }
-        } else {
-          throw new Error("Không thể tạo đơn hàng");
+        } catch (transactionError) {
+          console.error("PayOS transaction error:", transactionError);
+          setFormErrors({
+            paymentMethod:
+              "Failed to create payment transaction. Please try another payment method.",
+          });
         }
       }
     } catch (error) {
