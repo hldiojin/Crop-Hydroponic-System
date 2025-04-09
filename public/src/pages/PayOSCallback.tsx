@@ -81,20 +81,15 @@ const PayOSCallback: React.FC = () => {
           console.log("Payment failed (neither success nor cancelled)");
         }
 
-        // Đợi một chút trước khi điều hướng để đảm bảo localStorage được cập nhật
+        // Đợi một chút trước khi điều hướng
         await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        // Chuyển parameters vào URL của trang confirmation để bảo đảm payment status được nhận
-        const redirectUrl = isSuccess 
-          ? `/checkout/confirmation?status=PAID&code=00&cancel=false&id=${payosId || ''}`
-          : `/checkout/confirmation?status=CANCELLED&cancel=true&id=${payosId || ''}`;
 
         // Kết thúc loading
         setLoading(false);
 
         // Chuyển hướng đến trang xác nhận đơn hàng
-        console.log(`Navigating to ${redirectUrl}`);
-        navigate(redirectUrl, { replace: true });
+        console.log("Navigating to /checkout/confirmation");
+        navigate("/checkout/confirmation", { replace: true });
       } catch (error) {
         console.error("Error handling PayOS callback:", error);
         localStorage.setItem("paymentStatus", "failed");
@@ -104,7 +99,7 @@ const PayOSCallback: React.FC = () => {
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
         console.log("Navigating to /checkout/confirmation after error");
-        navigate("/checkout/confirmation?status=ERROR", { replace: true });
+        navigate("/checkout/confirmation", { replace: true });
       }
     };
 
@@ -127,7 +122,6 @@ const PayOSCallback: React.FC = () => {
     token,
   ]);
 
-  // Hiển thị trạng thái tương ứng với kết quả thanh toán
   return (
     <Container maxWidth="sm">
       <Box

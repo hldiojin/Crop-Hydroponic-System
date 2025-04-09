@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box,
   Container,
@@ -14,6 +14,7 @@ import {
   Chip,
   useTheme,
   alpha,
+  CircularProgress,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -25,6 +26,12 @@ import {
   Payment,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
+import {
+  checkTransactionStatus,
+  getOrderById,
+  OrderDetail,
+} from "../services/orderSevice";
+import { useAuth } from "../context/AuthContext";
 
 // Wrapper components với motion
 const MotionPaper = motion(Paper);
@@ -34,12 +41,18 @@ const MotionButton = motion(Button);
 const OrderConfirmation: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-  const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed' | 'pending'>('pending');
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+  const [paymentStatus, setPaymentStatus] = useState<
+    "success" | "failed" | "pending"
+  >("pending");
   const [orderNumber, setOrderNumber] = useState<string>("");
   const [orderTotal, setOrderTotal] = useState<string>("0");
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [shippingAddress, setShippingAddress] = useState<any>(null);
   const [shippingMethod, setShippingMethod] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [orderDetails, setOrderDetails] = useState<OrderDetail | null>(null);
 
   // Animation variants
   const containerVariants = {
@@ -68,68 +81,276 @@ const OrderConfirmation: React.FC = () => {
     visible: {
       scale: 1,
       opacity: 1,
-      transition: { 
-        duration: 0.5, 
-        type: "spring", 
-        stiffness: 200, 
-        damping: 10 
+      transition: {
+        duration: 0.5,
+        type: "spring",
+        stiffness: 200,
+        damping: 10,
       },
     },
   };
 
+  // Function to format price with commas
+  const formatPrice = (price: number) => {
+    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  // Function to display proper payment method label
+  const getPaymentMethodLabel = (method: string) => {
+    if (method === "payos" || method === "BANK") {
+      return "Thanh toán qua PayOS";
+    } else if (method === "cashOnDelivery" || method === "CASH") {
+      return "Thanh toán khi nhận hàng (COD)";
+    }
+    return "Chưa xác định";
+  };
+
   useEffect(() => {
-    // Lấy thông tin đơn hàng từ localStorage
-    const status = localStorage.getItem("paymentStatus") || "pending";
-    const orderId = localStorage.getItem("orderId") || `ORD-${Math.floor(Math.random() * 10000)}`;
-    const total = localStorage.getItem("orderTotal") || "0";
-    const method = localStorage.getItem("paymentMethod") || "";
+    console.log("OrderConfirmation - Auth status:", { isAuthenticated });
+    try {
+      // Check URL parameters for PayOS callback
+      const urlParams = new URLSearchParams(location.search);
+      const payosStatus = urlParams.get("status");
+      const payosCode = urlParams.get("code");
+      const payosCancel = urlParams.get("cancel");
+      const transactionIdFromUrl = urlParams.get("id");
 
-    // Đọc địa chỉ giao hàng và phương thức vận chuyển
-    const address = localStorage.getItem("shippingAddress");
-    const shipping = localStorage.getItem("shippingMethod");
+      console.log("URL PayOS params:", {
+        payosStatus,
+        payosCode,
+        payosCancel,
+        transactionIdFromUrl,
+      });
 
-    console.log("Order confirmation - Payment status:", status);
-    console.log("Order confirmation - Order ID:", orderId);
-    
-    // Xác định trạng thái thanh toán cuối cùng
-    let finalStatus: 'success' | 'failed' | 'pending' = 'pending';
-    
-    if (status === 'success') {
-      finalStatus = 'success';
-    } else if (status === 'failed' || status === 'error') {
-      finalStatus = 'failed';
-    } else if (method === 'cashOnDelivery') {
-      // Với COD, chúng ta coi như thành công vì thanh toán sẽ diễn ra khi giao hàng
-      finalStatus = 'success';
+      // Retrieve data from localStorage
+      const storedPaymentStatus = localStorage.getItem("paymentStatus");
+      const orderId =
+        localStorage.getItem("completedOrderId") ||
+        localStorage.getItem("orderId");
+      const totalAmount =
+        localStorage.getItem("totalAmount") ||
+        localStorage.getItem("orderTotal");
+      const storedPaymentMethod = localStorage.getItem("paymentMethod");
+      const transactionId =
+        transactionIdFromUrl || localStorage.getItem("transactionId");
+
+      console.log("OrderConfirmation - Retrieved data:", {
+        paymentStatus: storedPaymentStatus,
+        orderId,
+        totalAmount,
+        paymentMethod: storedPaymentMethod,
+        transactionId,
+      });
+
+      if (orderId) {
+        setOrderNumber(orderId);
+      } else {
+        console.warn("No order ID found in localStorage");
+      }
+
+      if (totalAmount) {
+        setOrderTotal(totalAmount);
+      } else {
+        console.warn("No total amount found in localStorage");
+      }
+
+      if (storedPaymentMethod) {
+        setPaymentMethod(storedPaymentMethod);
+      } else {
+        console.warn("No payment method found in localStorage");
+      }
+
+      // Đọc địa chỉ giao hàng và phương thức vận chuyển
+      const address = localStorage.getItem("shippingAddress");
+      const shipping = localStorage.getItem("shippingMethod");
+
+      // Determine payment status based on URL params first (direct callback)
+      let finalStatus: "success" | "failed" | "pending" = "pending";
+
+      // First check: Direct URL parameters (highest priority)
+      if (
+        payosStatus === "PAID" &&
+        payosCode === "00" &&
+        payosCancel === "false"
+      ) {
+        finalStatus = "success";
+        // Store success in localStorage to persist through page refreshes
+        localStorage.setItem("paymentStatus", "success");
+        console.log("Setting success from URL params");
+      } else if (payosCancel === "true" || payosStatus === "CANCELLED") {
+        finalStatus = "failed";
+        localStorage.setItem("paymentStatus", "failed");
+        console.log("Setting failed from URL params (cancelled)");
+      }
+      // Second check: localStorage status
+      else if (storedPaymentStatus === "success") {
+        finalStatus = "success";
+        console.log("Setting success from localStorage");
+      } else if (storedPaymentStatus === "failed") {
+        finalStatus = "failed";
+        console.log("Setting failed from localStorage");
+      }
+      // Third check: Payment method specific logic
+      else if (storedPaymentMethod === "cashOnDelivery") {
+        // With COD, we consider it successful as payment will occur on delivery
+        finalStatus = "success";
+        console.log("Setting success for COD payment");
+      }
+
+      setPaymentStatus(finalStatus);
+      console.log(
+        "OrderConfirmation - Final payment status from initial check:",
+        finalStatus
+      );
+
+      // For successful payments, fetch the order details from API
+      const fetchOrderDetails = async () => {
+        if (orderId && finalStatus === "success") {
+          try {
+            console.log("Fetching order details from API for order:", orderId);
+            const response = await getOrderById(orderId);
+
+            if (
+              response &&
+              response.statusCodes === 200 &&
+              response.response?.data
+            ) {
+              const orderData = response.response.data;
+              console.log("Order details fetched successfully:", orderData);
+
+              setOrderDetails(orderData);
+
+              // Update UI with order data
+              if (orderData.totalPrice) {
+                setOrderTotal(orderData.totalPrice.toString());
+              }
+
+              if (orderData.userAddress) {
+                setShippingAddress({
+                  name: orderData.userAddress.name,
+                  phone: orderData.userAddress.phone,
+                  address: orderData.userAddress.address,
+                });
+              }
+
+              // Set shipping method from localStorage - API doesn't provide this
+              const storedShippingMethod =
+                localStorage.getItem("shippingMethod");
+              if (storedShippingMethod) {
+                setShippingMethod(storedShippingMethod);
+              }
+
+              // Keep the payment method from localStorage for proper display
+              // We don't use the transaction paymentMethod as it may be coded differently
+              const storedMethod = localStorage.getItem("paymentMethod");
+              if (storedMethod) {
+                setPaymentMethod(storedMethod);
+              }
+            } else {
+              console.warn(
+                "Could not get order details or invalid format",
+                response
+              );
+            }
+          } catch (error) {
+            console.error("Error fetching order details:", error);
+          } finally {
+            setLoading(false);
+          }
+        } else {
+          setLoading(false);
+        }
+      };
+
+      fetchOrderDetails();
+
+      // Only check transaction status if we don't already have a definitive success/failure status
+      // and we have a transaction ID
+      if (transactionId && finalStatus === "pending") {
+        console.log("Checking transaction status for:", transactionId);
+        checkTransactionStatus(transactionId)
+          .then(
+            (result: {
+              statusCodes: number;
+              response: { success: boolean };
+            }) => {
+              console.log("Transaction status check result:", result);
+              if (
+                result &&
+                result.statusCodes === 200 &&
+                result.response.success
+              ) {
+                setPaymentStatus("success");
+                localStorage.setItem("paymentStatus", "success");
+
+                // Fetch order details after confirming successful payment
+                fetchOrderDetails();
+              } else {
+                // Only set failed if we don't have a success status from other methods
+                setPaymentStatus("failed");
+                localStorage.setItem("paymentStatus", "failed");
+                setLoading(false);
+              }
+            }
+          )
+          .catch((error: Error) => {
+            console.error("Error checking transaction status:", error);
+            // Only set failed if we don't have a success status from other methods
+            setPaymentStatus("failed");
+            localStorage.setItem("paymentStatus", "failed");
+            setLoading(false);
+          });
+      }
+
+      if (address) {
+        setShippingAddress(JSON.parse(address));
+      }
+
+      if (shipping) {
+        setShippingMethod(shipping);
+      }
+
+      // Clear payment status from localStorage to avoid confusion on reload
+      if (storedPaymentStatus !== "pending") {
+        localStorage.removeItem("paymentStatus");
+      }
+    } catch (error) {
+      console.error("Error in OrderConfirmation:", error);
+      setPaymentStatus("failed");
+      setLoading(false);
     }
-    
-    setPaymentStatus(finalStatus);
-    setOrderNumber(orderId);
-    setOrderTotal(total);
-    setPaymentMethod(method);
-    
-    if (address) {
-      setShippingAddress(JSON.parse(address));
-    }
-    
-    if (shipping) {
-      setShippingMethod(shipping);
-    }
-    
-    // Clear payment status from localStorage to avoid confusion on reload
-    if (status !== 'pending') {
-      localStorage.removeItem("paymentStatus");
-    }
-  }, []);
+  }, [isAuthenticated, location.search]);
+
+  // Show loading state while fetching order details
+  if (loading) {
+    return (
+      <Container
+        maxWidth="md"
+        sx={{
+          py: 8,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <CircularProgress size={60} color="primary" sx={{ mb: 3 }} />
+        <Typography variant="h6" color="text.secondary">
+          Đang tải thông tin đơn hàng...
+        </Typography>
+      </Container>
+    );
+  }
 
   return (
-    <Container 
+    <Container
       component={motion.div}
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      maxWidth="md" 
-      sx={{ 
+      maxWidth="md"
+      sx={{
         py: 8,
         minHeight: "100vh",
         display: "flex",
@@ -144,7 +365,10 @@ const OrderConfirmation: React.FC = () => {
           p: 4,
           borderRadius: 3,
           boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
-          background: `linear-gradient(to bottom, ${alpha(theme.palette.background.paper, 0.9)}, ${alpha(theme.palette.background.paper, 0.95)})`,
+          background: `linear-gradient(to bottom, ${alpha(
+            theme.palette.background.paper,
+            0.9
+          )}, ${alpha(theme.palette.background.paper, 0.95)})`,
           backdropFilter: "blur(10px)",
           border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
           position: "relative",
@@ -190,30 +414,31 @@ const OrderConfirmation: React.FC = () => {
         >
           <MotionBox
             variants={iconVariants}
-            sx={{ 
+            sx={{
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
               width: 100,
               height: 100,
               borderRadius: "50%",
-              bgcolor: paymentStatus === 'success' 
-                ? alpha(theme.palette.success.main, 0.15) 
-                : alpha(theme.palette.error.main, 0.15),
-              mb: 2
+              bgcolor:
+                paymentStatus === "success"
+                  ? alpha(theme.palette.success.main, 0.15)
+                  : alpha(theme.palette.error.main, 0.15),
+              mb: 2,
             }}
           >
-            {paymentStatus === 'success' ? (
+            {paymentStatus === "success" ? (
               <CheckCircle
-                sx={{ 
-                  fontSize: 60, 
+                sx={{
+                  fontSize: 60,
                   color: theme.palette.success.main,
                 }}
               />
             ) : (
               <ErrorOutline
-                sx={{ 
-                  fontSize: 60, 
+                sx={{
+                  fontSize: 60,
                   color: theme.palette.error.main,
                 }}
               />
@@ -224,38 +449,41 @@ const OrderConfirmation: React.FC = () => {
             variant="h4"
             sx={{
               fontWeight: "bold",
-              color: paymentStatus === 'success' 
-                ? theme.palette.success.main 
-                : theme.palette.error.main,
+              color:
+                paymentStatus === "success"
+                  ? theme.palette.success.main
+                  : theme.palette.error.main,
               textAlign: "center",
             }}
           >
-            {paymentStatus === 'success' 
-              ? 'Đặt hàng thành công!' 
-              : 'Thanh toán không thành công!'}
+            {paymentStatus === "success"
+              ? "Đặt hàng thành công!"
+              : "Thanh toán không thành công!"}
           </Typography>
-          
-          <Typography 
-            variant="body1" 
-            color="text.secondary" 
+
+          <Typography
+            variant="body1"
+            color="text.secondary"
             sx={{ mt: 1, textAlign: "center" }}
           >
-            {paymentStatus === 'success' 
-              ? 'Cảm ơn bạn đã mua hàng. Đơn hàng của bạn đã được xác nhận.' 
-              : 'Đơn hàng của bạn chưa được thanh toán. Vui lòng thử lại sau.'}
+            {paymentStatus === "success"
+              ? "Cảm ơn bạn đã mua hàng. Đơn hàng của bạn đã được xác nhận."
+              : "Đơn hàng của bạn chưa được thanh toán. Vui lòng thử lại sau."}
           </Typography>
-          
+
           {orderNumber && (
             <Chip
               label={`Mã đơn hàng: ${orderNumber}`}
               sx={{
                 mt: 2,
-                bgcolor: paymentStatus === 'success' 
-                  ? alpha(theme.palette.success.main, 0.1) 
-                  : alpha(theme.palette.error.main, 0.1),
-                color: paymentStatus === 'success' 
-                  ? theme.palette.success.main 
-                  : theme.palette.error.main,
+                bgcolor:
+                  paymentStatus === "success"
+                    ? alpha(theme.palette.success.main, 0.1)
+                    : alpha(theme.palette.error.main, 0.1),
+                color:
+                  paymentStatus === "success"
+                    ? theme.palette.success.main
+                    : theme.palette.error.main,
                 fontWeight: "medium",
                 px: 1,
                 py: 2,
@@ -267,50 +495,76 @@ const OrderConfirmation: React.FC = () => {
 
         <Divider sx={{ my: 3 }} />
 
-        {paymentStatus === 'success' && (
+        {paymentStatus === "success" && (
           <MotionBox variants={itemVariants}>
             <Grid container spacing={4}>
               {/* Thông tin giao hàng */}
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium", display: "flex", alignItems: "center", gap: 1 }}>
-                  <LocalShipping fontSize="small" color="primary" /> Thông tin giao hàng
+                <Typography
+                  variant="h6"
+                  sx={{
+                    mb: 2,
+                    fontWeight: "medium",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  <LocalShipping fontSize="small" color="primary" /> Thông tin
+                  giao hàng
                 </Typography>
-                
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2, 
+
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
                     borderRadius: 2,
                     bgcolor: alpha(theme.palette.background.default, 0.5),
-                    height: "100%"
+                    height: "100%",
                   }}
                 >
                   {shippingAddress ? (
                     <>
-                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                      <Typography
+                        variant="subtitle2"
+                        fontWeight="bold"
+                        gutterBottom
+                      >
                         Địa chỉ giao hàng:
                       </Typography>
                       <Typography variant="body2" gutterBottom>
                         {shippingAddress.name}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        gutterBottom
+                      >
                         {shippingAddress.phone}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" paragraph>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        paragraph
+                      >
                         {shippingAddress.address}
                       </Typography>
-                      
+
                       <Divider sx={{ my: 2 }} />
-                      
-                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+
+                      <Typography
+                        variant="subtitle2"
+                        fontWeight="bold"
+                        gutterBottom
+                      >
                         Phương thức vận chuyển:
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {shippingMethod === "standard" 
-                          ? "Giao hàng tiêu chuẩn (2-5 ngày)" 
-                          : shippingMethod === "express" 
-                            ? "Giao hàng nhanh (1-2 ngày)" 
-                            : "Giao hàng hỏa tốc (24 giờ)"}
+                        {shippingMethod === "standard"
+                          ? "Giao hàng tiêu chuẩn (2-5 ngày)"
+                          : shippingMethod === "express"
+                          ? "Giao hàng nhanh (1-2 ngày)"
+                          : "Giao hàng hỏa tốc (24 giờ)"}
                       </Typography>
                     </>
                   ) : (
@@ -320,66 +574,199 @@ const OrderConfirmation: React.FC = () => {
                   )}
                 </Paper>
               </Grid>
-              
+
               {/* Thông tin thanh toán */}
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: "medium", display: "flex", alignItems: "center", gap: 1 }}>
-                  <Payment fontSize="small" color="primary" /> Thông tin thanh toán
-                </Typography>
-                
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2, 
-                    borderRadius: 2,
-                    bgcolor: alpha(theme.palette.background.default, 0.5),
-                    height: "100%"
+                <Typography
+                  variant="h6"
+                  sx={{
+                    mb: 2,
+                    fontWeight: "medium",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
                   }}
                 >
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                  <Payment fontSize="small" color="primary" /> Thông tin thanh
+                  toán
+                </Typography>
+
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: alpha(theme.palette.background.default, 0.5),
+                    height: "100%",
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
                     Phương thức thanh toán:
                   </Typography>
                   <Typography variant="body2" gutterBottom>
-                    {paymentMethod === "payos" 
-                      ? "Thanh toán qua PayOS" 
-                      : paymentMethod === "cashOnDelivery" 
-                        ? "Thanh toán khi nhận hàng (COD)" 
-                        : "Chưa xác định"}
+                    {getPaymentMethodLabel(paymentMethod)}
                   </Typography>
-                  
+
                   <Divider sx={{ my: 2 }} />
-                  
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+
+                  <Typography
+                    variant="subtitle2"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
                     Tổng thanh toán:
                   </Typography>
-                  <Typography variant="h6" fontWeight="bold" color="primary.main">
-                    {orderTotal ? `$${parseFloat(orderTotal).toLocaleString()}` : "$0.00"}
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="primary.main"
+                  >
+                    {orderTotal ? `₫${formatPrice(Number(orderTotal))}` : "₫0"}
                   </Typography>
-                  
+
                   <Divider sx={{ my: 2 }} />
-                  
-                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+
+                  <Typography
+                    variant="subtitle2"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
                     Trạng thái thanh toán:
                   </Typography>
-                  <Chip 
-                    label={paymentStatus === 'success' ? "Đã thanh toán" : "Chưa thanh toán"} 
-                    color={paymentStatus === 'success' ? "success" : "error"}
+                  <Chip
+                    label={
+                      paymentStatus === "success"
+                        ? "Đã thanh toán"
+                        : "Chưa thanh toán"
+                    }
+                    color={paymentStatus === "success" ? "success" : "error"}
                     size="small"
                   />
                 </Paper>
               </Grid>
             </Grid>
+
+            {/* Hiển thị các mặt hàng đã đặt */}
+            {orderDetails &&
+              orderDetails.orderDetailsItems &&
+              orderDetails.orderDetailsItems.length > 0 && (
+                <Box sx={{ mt: 4 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      mb: 2,
+                      fontWeight: "medium",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <ShoppingBag fontSize="small" color="primary" /> Sản phẩm đã
+                    đặt
+                  </Typography>
+
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      borderRadius: 2,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <List disablePadding>
+                      {orderDetails.orderDetailsItems.map((item, index) => (
+                        <React.Fragment key={item.orderDetailsId}>
+                          <ListItem
+                            sx={{
+                              py: 2,
+                              px: 3,
+                              display: "flex",
+                              alignItems: "flex-start",
+                              bgcolor:
+                                index % 2 === 0
+                                  ? "transparent"
+                                  : alpha(
+                                      theme.palette.background.default,
+                                      0.5
+                                    ),
+                            }}
+                          >
+                            <Box
+                              component="img"
+                              src={item.productImage}
+                              alt={item.productName}
+                              sx={{
+                                width: 60,
+                                height: 60,
+                                objectFit: "cover",
+                                borderRadius: 1,
+                                mr: 2,
+                                border: `1px solid ${alpha(
+                                  theme.palette.divider,
+                                  0.1
+                                )}`,
+                              }}
+                            />
+                            <Box sx={{ flexGrow: 1 }}>
+                              <Typography variant="subtitle2" fontWeight="bold">
+                                {item.productName}
+                              </Typography>
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
+                                ₫{formatPrice(item.price)} x {item.quantity}
+                              </Typography>
+                            </Box>
+                            <Typography variant="subtitle2" fontWeight="bold">
+                              ₫{formatPrice(item.totalPrice)}
+                            </Typography>
+                          </ListItem>
+                          {index <
+                            orderDetails.orderDetailsItems.length - 1 && (
+                            <Divider />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </List>
+
+                    <Box
+                      sx={{
+                        py: 2,
+                        px: 3,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        bgcolor: alpha(theme.palette.primary.light, 0.05),
+                      }}
+                    >
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        Tổng ({orderDetails.orderDetailsItems.length} sản phẩm):
+                      </Typography>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight="bold"
+                        color="primary.main"
+                      >
+                        ₫{formatPrice(orderDetails.price)}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                </Box>
+              )}
           </MotionBox>
         )}
 
-        <MotionBox 
+        <MotionBox
           variants={itemVariants}
-          sx={{ 
-            mt: 4, 
-            display: "flex", 
+          sx={{
+            mt: 4,
+            display: "flex",
             justifyContent: "center",
             flexWrap: "wrap",
-            gap: 2
+            gap: 2,
           }}
         >
           <MotionButton
@@ -403,8 +790,8 @@ const OrderConfirmation: React.FC = () => {
           >
             Về trang chủ
           </MotionButton>
-          
-          {paymentStatus === 'success' && (
+
+          {paymentStatus === "success" && (
             <MotionButton
               variant="outlined"
               size="large"
@@ -428,8 +815,8 @@ const OrderConfirmation: React.FC = () => {
               Xem đơn hàng
             </MotionButton>
           )}
-          
-          {paymentStatus !== 'success' && (
+
+          {paymentStatus !== "success" && (
             <MotionButton
               variant="outlined"
               size="large"
@@ -455,8 +842,8 @@ const OrderConfirmation: React.FC = () => {
           )}
         </MotionBox>
 
-        {paymentStatus === 'success' && (
-          <MotionBox 
+        {paymentStatus === "success" && (
+          <MotionBox
             variants={itemVariants}
             sx={{ textAlign: "center", mt: 3 }}
           >
@@ -464,7 +851,8 @@ const OrderConfirmation: React.FC = () => {
               Email xác nhận đã được gửi đến địa chỉ email của bạn.
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Bạn cũng có thể theo dõi trạng thái đơn hàng trong mục "Đơn hàng của tôi" trên trang cá nhân.
+              Bạn cũng có thể theo dõi trạng thái đơn hàng trong mục "Đơn hàng
+              của tôi" trên trang cá nhân.
             </Typography>
           </MotionBox>
         )}

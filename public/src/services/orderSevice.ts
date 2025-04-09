@@ -103,15 +103,6 @@ export const checkTransactionStatus = async (orderId: string): Promise<any> => {
       transactionId = urlParts[urlParts.length - 1];
     }
 
-    // If the transaction ID is empty or invalid, return error
-    if (!transactionId || transactionId.length < 5) {
-      console.error("Invalid transaction ID:", transactionId);
-      return {
-        statusCodes: 400,
-        response: { success: false, message: "Invalid transaction ID" }
-      };
-    }
-
     console.log(`Checking transaction status for transaction ${transactionId}`);
     const response = await api.post(`/transaction/check`, transactionId);
     return response.data;
