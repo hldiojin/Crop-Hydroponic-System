@@ -501,11 +501,12 @@ const ProfilePage: React.FC = () => {
       variants={pageVariants}
       transition={pageTransition}
       style={{ 
-        width: '100vw', 
+        width: '100%', 
         minHeight: '100vh',
-        background: 'linear-gradient(to bottom, #f9f9f9, #e8f5e9)',
+        background: 'linear-gradient(135deg, #f8f9fa 0%, #e8f5e9 100%)',
+        backgroundAttachment: 'fixed',
         overflow: 'auto',
-        paddingTop: '24px' // Add padding to top to clear navbar space
+        paddingTop: '84px' // Increased padding to move content away from navbar
       }}
     >
       {loadingProfile ? (
@@ -513,9 +514,12 @@ const ProfilePage: React.FC = () => {
           display="flex"
           justifyContent="center"
           alignItems="center"
-          height="100vh"
+          height="calc(100vh - 84px)"
+          flexDirection="column"
+          gap={2}
         >
-          <CircularProgress size={60} thickness={4} />
+          <CircularProgress size={60} thickness={4} sx={{ color: 'primary.main' }} />
+          <Typography variant="h6" color="text.secondary">Loading your profile...</Typography>
         </Box>
       ) : (
         <MotionBox
@@ -524,13 +528,43 @@ const ProfilePage: React.FC = () => {
           animate="visible"
           sx={{
             width: '100%',
-            minHeight: 'calc(100vh - 24px)', // Adjust height to account for top padding
-            p: { xs: 2, sm: 4 },
+            maxWidth: '1400px',
+            margin: '0 auto',
+            minHeight: 'calc(100vh - 84px)', 
+            p: { xs: 2, sm: 3, md: 5 },
             display: 'flex',
             flexDirection: 'column',
-            mt: { xs: 5, sm: 2 } // Added top margin to move content down, away from navbar
+            position: 'relative',
           }}
         >
+          {/* Decorative elements */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '5%',
+              right: '5%',
+              width: '300px',
+              height: '300px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(76, 175, 80, 0.08) 0%, rgba(76, 175, 80, 0.03) 70%, rgba(76, 175, 80, 0) 100%)',
+              zIndex: 0,
+              display: { xs: 'none', md: 'block' }
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: '10%',
+              left: '5%',
+              width: '250px',
+              height: '250px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(33, 150, 243, 0.06) 0%, rgba(33, 150, 243, 0.02) 70%, rgba(33, 150, 243, 0) 100%)',
+              zIndex: 0,
+              display: { xs: 'none', md: 'block' }
+            }}
+          />
+
           {/* Header with back button and title */}
           <MotionBox
             variants={itemVariants}
@@ -538,8 +572,9 @@ const ProfilePage: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              mb: 4,
-              pt: { xs: 2, sm: 0 } // Add padding top on mobile for better spacing
+              mb: { xs: 3, md: 5 },
+              position: 'relative',
+              zIndex: 1
             }}
           >
             <IconButton 
@@ -548,7 +583,9 @@ const ProfilePage: React.FC = () => {
               sx={{ 
                 bgcolor: 'rgba(46, 125, 50, 0.1)',
                 '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.2)' },
-                boxShadow: '0 4px 8px rgba(0,0,0,0.05)'
+                boxShadow: '0 4px 8px rgba(0,0,0,0.08)',
+                width: 48,
+                height: 48
               }}
             >
               <ArrowBackIcon />
@@ -562,14 +599,15 @@ const ProfilePage: React.FC = () => {
               sx={{ 
                 textAlign: 'center', 
                 flex: 1,
-                fontSize: { xs: '1.75rem', sm: '2.125rem' } // Responsive font size
+                fontSize: { xs: '1.75rem', sm: '2.125rem' },
+                textShadow: '0 2px 4px rgba(0,0,0,0.08)'
               }}
             >
               My Profile
             </MotionTypography>
             
             {/* Just a dummy element to center the title */}
-            <Box sx={{ width: 40 }} />
+            <Box sx={{ width: 48 }} />
           </MotionBox>
 
           {/* Main content area */}
@@ -578,43 +616,54 @@ const ProfilePage: React.FC = () => {
             sx={{
               display: 'flex',
               flexDirection: { xs: 'column', md: 'row' },
-              gap: 4,
-              flex: 1
+              gap: { xs: 3, md: 5 },
+              flex: 1,
+              position: 'relative',
+              zIndex: 1
             }}
           >
             {/* Left sidebar with avatar and quick actions */}
             <MotionBox
               variants={itemVariants}
               sx={{
-                width: { xs: '100%', md: '280px' },
+                width: { xs: '100%', md: '320px' },
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 2
+                gap: 4
               }}
             >
               <Card
-                elevation={4}
+                elevation={6}
                 sx={{
-                  borderRadius: 4,
-                  p: 3,
+                  borderRadius: 6,
+                  p: { xs: 3, md: 4 },
                   width: '100%',
                   textAlign: 'center',
                   background: 'linear-gradient(to bottom, #ffffff, #f5f5f5)',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+                    transform: 'translateY(-5px)'
+                  }
                 }}
               >
-                <Box position="relative" display="inline-block" mb={2}>
+                <Box position="relative" display="inline-block" mb={3}>
                   <MotionAvatar
                     variants={logoVariants}
                     src={avatarPreview || user?.attachment || undefined}
                     alt={user?.name}
                     sx={{
-                      width: 120,
-                      height: 120,
-                      border: '4px solid white',
-                      boxShadow: '0 4px 12px rgba(46, 125, 50, 0.15)',
-                      margin: '0 auto'
+                      width: 140,
+                      height: 140,
+                      border: '5px solid white',
+                      boxShadow: '0 8px 20px rgba(46, 125, 50, 0.2)',
+                      margin: '0 auto',
+                      transition: 'transform 0.3s ease',
+                      '&:hover': {
+                        transform: 'scale(1.05)'
+                      }
                     }}
                   />
                   {isEditing && (
@@ -639,8 +688,10 @@ const ProfilePage: React.FC = () => {
                           right: 0,
                           bottom: 0,
                           backgroundColor: "white",
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
                           "&:hover": { backgroundColor: "#f5f5f5" },
+                          width: 42,
+                          height: 42
                         }}
                       >
                         <AddPhotoIcon />
@@ -656,6 +707,7 @@ const ProfilePage: React.FC = () => {
                   color="primary.dark"
                   gutterBottom
                   variants={itemVariants}
+                  sx={{ mb: 1 }}
                 >
                   {user?.name}
                 </MotionTypography>
@@ -666,7 +718,7 @@ const ProfilePage: React.FC = () => {
                     justifyContent: "center",
                     flexWrap: "wrap",
                     gap: 1,
-                    mb: 2
+                    mb: 3
                   }}
                 >
                   <Chip
@@ -674,6 +726,11 @@ const ProfilePage: React.FC = () => {
                     label={user?.role || "User"}
                     color="primary"
                     size="small"
+                    sx={{ 
+                      fontWeight: 'medium',
+                      px: 1,
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.08)'
+                    }}
                   />
 
                   {user?.status && (
@@ -681,12 +738,17 @@ const ProfilePage: React.FC = () => {
                       label={user.status}
                       color={user.status === "Active" ? "success" : "warning"}
                       size="small"
+                      sx={{ 
+                        fontWeight: 'medium',
+                        px: 1,
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.08)'
+                      }}
                     />
                   )}
                 </Box>
 
                 {/* Action buttons */}
-                <Stack spacing={2} mt={2}>
+                <Stack spacing={2} mt={3}>
                   {!isEditing ? (
                     <MotionButton
                       variants={buttonVariants}
@@ -697,6 +759,11 @@ const ProfilePage: React.FC = () => {
                       color="primary"
                       onClick={handleEdit}
                       fullWidth
+                      sx={{
+                        py: 1.5,
+                        borderRadius: 3,
+                        boxShadow: '0 4px 12px rgba(46, 125, 50, 0.25)'
+                      }}
                     >
                       Edit Profile
                     </MotionButton>
@@ -712,6 +779,11 @@ const ProfilePage: React.FC = () => {
                         onClick={handleSave}
                         disabled={loading}
                         fullWidth
+                        sx={{
+                          py: 1.5,
+                          borderRadius: 3,
+                          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.25)'
+                        }}
                       >
                         {loading ? (
                           <CircularProgress size={24} color="inherit" />
@@ -729,6 +801,10 @@ const ProfilePage: React.FC = () => {
                         onClick={handleCancel}
                         disabled={loading}
                         fullWidth
+                        sx={{
+                          py: 1.5,
+                          borderRadius: 3
+                        }}
                       >
                         Cancel
                       </MotionButton>
@@ -744,6 +820,10 @@ const ProfilePage: React.FC = () => {
                     color="primary"
                     onClick={() => navigate('/')}
                     fullWidth
+                    sx={{
+                      py: 1.5,
+                      borderRadius: 3
+                    }}
                   >
                     Go to Dashboard
                   </MotionButton>
@@ -752,13 +832,18 @@ const ProfilePage: React.FC = () => {
 
               {/* Quick actions card */}
               <Card
-                elevation={3}
+                elevation={4}
                 sx={{
-                  borderRadius: 4,
-                  p: 3,
+                  borderRadius: 6,
+                  p: { xs: 3, md: 4 },
                   width: '100%',
                   background: 'linear-gradient(to bottom, #ffffff, #f8f8f8)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.05)'
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
+                    transform: 'translateY(-5px)'
+                  }
                 }}
               >
                 <MotionTypography 
@@ -768,6 +853,7 @@ const ProfilePage: React.FC = () => {
                   color="primary.dark"
                   gutterBottom
                   variants={itemVariants}
+                  sx={{ mb: 2 }}
                 >
                   Quick Actions
                 </MotionTypography>
@@ -781,6 +867,14 @@ const ProfilePage: React.FC = () => {
                     variant="outlined"
                     onClick={handlePasswordModalOpen}
                     fullWidth
+                    sx={{
+                      py: 1.5,
+                      borderRadius: 3,
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                      '&:hover': {
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+                      }
+                    }}
                   >
                     Change Password
                   </MotionButton>
@@ -794,6 +888,14 @@ const ProfilePage: React.FC = () => {
                     onClick={handleRefreshProfile}
                     disabled={loadingProfile}
                     fullWidth
+                    sx={{
+                      py: 1.5,
+                      borderRadius: 3,
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                      '&:hover': {
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
+                      }
+                    }}
                   >
                     {loadingProfile ? (
                       <CircularProgress size={24} />
@@ -812,37 +914,66 @@ const ProfilePage: React.FC = () => {
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 3
+                gap: 4
               }}
             >
               {/* Personal Information Card */}
               <Card
-                elevation={3}
+                elevation={4}
                 sx={{
-                  borderRadius: 4,
+                  borderRadius: 6,
                   overflow: 'hidden',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                  transition: 'transform 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-5px)',
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.12)'
+                  }
                 }}
               >
                 <Box
                   sx={{
-                    p: 3,
+                    p: { xs: 3, md: 4 },
                     background: 'linear-gradient(120deg, #2e7d32, #60ad5e)',
-                    color: 'white'
+                    color: 'white',
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}
                 >
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      width: '150px',
+                      height: '150px',
+                      background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)',
+                      borderRadius: '50%'
+                    }}
+                  />
+                  
                   <MotionTypography 
                     variant="h6" 
                     fontWeight="bold"
                     variants={itemVariants}
+                    sx={{ 
+                      position: 'relative', 
+                      zIndex: 1,
+                      textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                      fontSize: { xs: '1.2rem', md: '1.4rem' }
+                    }}
                   >
                     Personal Information
                   </MotionTypography>
                 </Box>
                 
-                <Box sx={{ p: 3 }}>
+                <Box sx={{ p: { xs: 3, md: 4 } }}>
                   {error && (
-                    <Alert severity="error" onClose={clearError} sx={{ mb: 3 }}>
+                    <Alert 
+                      severity="error" 
+                      onClose={clearError} 
+                      sx={{ mb: 3, borderRadius: 2 }}
+                    >
                       {error}
                     </Alert>
                   )}
@@ -863,6 +994,12 @@ const ProfilePage: React.FC = () => {
                             <BadgeIcon color="primary" />
                           </InputAdornment>
                         ),
+                        sx: {
+                          borderRadius: 2,
+                          '&:hover': {
+                            boxShadow: isEditing ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
+                          }
+                        }
                       }}
                     />
 
@@ -882,6 +1019,9 @@ const ProfilePage: React.FC = () => {
                             <EmailIcon color="primary" />
                           </InputAdornment>
                         ),
+                        sx: {
+                          borderRadius: 2
+                        }
                       }}
                     />
 
@@ -900,6 +1040,12 @@ const ProfilePage: React.FC = () => {
                             <PhoneIcon color="primary" />
                           </InputAdornment>
                         ),
+                        sx: {
+                          borderRadius: 2,
+                          '&:hover': {
+                            boxShadow: isEditing ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
+                          }
+                        }
                       }}
                     />
                   </Stack>
@@ -908,38 +1054,72 @@ const ProfilePage: React.FC = () => {
 
               {/* Support Section */}
               <Card
-                elevation={3}
+                elevation={4}
                 sx={{
-                  borderRadius: 4,
+                  borderRadius: 6,
                   overflow: 'hidden',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)'
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                  transition: 'transform 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-5px)',
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.12)'
+                  }
                 }}
               >
                 <Box
                   sx={{
-                    p: 3,
+                    p: { xs: 3, md: 4 },
                     background: 'linear-gradient(120deg, #1976d2, #42a5f5)',
-                    color: 'white'
+                    color: 'white',
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}
                 >
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      width: '150px',
+                      height: '150px',
+                      background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)',
+                      borderRadius: '50%'
+                    }}
+                  />
+                  
                   <MotionTypography 
                     variant="h6" 
                     fontWeight="bold"
                     variants={itemVariants}
+                    sx={{ 
+                      position: 'relative', 
+                      zIndex: 1,
+                      textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                      fontSize: { xs: '1.2rem', md: '1.4rem' }
+                    }}
                   >
                     Support & Help
                   </MotionTypography>
                 </Box>
                 
-                <Box sx={{ p: 3 }}>
-                  <Typography variant="body1" color="text.secondary" paragraph>
+                <Box sx={{ p: { xs: 3, md: 4 } }}>
+                  <Typography 
+                    variant="body1" 
+                    color="text.secondary" 
+                    paragraph
+                    sx={{
+                      fontSize: '1rem',
+                      lineHeight: 1.6
+                    }}
+                  >
                     Need help with your account or have a question about our services?
+                    Our support team is ready to assist you.
                   </Typography>
                   
                   <Stack 
                     direction={{ xs: 'column', sm: 'row' }} 
                     spacing={2} 
-                    sx={{ mt: 2 }}
+                    sx={{ mt: 3 }}
                   >
                     <MotionButton
                       variants={buttonVariants}
@@ -949,7 +1129,12 @@ const ProfilePage: React.FC = () => {
                       variant="contained"
                       color="info"
                       onClick={handleTicketModalOpen}
-                      sx={{ flex: 1 }}
+                      sx={{ 
+                        flex: 1,
+                        py: 1.5,
+                        borderRadius: 3,
+                        boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)'
+                      }}
                     >
                       Submit Ticket
                     </MotionButton>
@@ -962,7 +1147,11 @@ const ProfilePage: React.FC = () => {
                       variant="outlined"
                       color="info"
                       onClick={handleViewAllTickets}
-                      sx={{ flex: 1 }}
+                      sx={{ 
+                        flex: 1,
+                        py: 1.5,
+                        borderRadius: 3
+                      }}
                     >
                       View All Tickets
                     </MotionButton>
@@ -1404,13 +1593,17 @@ const ProfilePage: React.FC = () => {
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        sx={{ mt: 8 }} // Give more space from the top
       >
         <Alert 
           onClose={handleCloseSnackbar} 
           severity={snackbar.severity}
           variant="filled"
           elevation={6}
-          sx={{ width: '100%' }}
+          sx={{ 
+            width: '100%', 
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)' 
+          }}
         >
           {snackbar.message}
         </Alert>

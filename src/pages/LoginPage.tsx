@@ -37,13 +37,11 @@ import {
 } from "../utils/motion";
 import hydroponicImage from '../assets/image1 (2).png';
 
-
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
-  // Enhanced toast state to include severity
   const [toast, setToast] = useState({
     open: false,
     message: "",
@@ -55,7 +53,6 @@ const LoginPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Show toast when error changes
   useEffect(() => {
     if (error) {
       setToast({
@@ -63,22 +60,18 @@ const LoginPage: React.FC = () => {
         message: error,
         severity: "error"
       });
-      // Clear the error after showing it in toast
       clearError();
     }
   }, [error, clearError]);
 
-  // Show success toast and redirect after successful login
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Show success toast
       setToast({
         open: true,
         message: `Welcome back, ${user.name || "User"}!`,
         severity: "success"
       });
       
-      // Redirect after a short delay to allow the toast to be visible
       const redirectTimer = setTimeout(() => {
         navigate("/devices");
       }, 1500);
@@ -91,39 +84,29 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     try {
       await login({ email, password });
-      // Don't navigate here - do it in the useEffect above when isAuthenticated changes
     } catch (err: any) {
       console.error("Login error:", err);
       
-      // Extract error message from API response or error object
       let errorMessage = "Failed to login. Please try again.";
       
-      // Handle API error response formats
       if (err?.response?.data) {
         const data = err.response.data;
         if (data.message) {
           errorMessage = data.message;
         } else if (typeof data === 'string') {
           try {
-            // Try to parse error if it's a JSON string
             const parsedError = JSON.parse(data);
             errorMessage = parsedError.message || errorMessage;
           } catch {
             errorMessage = data;
           }
         }
-      } 
-      // Handle errors thrown as plain objects with message property
-      else if (err?.message) {
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.statusCodes && err?.message) {
         errorMessage = err.message;
       }
       
-      // If we have the exact format from your example
-      else if (err?.statusCodes && err?.message) {
-        errorMessage = err.message;
-      }
-      
-      // Display the extracted error message
       setToast({
         open: true,
         message: errorMessage,
@@ -132,7 +115,6 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // Enhanced toast close handler
   const handleCloseToast = (event?: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === 'clickaway') {
       return;
@@ -162,70 +144,9 @@ const LoginPage: React.FC = () => {
         bgcolor: '#f5f5f5',
       }}
     >
-      {/* Left Side - Illustration (hidden on mobile) */}
-      {!isMobile && (
-        <MotionBox
-          initial={{ x: -100, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-          sx={{
-            flex: '1',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
-            color: 'white',
-            p: 4,
-          }}
-        >
-          <MotionBox 
-            sx={{ textAlign: 'center', maxWidth: '500px' }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.7 }}
-          >
-            <MotionTypography 
-              variant="h3" 
-              component="h1" 
-              gutterBottom 
-              fontWeight="bold"
-              initial={{ y: -30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5, duration: 0.5 }}
-            >
-              Hydroponic System
-            </MotionTypography>
-            <MotionTypography 
-              variant="h6" 
-              sx={{ mb: 6, opacity: 0.9 }}
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.6, duration: 0.5 }}
-            >
-              Monitor and control your hydroponic system with ease
-            </MotionTypography>
-            
-            {/* Use motion.img directly instead of MotionBox with component prop */}
-            <motion.img 
-  src={hydroponicImage} 
-  alt="Hydroponic System"
-  initial={{ scale: 0.8, opacity: 0 }}
-  animate={{ scale: 1, opacity: 1 }}
-  transition={{ delay: 0.7, duration: 0.6, type: "spring" }}
-  style={{ 
-    width: '80%', 
-    maxWidth: '400px',
-    display: 'block',
-    margin: '0 auto'
-  }}
-/>
-          </MotionBox>
-        </MotionBox>
-      )}
-
-      {/* Right Side - Login Form */}
+      {/* Left Side - Login Form (changed from right side) */}
       <MotionBox
-        initial={{ x: isMobile ? 0 : 100, opacity: 0 }}
+        initial={{ x: isMobile ? 0 : -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.7, ease: "easeOut" }}
         sx={{
@@ -385,7 +306,6 @@ const LoginPage: React.FC = () => {
               <Typography variant="body1" color="text.secondary" display="inline">
                 Don't have an account?{' '}
               </Typography>
-              {/* Use motion.button directly for Link */}
               <motion.button
                 style={{
                   background: 'none',
@@ -409,13 +329,131 @@ const LoginPage: React.FC = () => {
         </MotionBox>
       </MotionBox>
 
-      {/* Forgot Password Modal */}
+      {/* Right Side - Illustration (changed from left side, hidden on mobile) */}
+      {!isMobile && (
+        <MotionBox
+          initial={{ x: 100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          sx={{
+            flex: '1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
+            color: 'white',
+            p: 4,
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          <Box sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.1) 2px, transparent 2px)',
+            backgroundSize: '30px 30px',
+            opacity: 0.4,
+          }} />
+
+          <MotionBox 
+            sx={{ textAlign: 'center', maxWidth: '500px', position: 'relative', zIndex: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.7 }}
+          >
+            <MotionTypography 
+              variant="h3" 
+              component="h1" 
+              gutterBottom 
+              fontWeight="bold"
+              initial={{ y: -30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+            >
+              Hydroponic System
+            </MotionTypography>
+            
+            <MotionTypography 
+              variant="h6" 
+              sx={{ mb: 6, opacity: 0.9 }}
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.5 }}
+            >
+              Smart farming for the future
+            </MotionTypography>
+            
+            <motion.img 
+              src="https://images.unsplash.com/photo-1621928372414-30e71d632b0a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80" 
+              alt="Hydroponic System"
+              initial={{ scale: 0.8, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ delay: 0.7, duration: 0.6, type: "spring" }}
+              style={{ 
+                width: '90%', 
+                maxWidth: '450px',
+                display: 'block',
+                margin: '0 auto',
+                borderRadius: '12px',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+                border: '4px solid rgba(255,255,255,0.2)'
+              }}
+            />
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1, duration: 0.5 }}
+              style={{ 
+                marginTop: '40px',
+                display: 'flex',
+                justifyContent: 'space-around',
+                flexWrap: 'wrap'
+              }}
+            >
+              <Box sx={{ 
+                m: 1, 
+                p: 2, 
+                bgcolor: 'rgba(255,255,255,0.15)', 
+                borderRadius: '10px',
+                backdropFilter: 'blur(5px)',
+                width: '140px'
+              }}>
+                <Typography variant="subtitle2" fontWeight="bold">Smart Monitoring</Typography>
+              </Box>
+              <Box sx={{ 
+                m: 1, 
+                p: 2, 
+                bgcolor: 'rgba(255,255,255,0.15)', 
+                borderRadius: '10px',
+                backdropFilter: 'blur(5px)',
+                width: '140px'
+              }}>
+                <Typography variant="subtitle2" fontWeight="bold">Water Saving</Typography>
+              </Box>
+              <Box sx={{ 
+                m: 1, 
+                p: 2, 
+                bgcolor: 'rgba(255,255,255,0.15)', 
+                borderRadius: '10px',
+                backdropFilter: 'blur(5px)',
+                width: '140px'
+              }}>
+                <Typography variant="subtitle2" fontWeight="bold">High Yield</Typography>
+              </Box>
+            </motion.div>
+          </MotionBox>
+        </MotionBox>
+      )}
+
       <ForgotPasswordModal
         open={forgotPasswordOpen}
         onClose={() => setForgotPasswordOpen(false)}
       />
       
-      {/* Enhanced Toast Notification */}
       <Snackbar
         open={toast.open}
         autoHideDuration={6000}
