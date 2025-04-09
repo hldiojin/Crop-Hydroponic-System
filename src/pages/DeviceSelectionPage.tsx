@@ -180,7 +180,6 @@ const DeviceSelectionPage: React.FC = () => {
           justifyContent: "center",
           alignItems: "center",
           minHeight: "80vh",
-          mt: { xs: 8, sm: 9 }, // Add margin-top to account for navbar
         }}
       >
         <CircularProgress />
@@ -196,11 +195,7 @@ const DeviceSelectionPage: React.FC = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       maxWidth="lg"
-      sx={{ 
-        py: 4,
-        mt: { xs: 8, sm: 9 }, // Add top margin to account for navbar
-        pt: { xs: 4, sm: 5 }  // Increased top padding
-      }}
+      sx={{ py: 4 }}
     >
       <Typography
         variant="h4"
