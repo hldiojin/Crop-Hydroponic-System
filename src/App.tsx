@@ -1,71 +1,170 @@
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { CssBaseline, ThemeProvider, createTheme, Box, GlobalStyles } from '@mui/material';
-import Navbar from './components/Navbar';
-import HeroSection from './components/HeroSection';
-import Footer from './components/Footer';
-import ProductList from './pages/ProductList';
-import CartPage from './pages/CartPage';
-import { CartItem, Product } from './types/types';
-import { AuthProvider } from './context/AuthContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import ProductDetail from './pages/ProductDetail';
-import PlantsPage from './pages/PlantsPage';
-import SystemsPage from './pages/SystemsPage';
-import NutrientsPage from './pages/NutrientsPage';
-import ProfilePage from './pages/ProfilePage';
-import FavoritePage from './pages/FavoritePage';
-import AdminDashboard from './pages/AdminDashboard';
-import { AdminRoute } from './components/AdminRoute';
-import { products as initialProducts } from './data/products';
-import CheckoutPage from './pages/CheckoutPage'; // Import CheckoutPage
+import React, { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import {
+  CssBaseline,
+  ThemeProvider,
+  createTheme,
+  Box,
+  GlobalStyles,
+  CircularProgress,
+} from "@mui/material";
+import Navbar from "./components/Navbar";
+import HeroSection from "./components/HeroSection";
+import Footer from "./components/Footer";
+import ProductList from "./pages/ProductList";
+import CartPage from "./pages/CartPage";
+import { CartItem, Product } from "./types/types";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import ProductDetail from "./pages/ProductDetail";
+import PlantsPage from "./pages/PlantsPage";
+import SystemsPage from "./pages/SystemsPage";
+import NutrientsPage from "./pages/NutrientsPage";
+import ProfilePage from "./pages/ProfilePage";
+import FavoritePage from "./pages/FavoritePage";
+import AdminDashboard from "./pages/AdminDashboard";
+import { AdminRoute } from "./components/AdminRoute";
+import CheckoutPage from "./pages/CheckoutPage";
+import ShippingPage from "./pages/ShippingPage";
+import PaymentPage from "./pages/PaymentPage";
+import DeviceSelectionPage from "./pages/DeviceSelectionPage";
+import { productService } from "./services/productService";
+import { config } from "./config";
+import cartService from "./services/cartService";
+import OrderConfirmation from "./pages/OrderConfirmation";
+import PayOSCallback from "./pages/PayOSCallback";
+import NotFoundPage from "./pages/NotFoundPage";
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#2e7d32',
-      light: '#60ad5e',
-      dark: '#005005',
+      main: "#2e7d32",
+      light: "#60ad5e",
+      dark: "#005005",
     },
     secondary: {
-      main: '#81c784',
+      main: "#81c784",
     },
     background: {
-      default: '#f5f5f5',
+      default: "#f5f5f5",
     },
   },
   typography: {
-    fontFamily: 'Roboto, Arial, sans-serif',
+    fontFamily: "Roboto, Arial, sans-serif",
     h1: {
-      color: '#2e7d32',
+      color: "#2e7d32",
     },
   },
 });
 
+// Helper component to determine if layout elements should be shown
+const AppLayout = ({
+  children,
+  cartItemsCount,
+  onLogout,
+}: {
+  children: React.ReactNode;
+  cartItemsCount: number;
+  onLogout: () => void;
+}) => {
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+
+  // Define paths where Navbar and Footer should be hidden
+  const noLayoutPaths = [
+    "/login",
+    "/register",
+    "/cart",
+    "/checkout",
+    "/profile",
+    "/admin",
+    "/favorites",
+  ];
+
+  // Check if current path is in the noLayoutPaths list or user is not authenticated
+  const hideLayout =
+    noLayoutPaths.some(
+      (path) =>
+        location.pathname === path || location.pathname.startsWith(path + "/")
+    ) ||
+    (!isAuthenticated &&
+      (location.pathname === "/login" || location.pathname === "/register"));
+
+  // Only show Navbar and Footer for main pages when user is authenticated
+  return hideLayout ? (
+    <>{children}</>
+  ) : (
+    <>
+      <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+      <Box sx={{ flex: "1 0 auto" }}>{children}</Box>
+      <Footer />
+    </>
+  );
+};
+
 const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const productsData = await productService.getAll();
+        setProducts(productsData || []);
+      } catch (err) {
+        console.error("Failed to fetch products:", err);
+        setError("Failed to load products.");
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   const handleAddToCart = (product: Product) => {
+    // Update local cart state
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item.product.id === product.id);
-      if (existingItem) {
-        return prevCart.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
+      // Check if product already exists in cart
+      const existingItemIndex = prevCart.findIndex(
+        (item) => item.product.id === product.id
+      );
+
+      if (existingItemIndex >= 0) {
+        // If product exists, increase quantity
+        const updatedCart = [...prevCart];
+        updatedCart[existingItemIndex] = {
+          ...updatedCart[existingItemIndex],
+          quantity: updatedCart[existingItemIndex].quantity + 1,
+        };
+        return updatedCart;
+      } else {
+        // If product doesn't exist, add it with quantity 1
+        return [...prevCart, { product, quantity: 1 }];
       }
-      return [...prevCart, { product, quantity: 1 }];
     });
+
+    // Call the cart service API
+    cartService
+      .addProduct(product)
+      .then((cartItem) => {
+        console.log("Product added to cart:", cartItem);
+      })
+      .catch((error) => {
+        console.error("Failed to add product to cart:", error);
+      });
   };
 
-  const handleUpdateQuantity = (id: number, change: number) => {
-    setCart((prevCart) =>
-      prevCart
+  const handleUpdateQuantity = (id: string, change: number) => {
+    setCart((prevCart) => {
+      const updatedCart = prevCart
         .map((item) => {
           if (item.product.id === id) {
             const newQuantity = item.quantity + change;
@@ -73,20 +172,66 @@ const App: React.FC = () => {
           }
           return item;
         })
-        .filter((item) => item.quantity > 0)
-    );
+        .filter((item) => item.quantity > 0);
+
+      // Find the item that was updated to call the API
+      const updatedItem = updatedCart.find((item) => item.product.id === id);
+      if (updatedItem) {
+        // Call the cart service API to update the quantity using productId
+        cartService
+          .updateCartQuantity(id, updatedItem.quantity)
+          .then(() => {
+            console.log("Cart quantity updated successfully");
+          })
+          .catch((error) => {
+            console.error("Failed to update cart quantity:", error);
+          });
+      } else if (change < 0) {
+        // If the item was removed (not in the updated cart), call removeFromCart
+        cartService
+          .removeFromCart(id)
+          .then(() => {
+            console.log("Item removed from cart successfully");
+          })
+          .catch((error) => {
+            console.error("Failed to remove item from cart:", error);
+          });
+      }
+
+      return updatedCart;
+    });
   };
 
-  const handleRemoveFromCart = (id: number) => {
+  // Also update the handleRemoveFromCart method to call the API
+  const handleRemoveFromCart = (id: string) => {
+    // Update local state first for immediate feedback
     setCart((prevCart) => prevCart.filter((item) => item.product.id !== id));
+
+    // Then call the API to remove the item
+    cartService
+      .removeFromCart(id)
+      .then(() => {
+        console.log("Item removed from cart successfully");
+      })
+      .catch((error) => {
+        console.error("Failed to remove item from cart:", error);
+      });
   };
 
-  const handleEditProduct = (updatedProduct: Product) => {
-    setProducts((prevProducts: Product[]) =>
-      prevProducts.map((product: Product) =>
-        product.id === updatedProduct.id ? updatedProduct : product
-      )
-    );
+  const handleEditProduct = async (updatedProduct: Product) => {
+    try {
+      if (!config.useLocalData) {
+        await productService.update(updatedProduct.id, updatedProduct);
+      }
+
+      setProducts((prevProducts: Product[]) =>
+        prevProducts.map((product: Product) =>
+          product.id === updatedProduct.id ? updatedProduct : product
+        )
+      );
+    } catch (error) {
+      console.error("Failed to update product:", error);
+    }
   };
 
   const handleFavoriteProduct = (product: Product) => {
@@ -108,13 +253,21 @@ const App: React.FC = () => {
       <BrowserRouter>
         <ThemeProvider theme={theme}>
           <CssBaseline />
-          <GlobalStyles styles={{ '.css-j4unr3': { marginTop: '100px' } }} />
-          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Navbar
-              cartItemsCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
+          <GlobalStyles styles={{ ".css-j4unr3": { marginTop: "100px" } }} />
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "100vh",
+            }}
+          >
+            <AppLayout
+              cartItemsCount={cart.reduce(
+                (sum, item) => sum + item.quantity,
+                0
+              )}
               onLogout={handleLogout}
-            />
-            <Box sx={{ flex: '1 0 auto' }}>
+            >
               <MainContent
                 handleAddToCart={handleAddToCart}
                 handleUpdateQuantity={handleUpdateQuantity}
@@ -124,9 +277,14 @@ const App: React.FC = () => {
                 cart={cart}
                 products={products}
                 favorites={favorites}
+                loading={loading}
+                onLogout={handleLogout}
+                cartItemsCount={cart.reduce(
+                  (sum, item) => sum + item.quantity,
+                  0
+                )}
               />
-            </Box>
-            <Footer />
+            </AppLayout>
           </Box>
         </ThemeProvider>
       </BrowserRouter>
@@ -136,13 +294,16 @@ const App: React.FC = () => {
 
 const MainContent: React.FC<{
   handleAddToCart: (product: Product) => void;
-  handleUpdateQuantity: (id: number, change: number) => void;
-  handleRemoveFromCart: (id: number) => void;
+  handleUpdateQuantity: (id: string, change: number) => void;
+  handleRemoveFromCart: (id: string) => void;
   handleEditProduct: (product: Product) => void;
   handleFavoriteProduct: (product: Product) => void;
   cart: CartItem[];
   products: Product[];
-  favorites: number[];
+  favorites: string[];
+  loading: boolean;
+  onLogout: () => void;
+  cartItemsCount: number;
 }> = ({
   handleAddToCart,
   handleUpdateQuantity,
@@ -152,23 +313,52 @@ const MainContent: React.FC<{
   cart,
   products,
   favorites,
+  loading,
+  onLogout,
+  cartItemsCount,
 }) => {
   const location = useLocation();
 
+  // Define paths where Navbar and Footer should be hidden
+  const noLayoutPaths = [
+    "/login",
+    "/register",
+    "/cart",
+    "/checkout",
+    "/profile",
+    "/admin",
+    "/favorites",
+  ];
+
+  // Check if current path is in the noLayoutPaths list
+  const hideLayout = noLayoutPaths.some(
+    (path) =>
+      location.pathname === path || location.pathname.startsWith(path + "/")
+  );
+
+  // Only show HeroSection on homepage
+  const showHeroSection = location.pathname === "/";
+
   return (
     <>
-      {location.pathname === '/' && <HeroSection />}
+      {showHeroSection && <HeroSection />}
       <Routes>
         <Route
           path="/"
           element={
-            <ProductList
-              products={products}
-              onAddToCart={handleAddToCart}
-              onEdit={handleEditProduct}
-              onFavorite={handleFavoriteProduct}
-              favorites={favorites}
-            />
+            loading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <ProductList
+                products={products}
+                onAddToCart={handleAddToCart}
+                onEdit={handleEditProduct}
+                onFavorite={handleFavoriteProduct}
+                favorites={favorites}
+              />
+            )
           }
         />
         <Route path="/login" element={<LoginPage />} />
@@ -185,6 +375,14 @@ const MainContent: React.FC<{
           }
         />
         <Route
+          path="/devices"
+          element={
+            <ProtectedRoute>
+              <DeviceSelectionPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/cart"
           element={
             <ProtectedRoute>
@@ -197,10 +395,29 @@ const MainContent: React.FC<{
           }
         />
         <Route
+          path="/checkout/shipping"
+          element={
+            <ProtectedRoute>
+              <ShippingPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout/payment"
+          element={
+            <ProtectedRoute>
+              <PaymentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout/confirmation"
+          element={<OrderConfirmation />}
+        />
+        <Route
           path="/plants"
           element={
             <PlantsPage
-              products={products.filter((p) => p.type === 'plant')}
               onAddToCart={handleAddToCart}
               onEdit={handleEditProduct}
               onFavorite={handleFavoriteProduct}
@@ -212,7 +429,6 @@ const MainContent: React.FC<{
           path="/systems"
           element={
             <SystemsPage
-              products={products.filter((p) => p.type === 'system')}
               onAddToCart={handleAddToCart}
               onEdit={handleEditProduct}
               onFavorite={handleFavoriteProduct}
@@ -224,7 +440,6 @@ const MainContent: React.FC<{
           path="/nutrients"
           element={
             <NutrientsPage
-              products={products.filter((p) => p.type === 'nutrient')}
               onAddToCart={handleAddToCart}
               onEdit={handleEditProduct}
               onFavorite={handleFavoriteProduct}
@@ -236,7 +451,10 @@ const MainContent: React.FC<{
           path="/profile"
           element={
             <ProtectedRoute>
-              <ProfilePage />
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <ProfilePage />
+              </Box>
             </ProtectedRoute>
           }
         />
@@ -244,12 +462,15 @@ const MainContent: React.FC<{
           path="/favorites"
           element={
             <ProtectedRoute>
-              <FavoritePage
-                products={products}
-                favorites={favorites}
-                onRemoveFavorite={handleFavoriteProduct}
-                onAddToCart={handleAddToCart}
-              />
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <FavoritePage
+                  products={products}
+                  favorites={favorites}
+                  onRemoveFavorite={handleFavoriteProduct}
+                  onAddToCart={handleAddToCart}
+                />
+              </Box>
             </ProtectedRoute>
           }
         />
@@ -257,19 +478,27 @@ const MainContent: React.FC<{
           path="/admin"
           element={
             <AdminRoute>
-              <AdminDashboard />
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <AdminDashboard />
+              </Box>
             </AdminRoute>
           }
         />
-        {/* Add CheckoutPage route */}
         <Route
           path="/checkout"
           element={
             <ProtectedRoute>
-              <CheckoutPage />
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <CheckoutPage />
+              </Box>
             </ProtectedRoute>
           }
         />
+        <Route path="/payos-callback" element={<PayOSCallback />} />
+        <Route path="/payment" element={<PayOSCallback />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </>
   );

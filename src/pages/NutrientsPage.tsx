@@ -1,24 +1,56 @@
 // src/pages/NutrientsPage.tsx
-import React from 'react';
-import { Container, Grid, Typography, Box, Chip } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Container, Grid, Typography, Box, Chip, CircularProgress } from '@mui/material';
 import ProductCard from '../components/ProductCard';
-import { Product, NutrientProduct } from '../types/types';
+import { Product } from '../types/types';
 import { Science, Spa, WaterDrop } from '@mui/icons-material';
+import productService from '../services/productService';
+import NoProductsFound from '../components/NoProductsFound';
 
 interface Props {
-  products: Product[];
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
   onFavorite: (product: Product) => void;
-  favorites: number[]; // Add favorites prop
+  favorites: string[]; // Thay đổi từ number[] sang string[]
 }
 
-const isNutrientProduct = (product: Product): product is NutrientProduct => {
-  return product.type === 'nutrient';
-};
+const NutrientsPage: React.FC<Props> = ({ onAddToCart, onEdit, onFavorite, favorites }) => {
+  const [nutrients, setNutrients] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-const NutrientsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavorite, favorites }) => {
-  const nutrientProducts = products.filter(isNutrientProduct);
+  useEffect(() => {
+    const fetchNutrients = async () => {
+      try {
+        setLoading(true);
+        const nutrientProducts = await productService.getNutrients();
+        setNutrients(nutrientProducts);
+      } catch (err) {
+        console.error('Error fetching nutrients:', err);
+        setError('Failed to load nutrient products.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNutrients();
+  }, []);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <Typography color="error">{error}</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Container sx={{ py: 4 }}>
@@ -28,28 +60,32 @@ const NutrientsPage: React.FC<Props> = ({ products, onAddToCart, onEdit, onFavor
           Hydroponic Nutrients
         </Typography>
         <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
-          Premium nutrients and supplements for optimal plant growth
+          Premium nutrients for optimal plant growth
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-          <Chip label="Balanced Formula" icon={<Science />} color="primary" />
-          <Chip label="Plant Growth" icon={<Spa />} color="success" />
-          <Chip label="pH Balanced" icon={<WaterDrop />} color="secondary" />
+          <Chip label="Organic" color="success" />
+          <Chip label="High Performance" color="primary" />
+          <Chip label="pH Balanced" color="secondary" />
         </Box>
       </Box>
       
-      <Grid container spacing={4}>
-        {nutrientProducts.map((product) => (
-          <Grid item key={product.id} xs={12} sm={6} md={4}>
-            <ProductCard 
-              product={product} 
-              onAddToCart={onAddToCart} 
-              onEdit={onEdit} 
-              onFavorite={onFavorite} 
-              favorites={favorites} // Pass favorites prop
-            />
-          </Grid>
-        ))}
-      </Grid>
+      {nutrients.length > 0 ? (
+        <Grid container spacing={4}>
+          {nutrients.map((product) => (
+            <Grid item key={product.id} xs={12} sm={6} md={4}>
+              <ProductCard 
+                product={product} 
+                onAddToCart={onAddToCart} 
+                onEdit={onEdit} 
+                onFavorite={onFavorite} 
+                favorites={favorites}
+              />
+            </Grid>
+          ))}
+        </Grid>
+      ) : (
+        <NoProductsFound />
+      )}
     </Container>
   );
 };
