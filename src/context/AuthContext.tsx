@@ -560,13 +560,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setError("An unexpected error occurred");
         console.error("Unexpected change password error:", err);
       }
-
       throw err;
     } finally {
       setLoading(false);
     }
   };
-
   const resetPassword = async (email: string): Promise<void> => {
     setLoading(true);
     setError(null);
@@ -923,7 +921,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setLoading(false);
     }
   };
-
   const updateProfile = async (data: Partial<User>) => {
     setLoading(true);
     setError(null);
