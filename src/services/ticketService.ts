@@ -47,6 +47,18 @@ export const ticketService = {
       throw error;
     }
   },
+
+  getTicketById: async (ticketId: string): Promise<any> => {
+    try {
+      const response = await api.get(`/ticket/${ticketId}`, {
+        withCredentials: true,
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching ticket details for ID ${ticketId}:`, error);
+      throw error;
+    }
+  },
 };
 
 export default ticketService;

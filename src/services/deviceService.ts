@@ -1,6 +1,10 @@
 import api from "../context/AuthContext";
 
 export interface Device {
+  warranty: string;
+  features: string;
+  capacity: string;
+  size: string;
   id: string;
   name: string;
   description: string;

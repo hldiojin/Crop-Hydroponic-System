@@ -32,11 +32,18 @@ import { deviceService, Device } from "../services/deviceService";
 import { Product } from "../types/types";
 import productService from "../services/productService";
 
-// Create properly typed motion components
+import {
+  MotionBox,
+  MotionTypography,
+  MotionButton,
+  containerVariants,
+  itemVariants,
+  buttonVariants
+} from "../utils/motion";
+
+// Định nghĩa thêm MotionCard và MotionContainer vì chúng không có trong file utils/motion.tsx
 const MotionCard = motion(Card);
-const MotionBox = motion(Box);
 const MotionContainer = motion(Container);
-const MotionButton = motion(Button);
 
 // Styled expand icon component
 interface ExpandMoreProps {
@@ -55,6 +62,10 @@ const ExpandMore: React.FC<ExpandMoreProps> = ({ expand, onClick }) => {
         transition: theme.transitions.create("transform", {
           duration: theme.transitions.duration.shortest,
         }),
+        bgcolor: alpha(theme.palette.primary.main, 0.05),
+        '&:hover': {
+          bgcolor: alpha(theme.palette.primary.main, 0.1),
+        }
       }}
     >
       <ExpandMoreIcon />
@@ -179,11 +190,13 @@ const DeviceSelectionPage: React.FC = () => {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          minHeight: "80vh",
+          minHeight: "100vh",
+          paddingTop: "84px", // Tăng padding-top để tránh bị navbar che
+          background: `linear-gradient(to bottom, ${alpha(theme.palette.primary.light, 0.05)}, ${alpha(theme.palette.background.default, 1)})`,
         }}
       >
-        <CircularProgress />
-        <Typography variant="h6" sx={{ ml: 2 }}>
+        <CircularProgress color="primary" size={40} thickness={4} />
+        <Typography variant="h6" sx={{ ml: 2, color: theme.palette.text.secondary }}>
           Loading devices...
         </Typography>
       </Box>
@@ -191,288 +204,483 @@ const DeviceSelectionPage: React.FC = () => {
   }
 
   return (
-    <MotionContainer
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      maxWidth="lg"
-      sx={{ py: 4 }}
+    <Box 
+      sx={{ 
+        paddingTop: { xs: '76px', sm: '84px', md: '88px' },  // Tăng padding-top để tránh bị navbar che
+        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.light, 0.05)} 0%, ${theme.palette.background.default} 100%)`,
+        minHeight: '100vh',
+        paddingBottom: '2rem'
+      }}
     >
-      <Typography
-        variant="h4"
-        component="h1"
-        gutterBottom
-        align="center"
-        sx={{
-          fontWeight: 600,
-          mb: 3,
-          color: theme.palette.primary.main,
-        }}
+      <MotionContainer
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        maxWidth="lg"
+        sx={{ py: { xs: 3, md: 5 } }}
       >
-        Select Your Hydroponic Device
-      </Typography>
+        <MotionTypography
+          variant="h4"
+          component="h1"
+          gutterBottom
+          align="center"
+          variants={itemVariants}
+          sx={{
+            fontWeight: 700,
+            mb: 2,
+            color: theme.palette.primary.main,
+            letterSpacing: '0.5px',
+            textShadow: '0 2px 4px rgba(0,0,0,0.05)',
+          }}
+        >
+          Select Your Hydroponic Device
+        </MotionTypography>
 
-      <Typography
-        variant="subtitle1"
-        align="center"
-        sx={{ mb: 4, color: alpha(theme.palette.text.primary, 0.7) }}
-      >
-        First select a device, then you can choose compatible products to
-        enhance your system
-      </Typography>
+        <MotionTypography
+          variant="subtitle1"
+          align="center"
+          variants={itemVariants}
+          sx={{ 
+            mb: 5, 
+            color: alpha(theme.palette.text.primary, 0.7),
+            maxWidth: '700px',
+            mx: 'auto',
+            lineHeight: 1.6
+          }}
+        >
+          First select a device, then you can choose compatible products to
+          enhance your system
+        </MotionTypography>
 
-      <Grid container spacing={4}>
-        {devices.map((device) => (
-          <Grid item key={device.id} xs={12} md={6}>
-            <MotionCard
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.2 }}
-              sx={{
-                borderRadius: 3,
-                overflow: "hidden",
-                boxShadow:
-                  selectedDevice?.id === device.id
-                    ? `0 0 0 3px ${theme.palette.primary.main}, 0 8px 20px rgba(0,0,0,0.1)`
-                    : "0 8px 20px rgba(0,0,0,0.1)",
-                position: "relative",
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              {selectedDevice?.id === device.id && (
-                <Chip
-                  icon={<CheckCircle />}
-                  label="Selected"
-                  color="primary"
-                  sx={{
-                    position: "absolute",
-                    top: 16,
-                    right: 16,
-                    zIndex: 2,
-                    fontWeight: "bold",
-                  }}
-                />
-              )}
-
-              <CardMedia
-                component="img"
-                height="240"
-                image={device.attachment || "/placeholder-device.jpg"}
-                alt={device.name}
-                sx={{ objectFit: "cover" }}
-              />
-
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Typography
-                  variant="h5"
-                  component="h2"
-                  fontWeight="bold"
-                  gutterBottom
-                >
-                  {device.name}
-                </Typography>
-
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  {device.description}
-                </Typography>
-
-                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    color="primary.main"
-                  >
-                    ${device.price.toLocaleString()}
-                  </Typography>
-
-                  <Chip
-                    label={device.quantity > 0 ? "In Stock" : "Out of Stock"}
-                    color={device.quantity > 0 ? "success" : "error"}
-                    size="small"
-                    sx={{ ml: 2 }}
-                  />
-                </Box>
-              </CardContent>
-
-              <CardActions sx={{ justifyContent: "space-between", p: 2 }}>
-                <Button
-                  variant={
-                    selectedDevice?.id === device.id ? "contained" : "outlined"
-                  }
-                  color="primary"
-                  onClick={() => handleDeviceSelect(device)}
-                  disabled={device.quantity <= 0}
-                  startIcon={<ShoppingCart />}
-                >
-                  {selectedDevice?.id === device.id
-                    ? "Selected"
-                    : "Select Device"}
-                </Button>
-
-                <ExpandMore
-                  expand={expandedDevice === device.id}
-                  onClick={() => handleExpandDevice(device.id)}
-                />
-              </CardActions>
-
-              <Collapse
-                in={expandedDevice === device.id}
-                timeout="auto"
-                unmountOnExit
-              >
-                <Divider />
-                <CardContent>
-                  <Typography paragraph fontWeight="bold">
-                    Device Details:
-                  </Typography>
-                  <Typography paragraph>
-                    This {device.name} is an advanced hydroponic system designed
-                    for efficient plant growth. Additional specifications and
-                    features would be listed here.
-                  </Typography>
-                </CardContent>
-              </Collapse>
-            </MotionCard>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* Product selection section - only visible when a device is selected */}
-      {selectedDevice && (
-        <Fade in={!!selectedDevice}>
-          <Box sx={{ mt: 6 }}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 3,
-                borderRadius: 3,
-                bgcolor: alpha(theme.palette.background.paper, 0.8),
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                mb: 4,
-              }}
-            >
-              <Typography variant="h5" fontWeight="bold" gutterBottom>
-                Optional: Add Compatible Products
-              </Typography>
-
-              <Typography variant="body2" color="text.secondary" paragraph>
-                Enhance your {selectedDevice.name} with these compatible
-                products. These are optional and can be changed later.
-              </Typography>
-
-              {loadingProducts ? (
-                <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-                  <CircularProgress size={30} />
-                </Box>
-              ) : (
-                <Grid container spacing={2} sx={{ mt: 2 }}>
-                  {products.slice(0, 4).map((product) => (
-                    <Grid item key={product.id} xs={12} sm={6} md={3}>
-                      <Zoom in={true}>
-                        <Card
-                          sx={{
-                            borderRadius: 2,
-                            cursor: "pointer",
-                            border: selectedProducts[product.id]
-                              ? `2px solid ${theme.palette.primary.main}`
-                              : "2px solid transparent",
-                            boxShadow: selectedProducts[product.id]
-                              ? `0 4px 12px ${alpha(
-                                  theme.palette.primary.main,
-                                  0.3
-                                )}`
-                              : "0 2px 8px rgba(0,0,0,0.08)",
-                            transition: "all 0.2s ease",
-                            height: "100%",
-                            display: "flex",
-                            flexDirection: "column",
-                          }}
-                          onClick={() => handleProductSelect(product.id)}
-                        >
-                          {selectedProducts[product.id] && (
-                            <Box
-                              sx={{
-                                position: "absolute",
-                                top: 8,
-                                right: 8,
-                                bgcolor: theme.palette.primary.main,
-                                color: "white",
-                                borderRadius: "50%",
-                                width: 24,
-                                height: 24,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                zIndex: 2,
-                              }}
-                            >
-                              <CheckCircle fontSize="small" />
-                            </Box>
-                          )}
-
-                          <CardMedia
-                            component="img"
-                            height="120"
-                            image={
-                              product.mainImage || "/placeholder-product.jpg"
-                            }
-                            alt={product.name}
-                          />
-
-                          <CardContent sx={{ flexGrow: 1 }}>
-                            <Typography variant="subtitle1" fontWeight="medium">
-                              {product.name}
-                            </Typography>
-
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{ mt: 1 }}
-                            >
-                              {product.description?.substring(0, 60)}...
-                            </Typography>
-
-                            <Typography
-                              variant="h6"
-                              color="primary"
-                              fontWeight="bold"
-                              sx={{ mt: 1 }}
-                            >
-                              ${product.price}
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      </Zoom>
-                    </Grid>
-                  ))}
-                </Grid>
-              )}
-            </Paper>
-
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-              <MotionButton
-                variant="contained"
-                color="primary"
-                size="large"
-                onClick={handleCheckout}
-                endIcon={<ArrowForward />}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+        <Grid container spacing={4}>
+          {devices.map((device, index) => (
+            <Grid item key={device.id} xs={12} md={6}>
+              <MotionCard
+                variants={itemVariants}
+                whileHover={{ 
+                  y: -8,
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                }}
                 sx={{
-                  py: 1.5,
-                  px: 4,
-                  borderRadius: 2,
-                  fontWeight: "bold",
-                  boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                  borderRadius: 3,
+                  overflow: "hidden",
+                  boxShadow:
+                    selectedDevice?.id === device.id
+                      ? `0 0 0 2px ${theme.palette.primary.main}, 0 8px 20px rgba(0,0,0,0.12)`
+                      : "0 8px 20px rgba(0,0,0,0.1)",
+                  position: "relative",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  backgroundColor: selectedDevice?.id === device.id
+                    ? alpha(theme.palette.primary.light, 0.05)
+                    : theme.palette.background.paper,
                 }}
               >
-                Continue to Checkout
-              </MotionButton>
+                {selectedDevice?.id === device.id && (
+                  <Chip
+                    icon={<CheckCircle />}
+                    label="Selected"
+                    color="primary"
+                    sx={{
+                      position: "absolute",
+                      top: 16,
+                      right: 16,
+                      zIndex: 2,
+                      fontWeight: "bold",
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    }}
+                  />
+                )}
+
+                <CardMedia
+                  component="img"
+                  height="240"
+                  image={device.attachment || "/placeholder-device.jpg"}
+                  alt={device.name}
+                  sx={{ 
+                    objectFit: "cover",
+                    transition: 'transform 0.5s ease',
+                    '&:hover': {
+                      transform: 'scale(1.05)'
+                    }
+                  }}
+                />
+
+                <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                  <Typography
+                    variant="h5"
+                    component="h2"
+                    fontWeight="bold"
+                    gutterBottom
+                    sx={{
+                      color: theme.palette.primary.dark,
+                      mb: 1.5,
+                    }}
+                  >
+                    {device.name}
+                  </Typography>
+
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary" 
+                    paragraph
+                    sx={{
+                      lineHeight: 1.7,
+                      mb: 2.5,
+                      minHeight: '4.2em', // Giữ khoảng 2-3 dòng text
+                    }}
+                  >
+                    {device.description || "A premium hydroponic system designed for efficient plant growth with smart monitoring."}
+                  </Typography>
+
+                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                    <Typography
+                      variant="h6"
+                      fontWeight="bold"
+                      sx={{
+                        color: theme.palette.primary.main,
+                        background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                      }}
+                    >
+                      ${device.price?.toLocaleString() || "0"}
+                    </Typography>
+
+                    <Chip
+                      label={device.quantity > 0 ? "In Stock" : "Out of Stock"}
+                      color={device.quantity > 0 ? "success" : "error"}
+                      size="small"
+                      sx={{ ml: 2, fontWeight: 500 }}
+                    />
+                  </Box>
+                </CardContent>
+
+                <CardActions sx={{ justifyContent: "space-between", p: 2, pt: 0 }}>
+                  <MotionButton
+                    variant={
+                      selectedDevice?.id === device.id ? "contained" : "outlined"
+                    }
+                    color="primary"
+                    onClick={() => handleDeviceSelect(device)}
+                    disabled={device.quantity <= 0}
+                    startIcon={<ShoppingCart />}
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
+                    sx={{
+                      px: 2.5,
+                      py: 1,
+                      borderRadius: 2,
+                      fontWeight: 500,
+                      boxShadow: selectedDevice?.id === device.id 
+                        ? '0 4px 10px rgba(76, 175, 80, 0.25)'
+                        : 'none',
+                    }}
+                  >
+                    {selectedDevice?.id === device.id
+                      ? "Selected"
+                      : "Select Device"}
+                  </MotionButton>
+
+                  <ExpandMore
+                    expand={expandedDevice === device.id}
+                    onClick={() => handleExpandDevice(device.id)}
+                  />
+                </CardActions>
+
+                <Collapse
+                  in={expandedDevice === device.id}
+                  timeout="auto"
+                  unmountOnExit
+                >
+                  <Divider sx={{ mx: 2 }} />
+                  <CardContent sx={{ bgcolor: alpha(theme.palette.primary.light, 0.03) }}>
+                    <Typography 
+                      variant="subtitle1" 
+                      fontWeight="bold" 
+                      color="primary.dark"
+                      gutterBottom
+                    >
+                      Device Details:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, ml: 1 }}>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                          Size: <Box component="span" sx={{ color: 'text.primary', fontWeight: 'normal' }}>
+                            {device.size || "Standard size for home use"}
+                          </Box>
+                        </Typography>
+                      </Box>
+                      
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                          Capacity: <Box component="span" sx={{ color: 'text.primary', fontWeight: 'normal' }}>
+                            {device.capacity || "6-8 medium-sized plants"}
+                          </Box>
+                        </Typography>
+                      </Box>
+                      
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                          Features: <Box component="span" sx={{ color: 'text.primary', fontWeight: 'normal' }}>
+                            {device.features || "Automatic water circulation, LED growth lights, nutrient monitoring"}
+                          </Box>
+                        </Typography>
+                      </Box>
+                      
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                          Warranty: <Box component="span" sx={{ color: 'text.primary', fontWeight: 'normal' }}>
+                            {device.warranty || "2 years limited manufacturer warranty"}
+                          </Box>
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Collapse>
+              </MotionCard>
+            </Grid>
+          ))}
+        </Grid>
+
+        {/* Product selection section - only visible when a device is selected */}
+        {selectedDevice && (
+          <Fade in={!!selectedDevice} timeout={800}>
+            <Box sx={{ mt: 6 }}>
+              <Paper
+                elevation={2}
+                sx={{
+                  p: { xs: 2.5, md: 4 },
+                  borderRadius: 4,
+                  bgcolor: alpha(theme.palette.background.paper, 0.9),
+                  backdropFilter: 'blur(8px)',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                  mb: 4,
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Decorative element */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: -30,
+                    right: -30,
+                    width: 150,
+                    height: 150,
+                    borderRadius: '50%',
+                    background: `radial-gradient(circle, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 70%)`,
+                    zIndex: 0
+                  }}
+                />
+                
+                <Box sx={{ position: 'relative', zIndex: 1 }}>
+                  <Typography 
+                    variant="h5" 
+                    fontWeight="bold" 
+                    gutterBottom
+                    color="primary"
+                    sx={{
+                      borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                      pb: 1,
+                      mb: 2.5
+                    }}
+                  >
+                    Optional: Add Compatible Products
+                  </Typography>
+
+                  <Typography 
+                    variant="body1" 
+                    color="text.secondary" 
+                    paragraph
+                    sx={{ mb: 3.5 }}
+                  >
+                    Enhance your <Box component="span" sx={{ fontWeight: 'bold', color: 'primary.main' }}>{selectedDevice.name}</Box> with these compatible
+                    products. These are optional and can be changed later.
+                  </Typography>
+
+                  {loadingProducts ? (
+                    <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+                      <CircularProgress size={36} color="primary" thickness={4} />
+                    </Box>
+                  ) : (
+                    <Grid container spacing={3} sx={{ mt: 0.5 }}>
+                      {products.slice(0, 4).map((product, index) => (
+                        <Grid item key={product.id} xs={12} sm={6} md={3}>
+                          <Zoom 
+                            in={true} 
+                            style={{ transitionDelay: `${index * 100}ms` }}
+                          >
+                            <Card
+                              sx={{
+                                borderRadius: 2,
+                                cursor: "pointer",
+                                border: selectedProducts[product.id]
+                                  ? `2px solid ${theme.palette.primary.main}`
+                                  : "1px solid rgba(0,0,0,0.05)",
+                                boxShadow: selectedProducts[product.id]
+                                  ? `0 6px 16px ${alpha(
+                                      theme.palette.primary.main,
+                                      0.25
+                                    )}`
+                                  : "0 3px 10px rgba(0,0,0,0.08)",
+                                transition: "all 0.2s ease",
+                                height: "100%",
+                                display: "flex",
+                                flexDirection: "column",
+                                transform: selectedProducts[product.id] ? 'translateY(-4px)' : 'none',
+                                background: selectedProducts[product.id]
+                                  ? `linear-gradient(to bottom, ${alpha(theme.palette.primary.light, 0.1)}, transparent)`
+                                  : theme.palette.background.paper,
+                              }}
+                              onClick={() => handleProductSelect(product.id)}
+                            >
+                              {selectedProducts[product.id] && (
+                                <Box
+                                  sx={{
+                                    position: "absolute",
+                                    top: 8,
+                                    right: 8,
+                                    bgcolor: theme.palette.primary.main,
+                                    color: "white",
+                                    borderRadius: "50%",
+                                    width: 28,
+                                    height: 28,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    zIndex: 2,
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                                  }}
+                                >
+                                  <CheckCircle fontSize="small" />
+                                </Box>
+                              )}
+
+                              <CardMedia
+                                component="img"
+                                height="140"
+                                image={
+                                  product.mainImage || "/placeholder-product.jpg"
+                                }
+                                alt={product.name}
+                                sx={{ 
+                                  objectFit: "contain",
+                                  bgcolor: alpha(theme.palette.grey[100], 0.5),
+                                  p: 1
+                                }}
+                              />
+
+                              <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                                <Typography 
+                                  variant="subtitle1" 
+                                  fontWeight="medium"
+                                  gutterBottom
+                                  sx={{
+                                    minHeight: '42px',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                  }}
+                                >
+                                  {product.name}
+                                </Typography>
+
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ 
+                                    mt: 1,
+                                    mb: 2,
+                                    minHeight: '60px',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 3,
+                                    WebkitBoxOrient: 'vertical',
+                                  }}
+                                >
+                                  {product.description
+                                    ? product.description.length > 60
+                                      ? `${product.description.substring(0, 60)}...`
+                                      : product.description
+                                    : "Compatible accessory for your hydroponic system."
+                                  }
+                                </Typography>
+
+                                <Box 
+                                  sx={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center' 
+                                  }}
+                                >
+                                  <Typography
+                                    variant="h6"
+                                    color="primary"
+                                    fontWeight="bold"
+                                  >
+                                    ${product.price || 0}
+                                  </Typography>
+                                  
+                                  <Chip 
+                                    size="small" 
+                                    label={selectedProducts[product.id] ? "Selected" : "Optional"}
+                                    color={selectedProducts[product.id] ? "primary" : "default"}
+                                    sx={{ fontWeight: 'medium' }}
+                                  />
+                                </Box>
+                              </CardContent>
+                            </Card>
+                          </Zoom>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  )}
+                </Box>
+              </Paper>
+
+              <Box 
+                sx={{ 
+                  display: "flex", 
+                  justifyContent: "center", 
+                  mt: 5 
+                }}
+              >
+                <MotionButton
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  onClick={handleCheckout}
+                  endIcon={<ArrowForward />}
+                  variants={buttonVariants}
+                  whileHover="hover"
+                  whileTap="tap"
+                  sx={{
+                    py: 1.5,
+                    px: 5,
+                    borderRadius: 3,
+                    fontWeight: "bold",
+                    boxShadow: "0 8px 20px rgba(76, 175, 80, 0.25)",
+                    background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                    fontSize: '1.05rem',
+                    textTransform: 'none',
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  Continue to Checkout
+                </MotionButton>
+              </Box>
             </Box>
-          </Box>
-        </Fade>
-      )}
-    </MotionContainer>
+          </Fade>
+        )}
+      </MotionContainer>
+    </Box>
   );
 };
 

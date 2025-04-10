@@ -32,6 +32,7 @@ import {
   TableHead,
   TableRow,
   useTheme,
+  Grid,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -127,6 +128,13 @@ const ProfilePage: React.FC = () => {
   const [totalTicketPages, setTotalTicketPages] = useState(1);
   const [isLoadingTickets, setIsLoadingTickets] = useState(false);
   const [ticketsDialogOpen, setTicketsDialogOpen] = useState(false);
+
+  // Add states for ticket detail view
+  const [ticketDetailsDialogOpen, setTicketDetailsDialogOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [selectedTicketDetails, setSelectedTicketDetails] = useState<any>(null);
+  const [loadingTicketDetails, setLoadingTicketDetails] = useState(false);
+  const [ticketDetailsError, setTicketDetailsError] = useState<string | null>(null);
 
   const checkedCookiesRef = useRef(false);
 
@@ -478,6 +486,61 @@ const ProfilePage: React.FC = () => {
 
   const handleCloseTicketsDialog = () => {
     setTicketsDialogOpen(false);
+  };
+
+  // Add handler for viewing ticket details
+  const handleViewTicketDetails = async (ticketId: string) => {
+    setSelectedTicketId(ticketId);
+    setLoadingTicketDetails(true);
+    setTicketDetailsError(null);
+    
+    try {
+      const response = await ticketService.getTicketById(ticketId);
+      if (response && response.statusCodes === 200) {
+        setSelectedTicketDetails(response.response.data);
+      } else {
+        setTicketDetailsError("Failed to fetch ticket details. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error fetching ticket details:", error);
+      setTicketDetailsError("An error occurred while fetching ticket details");
+    } finally {
+      setLoadingTicketDetails(false);
+      setTicketDetailsDialogOpen(true);
+    }
+  };
+
+  const handleCloseTicketDetailsDialog = () => {
+    setTicketDetailsDialogOpen(false);
+    setSelectedTicketDetails(null);
+    setSelectedTicketId(null);
+  };
+
+  // Format date string for better display
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Helper function to get status chip color
+  const getStatusColor = (status: string): "warning" | "info" | "success" | "error" => {
+    switch (status) {
+      case "Pending":
+        return "warning";
+      case "InProgress":
+        return "info";
+      case "Completed":
+        return "success";
+      case "Cancelled":
+        return "error";
+      default:
+        return "info";
+    }
   };
 
   // Animation variants for page transitions
@@ -1205,6 +1268,7 @@ const ProfilePage: React.FC = () => {
                     <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
                     <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
                     <TableCell sx={{ fontWeight: 'bold' }}>Created At</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1224,19 +1288,28 @@ const ProfilePage: React.FC = () => {
                       <TableCell>
                         <Chip
                           label={ticket.status}
-                          color={
-                            ticket.status === "Pending"
-                              ? "warning"
-                              : ticket.status === "InProgress"
-                              ? "info"
-                              : "success"
-                          }
+                          color={getStatusColor(ticket.status)}
                           size="small"
                           sx={{ fontWeight: 'medium' }}
                         />
                       </TableCell>
                       <TableCell>
                         {new Date(ticket.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          color="primary"
+                          onClick={() => handleViewTicketDetails(ticket.id)}
+                          sx={{
+                            minWidth: 'auto',
+                            borderRadius: 2,
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                            '&:hover': { boxShadow: '0 4px 8px rgba(0,0,0,0.15)' }
+                          }}
+                        >
+                          View Details
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1259,6 +1332,309 @@ const ProfilePage: React.FC = () => {
           )}
           <Button 
             onClick={handleCloseTicketsDialog} 
+            variant="contained"
+            color="primary"
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add the new Ticket Details Dialog */}
+      <Dialog
+        open={ticketDetailsDialogOpen}
+        onClose={handleCloseTicketDetailsDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: 'hidden',
+            maxHeight: '90vh'
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: 'linear-gradient(120deg, #1976d2, #42a5f5)',
+            color: 'white',
+            p: 3,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold">Ticket Details</Typography>
+          <Chip 
+            label={selectedTicketDetails?.status || "Loading"}
+            color={getStatusColor(selectedTicketDetails?.status || "Pending")}
+            size="small"
+            sx={{ fontWeight: 'bold', px: 1 }}
+          />
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {loadingTicketDetails ? (
+            <Box display="flex" justifyContent="center" alignItems="center" height="200px">
+              <CircularProgress />
+            </Box>
+          ) : ticketDetailsError ? (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {ticketDetailsError}
+            </Alert>
+          ) : selectedTicketDetails ? (
+            <Box>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Ticket ID
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium" paragraph>
+                      {selectedTicketDetails.id}
+                    </Typography>
+                    
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Type
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium" paragraph>
+                      {selectedTicketDetails.type}
+                    </Typography>
+                    
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Created At
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {formatDate(selectedTicketDetails.createdAt)}
+                    </Typography>
+                  </Card>
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Status
+                    </Typography>
+                    <Box sx={{ mb: 2 }}>
+                      <Chip 
+                        label={selectedTicketDetails.status}
+                        color={getStatusColor(selectedTicketDetails.status)}
+                        sx={{ fontWeight: 'medium' }}
+                      />
+                    </Box>
+                    
+                    {selectedTicketDetails.statusUpdatedAt && (
+                      <>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Status Updated
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium" paragraph>
+                          {formatDate(selectedTicketDetails.statusUpdatedAt)}
+                        </Typography>
+                      </>
+                    )}
+                    
+                    {selectedTicketDetails.assignee && (
+                      <>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          Assigned To
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {selectedTicketDetails.assignee}
+                        </Typography>
+                      </>
+                    )}
+                  </Card>
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Card variant="outlined" sx={{ p: 2 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Description
+                    </Typography>
+                    <Typography variant="body1" paragraph sx={{ whiteSpace: 'pre-wrap' }}>
+                      {selectedTicketDetails.description}
+                    </Typography>
+                  </Card>
+                </Grid>
+                
+                {selectedTicketDetails.attachments && selectedTicketDetails.attachments.length > 0 && (
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                      Attachments
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                      {selectedTicketDetails.attachments.map((attachment: string, index: number) => {
+                        // Extract file extension to determine type
+                        const fileExt = attachment.split('.').pop()?.toLowerCase() || '';
+                        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExt);
+                        
+                        return (
+                          <Card 
+                            key={index} 
+                            variant="outlined" 
+                            sx={{ 
+                              width: 200, 
+                              overflow: 'hidden',
+                              transition: 'transform 0.2s',
+                              '&:hover': {
+                                transform: 'scale(1.05)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                              }
+                            }}
+                          >
+                            <a 
+                              href={attachment} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              style={{ textDecoration: 'none', color: 'inherit' }}
+                            >
+                              {isImage ? (
+                                <Box 
+                                  component="img" 
+                                  src={attachment} 
+                                  alt={`Attachment ${index + 1}`}
+                                  sx={{ 
+                                    width: '100%', 
+                                    height: 120, 
+                                    objectFit: 'cover' 
+                                  }}
+                                />
+                              ) : (
+                                <Box 
+                                  sx={{ 
+                                    width: '100%', 
+                                    height: 120, 
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    bgcolor: 'grey.100'
+                                  }}
+                                >
+                                  <Typography variant="body2" color="text.secondary">
+                                    {fileExt.toUpperCase()} File
+                                  </Typography>
+                                </Box>
+                              )}
+                              <Box sx={{ p: 1 }}>
+                                <Typography variant="caption" noWrap>
+                                  {`Attachment ${index + 1}`}
+                                </Typography>
+                              </Box>
+                            </a>
+                          </Card>
+                        );
+                      })}
+                    </Box>
+                  </Grid>
+                )}
+                
+                {selectedTicketDetails.ticketResponses && selectedTicketDetails.ticketResponses.length > 0 && (
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                      Responses
+                    </Typography>
+                    <Stack spacing={2}>
+                      {selectedTicketDetails.ticketResponses.map((response: any, index: number) => {
+                        const isStaff = response.userId !== selectedTicketDetails.createdBy;
+                        
+                        return (
+                          <Card 
+                            key={index} 
+                            variant="outlined" 
+                            sx={{ 
+                              p: 2,
+                              bgcolor: isStaff ? 'primary.lightest' : 'grey.50',
+                              borderLeft: isStaff ? '4px solid #1976d2' : '4px solid #4caf50'
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                              <Typography variant="subtitle2" fontWeight="bold">
+                                {isStaff ? response.userFullName || 'Support Staff' : 'You'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {formatDate(response.createdAt)}
+                              </Typography>
+                            </Box>
+                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                              {response.message}
+                            </Typography>
+                            
+                            {/* Handle response attachments if they exist */}
+                            {response.attachments && response.attachments.length > 0 && (
+                              <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                {response.attachments.map((attachment: string, attIndex: number) => {
+                                  const fileExt = attachment.split('.').pop()?.toLowerCase() || '';
+                                  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExt);
+                                  
+                                  return isImage ? (
+                                    <Box
+                                      key={attIndex}
+                                      component="a"
+                                      href={attachment}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      sx={{
+                                        display: 'block',
+                                        width: 80,
+                                        height: 80,
+                                        borderRadius: 1,
+                                        overflow: 'hidden',
+                                        border: '1px solid rgba(0,0,0,0.1)'
+                                      }}
+                                    >
+                                      <Box
+                                        component="img"
+                                        src={attachment}
+                                        alt={`Response ${index + 1} Attachment ${attIndex + 1}`}
+                                        sx={{
+                                          width: '100%',
+                                          height: '100%',
+                                          objectFit: 'cover'
+                                        }}
+                                      />
+                                    </Box>
+                                  ) : (
+                                    <Box
+                                      key={attIndex}
+                                      component="a"
+                                      href={attachment}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: 80,
+                                        height: 80,
+                                        borderRadius: 1,
+                                        bgcolor: 'grey.100',
+                                        border: '1px solid rgba(0,0,0,0.1)',
+                                        textDecoration: 'none'
+                                      }}
+                                    >
+                                      <Typography variant="caption" color="text.secondary">
+                                        {fileExt.toUpperCase()}
+                                      </Typography>
+                                    </Box>
+                                  );
+                                })}
+                              </Box>
+                            )}
+                          </Card>
+                        );
+                      })}
+                    </Stack>
+                  </Grid>
+                )}
+              </Grid>
+            </Box>
+          ) : (
+            <Typography color="text.secondary">No ticket details available</Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0, 0, 0, 0.08)' }}>
+          <Button 
+            onClick={handleCloseTicketDetailsDialog} 
             variant="contained"
             color="primary"
           >
