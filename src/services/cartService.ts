@@ -154,14 +154,14 @@ export const cartService = {
   },
 
   // Remove an item from the cart
-  removeFromCart: async (id: string): Promise<boolean> => {
+  removeFromCart: async (): Promise<boolean> => {
     try {
-      await api.delete(`/cart/${id}`, {
+      await api.delete(`/cart`, {
         withCredentials: true,
       });
       return true;
     } catch (error) {
-      console.error(`Error removing cart item ${id}:`, error);
+      console.error(`Error clear cart item:`, error);
       return false;
     }
   },

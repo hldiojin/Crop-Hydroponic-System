@@ -212,11 +212,7 @@ const CartPage: React.FC<CartPageProps> = ({
 
     // Then update on the server
     try {
-      if (newQuantity <= 0) {
-        await cartService.removeFromCart(id);
-      } else {
-        await cartService.updateCartQuantity(productId, newQuantity);
-      }
+      await cartService.updateCartQuantity(productId, newQuantity);
 
       // Refresh cart details after any change
       const details = await cartService.getCartDetails();
@@ -231,7 +227,7 @@ const CartPage: React.FC<CartPageProps> = ({
 
   const handleRemoveFromCart = async (id: string, productId: string) => {
     // First update UI optimistically
-    removeFromCart(productId);
+    // removeFromCart(productId);
 
     // Then use updateCartQuantity to set quantity to 0 on the server
     try {
@@ -303,6 +299,19 @@ const CartPage: React.FC<CartPageProps> = ({
       console.error("Order creation failed:", error);
       // Show error to user
       alert("Failed to create order. Please try again.");
+    }
+  };
+
+  const handleClearCart = async () => {
+    try {
+      await cartService.removeFromCart();
+
+      // Refresh cart details after removing
+      const details = await cartService.getCartDetails();
+      setCartDetails(details);
+
+    } catch (error) {
+      console.error("Failed to remove cart item:", error);
     }
   };
 
@@ -1046,6 +1055,7 @@ const CartPage: React.FC<CartPageProps> = ({
 
             <MotionButton
               variants={buttonVariants}
+              onClick={handleClearCart}
               whileHover="hover"
               whileTap="tap"
               color="error"
@@ -1201,9 +1211,8 @@ const CartPage: React.FC<CartPageProps> = ({
                   }}
                 >
                   {selectedCount > 0
-                    ? `Checkout (${selectedCount} item${
-                        selectedCount > 1 ? "s" : ""
-                      })`
+                    ? `Checkout (${selectedCount} item${selectedCount > 1 ? "s" : ""
+                    })`
                     : "Select items to checkout"}
                 </MotionButton>
 
