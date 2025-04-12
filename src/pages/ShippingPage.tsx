@@ -19,6 +19,10 @@ import {
   Radio,
   Checkbox,
   CircularProgress,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
 } from "@mui/material";
 import {
   ShoppingCart,
@@ -43,6 +47,7 @@ import {
 } from "../utils/motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
+import { ghnService } from "../services/ghnService";
 
 // Create properly typed motion components
 const MotionContainer = motion(Container);
@@ -81,6 +86,21 @@ interface UserAddressResponse {
   };
 }
 
+interface Province {
+  ProvinceID: number;
+  ProvinceName: string;
+}
+
+interface District {
+  DistrictID: number;
+  DistrictName: string;
+}
+
+interface Ward {
+  WardCode: string;
+  WardName: string;
+}
+
 const ShippingPage: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -94,6 +114,13 @@ const ShippingPage: React.FC = () => {
   const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(
     null
   );
+
+  const [provinceList, setProvinceList] = useState<Province[]>([]);
+  const [districtList, setDistrictList] = useState<District[]>([]);
+  const [wardList, setWardList] = useState<Ward[]>([]);
+  const [selectedProvince, setSelectedProvince] = useState<Number>(0);
+  const [selectedDistrict, setSelectedDistrict] = useState<Number>(0);
+  const [selectedWard, setSelectedWard] = useState<string>('0');
   const [addressLoading, setAddressLoading] = useState<boolean>(true);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [useExistingAddress, setUseExistingAddress] = useState<boolean>(true);
@@ -220,6 +247,56 @@ const ShippingPage: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      try {
+        const response = await ghnService.getProvinces();
+        if (response.code !== 200) {
+          throw new Error("Failed to fetch provinces");
+        }
+        var provinces: Province[] = response.data.filter((x: Province) => x.ProvinceName != "Test").map((province: Province): Province => ({
+          ProvinceID: province.ProvinceID,
+          ProvinceName: province.ProvinceName,
+        }));
+        setProvinceList(provinces);
+      } catch (error) {
+        console.error("Failed to fetch provinces:", error);
+      }
+    };
+
+    const fetchDistricts = async () => {
+      if (selectedProvince) {
+        try {
+          const response = await ghnService.getDistricts(String(selectedProvince));
+          if (response.code !== 200) {
+            throw new Error("Failed to fetch districts");
+          }
+          setDistrictList(response.data);
+        } catch (error) {
+          console.error("Failed to fetch districts:", error);
+        }
+      }
+    }
+
+    const fetchWards = async () => {
+      if (selectedDistrict) {
+        try {
+          const response = await ghnService.getWards(String(selectedDistrict));
+          if (response.code !== 200) {
+            throw new Error("Failed to fetch wards");
+          }
+          setWardList(response.data);
+        } catch (error) {
+          console.error("Failed to fetch wards:", error);
+        }
+      }
+    }
+
+    fetchDistricts();
+    fetchWards();
+    fetchProvinces();
+  }, [selectedProvince, selectedDistrict, selectedWard]);
+
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
 
@@ -236,6 +313,34 @@ const ShippingPage: React.FC = () => {
       }));
     }
   };
+
+  const handleShippingChange = async (key: string, value: string | number) => {
+    switch (key) {
+      case "province":
+        var province = provinceList.find((x) => x.ProvinceID == value);
+        setSelectedProvince(Number(value));
+        setFormData((prev) => ({ ...prev, province: province?.ProvinceName || "" }));
+        setSelectedDistrict(0); // Reset district and ward lists
+        setSelectedWard('0');
+        setDistrictList([]); // Reset district and ward lists
+        setWardList([]);
+        break;
+      case "district":
+        setSelectedDistrict(Number(value));
+        var district = districtList.find((x) => x.DistrictID == value);
+        setFormData((prev) => ({ ...prev, district: district?.DistrictName || "" }));
+        setWardList([]); // Reset ward list
+        setSelectedWard('0');
+        break;
+      case "ward":
+        setSelectedWard(value.toString());
+        var ward = wardList.find((x) => x.WardCode == value);
+        setFormData((prev) => ({ ...prev, ward: ward?.WardName || "" }));
+        break;
+      default:
+        break;
+    }
+  }
 
   const validateForm = (): boolean => {
     const errors: Partial<ShippingFormData> = {};
@@ -650,9 +755,9 @@ const ShippingPage: React.FC = () => {
                           selectedAddress?.id === address.id
                             ? `2px solid ${theme.palette.primary.main}`
                             : `1px solid ${alpha(
-                                theme.palette.primary.main,
-                                0.2
-                              )}`,
+                              theme.palette.primary.main,
+                              0.2
+                            )}`,
                         cursor: "pointer",
                         position: "relative",
                         transition: "all 0.2s ease",
@@ -816,33 +921,7 @@ const ShippingPage: React.FC = () => {
                     />
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      id="ward"
-                      name="ward"
-                      label="Ward"
-                      value={formData.ward}
-                      onChange={handleFormChange}
-                      error={!!formErrors.ward}
-                      helperText={formErrors.ward}
-                      sx={{ mb: 2 }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      id="district"
-                      name="district"
-                      label="District"
-                      value={formData.district}
-                      onChange={handleFormChange}
-                      error={!!formErrors.district}
-                      helperText={formErrors.district}
-                      sx={{ mb: 2 }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
+                    {/* <TextField
                       fullWidth
                       id="province"
                       name="province"
@@ -852,7 +931,87 @@ const ShippingPage: React.FC = () => {
                       error={!!formErrors.province}
                       helperText={formErrors.province}
                       sx={{ mb: 2 }}
-                    />
+                    /> */}
+                    <FormControl sx={{ m: 1, minWidth: 200 }}>
+                      <InputLabel id="demo-simple-select-standard-label">Province</InputLabel>
+                      <Select
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        value={selectedProvince}
+                        label="Province"
+                        onChange={(e) => {
+                          handleShippingChange("province", Number(e.target.value));
+                        }}
+                      >
+                        {provinceList.map((province) => (
+                          <MenuItem key={province.ProvinceID} value={province.ProvinceID}>
+                            {province.ProvinceName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    {/* <TextField
+                      fullWidth
+                      id="district"
+                      name="district"
+                      label="District"
+                      value={formData.district}
+                      onChange={handleFormChange}
+                      error={!!formErrors.district}
+                      helperText={formErrors.district}
+                      sx={{ mb: 2 }}
+                    /> */}
+                    <FormControl sx={{ m: 1, minWidth: 200 }}>
+                      <InputLabel id="demo-simple-select-standard-label">District</InputLabel>
+                      <Select
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        value={selectedDistrict}
+                        label="District"
+                        onChange={(e) => {
+                          handleShippingChange("district", Number(e.target.value));
+                        }}
+                      >
+                        {districtList.map((district) => (
+                          <MenuItem key={district.DistrictID} value={district.DistrictID}>
+                            {district.DistrictName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    {/* <TextField
+                      fullWidth
+                      id="ward"
+                      name="ward"
+                      label="Ward"
+                      value={formData.ward}
+                      onChange={handleFormChange}
+                      error={!!formErrors.ward}
+                      helperText={formErrors.ward}
+                      sx={{ mb: 2 }}
+                    /> */}
+                    <FormControl sx={{ m: 1, minWidth: 200 }}>
+                      <InputLabel id="demo-simple-select-standard-label">Ward</InputLabel>
+                      <Select
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        value={selectedWard}
+                        label="Ward"
+                        onChange={(e) => {
+                          handleShippingChange("ward", Number(e.target.value));
+                        }}
+                      >
+                        {wardList.map((ward) => (
+                          <MenuItem key={ward.WardCode} value={ward.WardCode}>
+                            {ward.WardName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   </Grid>
                   <Grid item xs={12}>
                     <FormControlLabel
