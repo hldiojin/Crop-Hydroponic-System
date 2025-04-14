@@ -25,6 +25,7 @@ import {
   FormHelperText,
   InputAdornment,
   CircularProgress,
+  Snackbar,
 } from "@mui/material";
 import {
   ShoppingCart,
@@ -62,6 +63,7 @@ import {
   OrderDetailItem,
 } from "../services/orderSevice";
 import { deviceService, Device } from "../services/deviceService";
+import { response } from "express";
 
 // Create properly typed motion components to fix TypeScript errors
 const MotionCard = motion(Card);
@@ -88,6 +90,11 @@ const PaymentPage: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Partial<PaymentFormData>>({});
   const [shippingAddress, setShippingAddress] = useState<any>(null);
   const [shippingMethod, setShippingMethod] = useState<string>("");
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+    severity: "error" as "error" | "success" | "info" | "warning",
+  });
   const [formData, setFormData] = useState<PaymentFormData>({
     paymentMethod: "payos",
     cardholderName: "",
@@ -107,6 +114,12 @@ const PaymentPage: React.FC = () => {
   const [subtotal, setSubtotal] = useState<number>(0);
   const [shipping, setShipping] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
+  const handleCloseToast = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setToast({ ...toast, open: false });
+  };
 
   // Calculate discount
   const discount = 0;
@@ -149,24 +162,15 @@ const PaymentPage: React.FC = () => {
       try {
         setLoading(true);
 
-        const address = localStorage.getItem("shippingAddress");
-        const method = localStorage.getItem("shippingMethod");
+        // const address = localStorage.getItem("shippingAddress");
+        // const method = localStorage.getItem("shippingMethod");
         const orderId = localStorage.getItem("currentOrderId");
-
-        if (!address || !method) {
-          navigate("/checkout/shipping");
-          return;
-        }
-
-        setShippingAddress(JSON.parse(address));
-        setShippingMethod(method);
 
         // If we have an order ID, try to fetch order details
         if (orderId) {
           try {
             // Fetch order details from API
             const orderResponse = await getOrderById(orderId);
-
             if (
               orderResponse &&
               orderResponse.statusCodes === 200 &&
@@ -210,6 +214,14 @@ const PaymentPage: React.FC = () => {
                 setShipping(orderData.shippingFee);
               if (orderData.totalPrice !== undefined)
                 setTotal(orderData.totalPrice);
+            } else if (orderResponse.statusCodes == 400 && orderResponse.message == "Không tìm thấy địa chỉ mặc định cho người dùng.") {
+              setToast({
+                open: true,
+                message: `${orderResponse.message}`,
+                severity: "error"
+              });
+              navigate("/checkout/shipping");
+              return;
             } else {
               console.error("Invalid order data format");
               // Continue with fallback data
@@ -615,8 +627,8 @@ const PaymentPage: React.FC = () => {
                 index === 0
                   ? () => navigate("/cart")
                   : index === 1
-                  ? () => navigate("/checkout/shipping")
-                  : undefined
+                    ? () => navigate("/checkout/shipping")
+                    : undefined
               }
             >
               <Box
@@ -749,9 +761,9 @@ const PaymentPage: React.FC = () => {
                         boxShadow:
                           formData.paymentMethod === method.id
                             ? `0 4px 12px ${alpha(
-                                theme.palette.primary.main,
-                                0.2
-                              )}`
+                              theme.palette.primary.main,
+                              0.2
+                            )}`
                             : "0 2px 8px rgba(0,0,0,0.05)",
                         transition: "all 0.2s ease",
                       }}
@@ -947,14 +959,10 @@ const PaymentPage: React.FC = () => {
                             sx={{ mr: 1, fontSize: 20 }}
                           />
                           <Typography variant="body1" fontWeight="medium">
-                            {shippingMethod === "standard"
-                              ? "Standard Shipping"
-                              : shippingMethod === "express"
-                              ? "Express Shipping"
-                              : "Overnight Shipping"}
+                            GHN Shipping
                           </Typography>
                         </Box>
-                        <Typography
+                        {/* <Typography
                           variant="body2"
                           color="text.secondary"
                           sx={{ mt: 1 }}
@@ -962,9 +970,9 @@ const PaymentPage: React.FC = () => {
                           {shippingMethod === "standard"
                             ? "Delivery in 5-7 business days"
                             : shippingMethod === "express"
-                            ? "Delivery in 2-3 business days"
-                            : "Next day delivery (order before 2pm)"}
-                        </Typography>
+                              ? "Delivery in 2-3 business days"
+                              : "Next day delivery (order before 2pm)"}
+                        </Typography> */}
                         <Chip
                           label={
                             shipping === 0 ? "FREE" : `$${shipping.toFixed(2)}`
@@ -1149,55 +1157,55 @@ const PaymentPage: React.FC = () => {
                   {Object.entries(selectedDevices).some(
                     ([_, quantity]) => quantity > 0
                   ) && (
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        bgcolor: alpha(theme.palette.background.default, 0.5),
-                      }}
-                    >
-                      <Typography
-                        variant="subtitle2"
-                        fontWeight="bold"
-                        sx={{ mb: 2 }}
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: alpha(theme.palette.background.default, 0.5),
+                        }}
                       >
-                        Selected Devices
-                      </Typography>
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight="bold"
+                          sx={{ mb: 2 }}
+                        >
+                          Selected Devices
+                        </Typography>
 
-                      <Stack spacing={2}>
-                        {Object.entries(selectedDevices)
-                          .filter(([_, quantity]) => quantity > 0)
-                          .map(([deviceId, quantity]) => {
-                            const device = devices.find(
-                              (d) => d.id === deviceId
-                            );
-                            return (
-                              <Box
-                                key={deviceId}
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                }}
-                              >
-                                <Typography variant="body2">
-                                  {device?.name}{" "}
-                                  <Typography
-                                    component="span"
-                                    color="text.secondary"
-                                  >
-                                    x{quantity}
+                        <Stack spacing={2}>
+                          {Object.entries(selectedDevices)
+                            .filter(([_, quantity]) => quantity > 0)
+                            .map(([deviceId, quantity]) => {
+                              const device = devices.find(
+                                (d) => d.id === deviceId
+                              );
+                              return (
+                                <Box
+                                  key={deviceId}
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                  }}
+                                >
+                                  <Typography variant="body2">
+                                    {device?.name}{" "}
+                                    <Typography
+                                      component="span"
+                                      color="text.secondary"
+                                    >
+                                      x{quantity}
+                                    </Typography>
                                   </Typography>
-                                </Typography>
-                                <Typography variant="body2" fontWeight="medium">
-                                  ${(device?.price || 0) * quantity}
-                                </Typography>
-                              </Box>
-                            );
-                          })}
-                      </Stack>
-                    </Paper>
-                  )}
+                                  <Typography variant="body2" fontWeight="medium">
+                                    ${(device?.price || 0) * quantity}
+                                  </Typography>
+                                </Box>
+                              );
+                            })}
+                        </Stack>
+                      </Paper>
+                    )}
 
                   <Divider />
 
@@ -1271,6 +1279,20 @@ const PaymentPage: React.FC = () => {
           </Grid>
         </Grid>
       </form>
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={6000}
+        onClose={handleCloseToast}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleCloseToast}
+          severity={toast.severity}
+          sx={{ width: '100%' }}
+        >
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </MotionContainer>
   );
 };

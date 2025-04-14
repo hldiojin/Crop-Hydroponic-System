@@ -40,6 +40,7 @@ import {
   itemVariants,
   buttonVariants
 } from "../utils/motion";
+import { submitOrder } from "../services/orderSevice";
 
 // Định nghĩa thêm MotionCard và MotionContainer vì chúng không có trong file utils/motion.tsx
 const MotionCard = motion(Card);
@@ -148,39 +149,46 @@ const DeviceSelectionPage: React.FC = () => {
   };
 
   // Process checkout
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!selectedDevice) return;
 
-    // Create a cart with the selected device
     const selectedDevicesObj: Record<string, number> = {
-      [selectedDevice.id]: 1, // We're just selecting one of each for now
+      [selectedDevice.id]: 1,
     };
 
-    // Save selected device to localStorage for use in checkout flow
-    localStorage.setItem("selectedDevices", JSON.stringify(selectedDevicesObj));
+    const selectedProductsList = products
+      .filter(product => selectedProducts[product.id])
+      .map(product => ({
+        productId: product.id,
+        productName: product.name,
+        unitPrice: product.price,
+        quantity: 1,
+        productImage: product.mainImage,
+      }));
 
-    // If any products are selected, add them to the cart
-    if (Object.values(selectedProducts).some((selected) => selected)) {
-      const selectedProductsList = products
-        .filter((product) => selectedProducts[product.id])
-        .map((product) => ({
-          productId: product.id,
-          productName: product.name,
-          unitPrice: product.price,
-          quantity: 1,
-          productImage: product.mainImage,
-        }));
+    const orderData = {
+      products: selectedProductsList.map(product => ({
+        id: product.productId,
+        unitPrice: product.unitPrice,
+        quantity: 1,
+      })),
+      devices: [{
+        id: selectedDevice.id,
+        unitPrice: selectedDevice.price,
+        quantity: 1,
+      }],
+    };
 
-      // Save selected products to localStorage for the cart page
-      localStorage.setItem(
-        "selectedCartDetails",
-        JSON.stringify(selectedProductsList)
-      );
+    const orderResponse = await submitOrder(orderData);
+    if (orderResponse.statusCodes != 200) {
+      console.error("Failed to submit order:", orderResponse);
+      return;
     }
-
-    // Navigate to the cart page
-    navigate("/cart");
+    localStorage.setItem("currentOrderId", orderResponse.response.data);
+    // Redirect to cart page after successful order submission
+    navigate("/checkout/shipping");
   };
+
 
   // Loading state
   if (loadingDevices) {
@@ -204,8 +212,8 @@ const DeviceSelectionPage: React.FC = () => {
   }
 
   return (
-    <Box 
-      sx={{ 
+    <Box
+      sx={{
         paddingTop: { xs: '76px', sm: '84px', md: '88px' },  // Tăng padding-top để tránh bị navbar che
         background: `linear-gradient(135deg, ${alpha(theme.palette.primary.light, 0.05)} 0%, ${theme.palette.background.default} 100%)`,
         minHeight: '100vh',
@@ -240,8 +248,8 @@ const DeviceSelectionPage: React.FC = () => {
           variant="subtitle1"
           align="center"
           variants={itemVariants}
-          sx={{ 
-            mb: 5, 
+          sx={{
+            mb: 5,
             color: alpha(theme.palette.text.primary, 0.7),
             maxWidth: '700px',
             mx: 'auto',
@@ -257,7 +265,7 @@ const DeviceSelectionPage: React.FC = () => {
             <Grid item key={device.id} xs={12} md={6}>
               <MotionCard
                 variants={itemVariants}
-                whileHover={{ 
+                whileHover={{
                   y: -8,
                   boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
                 }}
@@ -298,7 +306,7 @@ const DeviceSelectionPage: React.FC = () => {
                   height="240"
                   image={device.attachment || "/placeholder-device.jpg"}
                   alt={device.name}
-                  sx={{ 
+                  sx={{
                     objectFit: "cover",
                     transition: 'transform 0.5s ease',
                     '&:hover': {
@@ -321,9 +329,9 @@ const DeviceSelectionPage: React.FC = () => {
                     {device.name}
                   </Typography>
 
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary" 
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
                     paragraph
                     sx={{
                       lineHeight: 1.7,
@@ -374,7 +382,7 @@ const DeviceSelectionPage: React.FC = () => {
                       py: 1,
                       borderRadius: 2,
                       fontWeight: 500,
-                      boxShadow: selectedDevice?.id === device.id 
+                      boxShadow: selectedDevice?.id === device.id
                         ? '0 4px 10px rgba(76, 175, 80, 0.25)'
                         : 'none',
                     }}
@@ -397,9 +405,9 @@ const DeviceSelectionPage: React.FC = () => {
                 >
                   <Divider sx={{ mx: 2 }} />
                   <CardContent sx={{ bgcolor: alpha(theme.palette.primary.light, 0.03) }}>
-                    <Typography 
-                      variant="subtitle1" 
-                      fontWeight="bold" 
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight="bold"
                       color="primary.dark"
                       gutterBottom
                     >
@@ -413,7 +421,7 @@ const DeviceSelectionPage: React.FC = () => {
                           </Box>
                         </Typography>
                       </Box>
-                      
+
                       <Box>
                         <Typography variant="body2" color="text.secondary" fontWeight="medium">
                           Capacity: <Box component="span" sx={{ color: 'text.primary', fontWeight: 'normal' }}>
@@ -421,7 +429,7 @@ const DeviceSelectionPage: React.FC = () => {
                           </Box>
                         </Typography>
                       </Box>
-                      
+
                       <Box>
                         <Typography variant="body2" color="text.secondary" fontWeight="medium">
                           Features: <Box component="span" sx={{ color: 'text.primary', fontWeight: 'normal' }}>
@@ -429,7 +437,7 @@ const DeviceSelectionPage: React.FC = () => {
                           </Box>
                         </Typography>
                       </Box>
-                      
+
                       <Box>
                         <Typography variant="body2" color="text.secondary" fontWeight="medium">
                           Warranty: <Box component="span" sx={{ color: 'text.primary', fontWeight: 'normal' }}>
@@ -476,11 +484,11 @@ const DeviceSelectionPage: React.FC = () => {
                     zIndex: 0
                   }}
                 />
-                
+
                 <Box sx={{ position: 'relative', zIndex: 1 }}>
-                  <Typography 
-                    variant="h5" 
-                    fontWeight="bold" 
+                  <Typography
+                    variant="h5"
+                    fontWeight="bold"
                     gutterBottom
                     color="primary"
                     sx={{
@@ -492,9 +500,9 @@ const DeviceSelectionPage: React.FC = () => {
                     Optional: Add Compatible Products
                   </Typography>
 
-                  <Typography 
-                    variant="body1" 
-                    color="text.secondary" 
+                  <Typography
+                    variant="body1"
+                    color="text.secondary"
                     paragraph
                     sx={{ mb: 3.5 }}
                   >
@@ -510,8 +518,8 @@ const DeviceSelectionPage: React.FC = () => {
                     <Grid container spacing={3} sx={{ mt: 0.5 }}>
                       {products.slice(0, 4).map((product, index) => (
                         <Grid item key={product.id} xs={12} sm={6} md={3}>
-                          <Zoom 
-                            in={true} 
+                          <Zoom
+                            in={true}
                             style={{ transitionDelay: `${index * 100}ms` }}
                           >
                             <Card
@@ -523,9 +531,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   : "1px solid rgba(0,0,0,0.05)",
                                 boxShadow: selectedProducts[product.id]
                                   ? `0 6px 16px ${alpha(
-                                      theme.palette.primary.main,
-                                      0.25
-                                    )}`
+                                    theme.palette.primary.main,
+                                    0.25
+                                  )}`
                                   : "0 3px 10px rgba(0,0,0,0.08)",
                                 transition: "all 0.2s ease",
                                 height: "100%",
@@ -567,7 +575,7 @@ const DeviceSelectionPage: React.FC = () => {
                                   product.mainImage || "/placeholder-product.jpg"
                                 }
                                 alt={product.name}
-                                sx={{ 
+                                sx={{
                                   objectFit: "contain",
                                   bgcolor: alpha(theme.palette.grey[100], 0.5),
                                   p: 1
@@ -575,8 +583,8 @@ const DeviceSelectionPage: React.FC = () => {
                               />
 
                               <CardContent sx={{ flexGrow: 1, p: 2 }}>
-                                <Typography 
-                                  variant="subtitle1" 
+                                <Typography
+                                  variant="subtitle1"
                                   fontWeight="medium"
                                   gutterBottom
                                   sx={{
@@ -594,7 +602,7 @@ const DeviceSelectionPage: React.FC = () => {
                                 <Typography
                                   variant="body2"
                                   color="text.secondary"
-                                  sx={{ 
+                                  sx={{
                                     mt: 1,
                                     mb: 2,
                                     minHeight: '60px',
@@ -613,11 +621,11 @@ const DeviceSelectionPage: React.FC = () => {
                                   }
                                 </Typography>
 
-                                <Box 
-                                  sx={{ 
-                                    display: 'flex', 
+                                <Box
+                                  sx={{
+                                    display: 'flex',
                                     justifyContent: 'space-between',
-                                    alignItems: 'center' 
+                                    alignItems: 'center'
                                   }}
                                 >
                                   <Typography
@@ -627,9 +635,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   >
                                     ${product.price || 0}
                                   </Typography>
-                                  
-                                  <Chip 
-                                    size="small" 
+
+                                  <Chip
+                                    size="small"
                                     label={selectedProducts[product.id] ? "Selected" : "Optional"}
                                     color={selectedProducts[product.id] ? "primary" : "default"}
                                     sx={{ fontWeight: 'medium' }}
@@ -645,11 +653,11 @@ const DeviceSelectionPage: React.FC = () => {
                 </Box>
               </Paper>
 
-              <Box 
-                sx={{ 
-                  display: "flex", 
-                  justifyContent: "center", 
-                  mt: 5 
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  mt: 5
                 }}
               >
                 <MotionButton

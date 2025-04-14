@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { io, Socket } from "socket.io-client";
 import axios from "axios";
-import Cookies from "js-cookie"; 
+import Cookies from "js-cookie";
 
 interface Ticket {
   id: string;
@@ -55,7 +55,6 @@ interface AuthContextType {
     email: string;
     password: string;
     phone: string;
-    address: string;
   }) => Promise<void>;
   logout: () => void;
   changePassword: (data: {
@@ -85,24 +84,24 @@ interface StoredUser extends Omit<User, "auth"> {
 // Create a default context
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  token: null,
+  token: localStorage.getItem("authToken") ?? null,
   tickets: [],
-  login: async () => {},
-  register: async () => {},
-  logout: () => {},
-  updateProfile: async () => {},
-  changePassword: async () => {},
-  resetPassword: async () => {},
+  login: async () => { },
+  register: async () => { },
+  logout: () => { },
+  updateProfile: async () => { },
+  changePassword: async () => { },
+  resetPassword: async () => { },
   verifyOtp: async () => "",
-  resetPasswordWithToken: async () => {},
-  submitTicket: async () => {},
-  updateTicketStatus: async () => {},
+  resetPasswordWithToken: async () => { },
+  submitTicket: async () => { },
+  updateTicketStatus: async () => { },
   getUserInfo: async () => ({} as User),
-  isAuthenticated: false,
+  isAuthenticated: localStorage.getItem("authToken") != null ? true : false,
   isAdmin: false,
   loading: false,
   error: null,
-  clearError: () => {},
+  clearError: () => { },
 });
 
 const api = axios.create({
@@ -158,18 +157,18 @@ api.interceptors.response.use(
         if (!authRefreshFunction) {
           throw new Error("Authentication refresh function not initialized");
         }
-        
+
         const newToken = await authRefreshFunction();
 
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         console.error("Failed to retry request after refreshing token:", refreshError);
-        
+
         if (authLogoutFunction) {
           authLogoutFunction();
         }
-        
+
         return Promise.reject(refreshError);
       }
     }
@@ -188,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
   const socket = useRef<Socket>();
 
-  const isAuthenticated = !!user;
+  const isAuthenticated = !!user || localStorage.getItem("authToken") != null;
   const isAdmin = user?.role === "admin";
 
   const clearError = () => setError(null);
@@ -202,14 +201,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshAuthToken = async () => {
     try {
       console.log("Attempting to refresh auth token");
-      
+
       // Get the refresh token from cookies
       const refreshToken = Cookies.get("RefreshToken");
       const deviceId = Cookies.get("DeviceId");
-      
+
       console.log("Refresh token available:", !!refreshToken);
       console.log("Device ID available:", !!deviceId);
-      
+
       if (!refreshToken) {
         throw new Error("No refresh token available");
       }
@@ -218,18 +217,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await api.post("/auth/refresh-token", {}, {
         withCredentials: true // Ensure cookies are sent with the request
       });
-      
+
       console.log("Refresh token response:", response.data);
 
       if (response.data?.statusCodes === 200 && response.data?.response?.data?.auth?.token) {
         // Extract the new token from the response
         const newToken = response.data.response.data.auth.token;
         console.log("New token received:", !!newToken);
-        
+
         // Update token in state and localStorage
         setToken(newToken);
         localStorage.setItem("authToken", newToken);
-        
+
         return newToken;
       } else if (response.data?.token) {
         // Alternative response format
@@ -242,7 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error("Failed to refresh token");
     } catch (error) {
       console.error("Refresh token failed:", error);
-      logout(); 
+      logout();
       throw error;
     }
   };
@@ -267,7 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
           if (userData.auth && userData.auth.token) {
             const { token } = userData.auth;
-            
+
             // Lưu access token vào localStorage
             setToken(token);
             localStorage.setItem("authToken", token);
@@ -297,9 +296,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Unexpected login response structure:", response.data);
         throw new Error("Invalid response format from server");
       } else if (response.data?.statusCodes !== 200) {
-        const errorMessage = 
-          response.data?.response?.message || 
-          response.data?.message || 
+        const errorMessage =
+          response.data?.response?.message ||
+          response.data?.message ||
           "Login failed. Please check your credentials.";
         throw new Error(errorMessage);
       } else {
@@ -308,15 +307,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch (err: any) {
       console.error("Login error:", err);
-      
+
       if (axios.isAxiosError(err)) {
-        const errorMessage = 
-          err.response?.data?.response?.message || 
-          err.response?.data?.message || 
+        const errorMessage =
+          err.response?.data?.response?.message ||
+          err.response?.data?.message ||
           "Failed to login. Please try again.";
-        
+
         setError(errorMessage);
-        
+
         if (err.response?.status === 401) {
           setError("Invalid email or password. Please try again.");
         } else if (err.response?.status === 403) {
@@ -329,7 +328,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } else {
         setError("An unexpected error occurred during login");
       }
-      
+
       throw err;
     } finally {
       setLoading(false);
@@ -341,7 +340,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     email: string;
     password: string;
     phone: string;
-    address: string;
   }) => {
     setLoading(true);
     setError(null);
@@ -439,7 +437,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (response.data?.statusCodes === 200 || response.data?.data) {
         const userData = response.data?.data || response.data?.response?.data;
-
+        var newToken = response.headers["new-access-token"];
+        if (newToken != null) {
+          const newToken = response.headers["new-access-token"];
+          setToken(newToken);
+          localStorage.setItem("authToken", newToken);
+        }
         if (userData) {
           setUser((prevUser) => ({
             ...prevUser,
@@ -766,7 +769,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       throw new Error(
         resetResponse.data?.message ||
-          "Failed to reset password. Please try again."
+        "Failed to reset password. Please try again."
       );
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -999,19 +1002,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         setLoading(true);
         console.log("Initializing authentication state");
-        
+
         // Check for existing token in localStorage
         const authToken = localStorage.getItem("authToken");
         // Check for refresh token in cookies
         const refreshToken = Cookies.get("RefreshToken");
         const deviceId = Cookies.get("DeviceId");
-        
+
         console.log("Auth state on init:", {
           authToken: authToken ? "exists" : "missing",
           refreshToken: refreshToken ? "exists" : "missing",
           deviceId: deviceId ? "exists" : "missing"
         });
-        
+
         if (authToken) {
           try {
             // Try to get user info with the current token
@@ -1022,7 +1025,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             console.log("Successfully authenticated with existing token");
           } catch (error) {
             console.error("Error using existing token:", error);
-            
+
             // If the token is invalid but we have a refresh token, try to refresh
             if (refreshToken) {
               try {
@@ -1043,7 +1046,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               logout();
             }
           }
-        } 
+        }
         // If no token but we have a refresh token, try to refresh
         else if (refreshToken) {
           try {
