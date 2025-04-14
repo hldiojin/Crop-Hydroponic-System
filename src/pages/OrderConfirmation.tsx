@@ -205,6 +205,7 @@ const OrderConfirmation: React.FC = () => {
 
       // For successful payments, fetch the order details from API
       const fetchOrderDetails = async () => {
+
         if (orderId && finalStatus === "success") {
           try {
             console.log("Fetching order details from API for order:", orderId);
@@ -266,7 +267,7 @@ const OrderConfirmation: React.FC = () => {
 
       // Only check transaction status if we don't already have a definitive success/failure status
       // and we have a transaction ID
-      if (transactionId && finalStatus === "pending") {
+      if (transactionId) {
         console.log("Checking transaction status for:", transactionId);
         checkTransactionStatus(transactionId)
           .then(
@@ -563,8 +564,8 @@ const OrderConfirmation: React.FC = () => {
                         {shippingMethod === "standard"
                           ? "Giao hàng tiêu chuẩn (2-5 ngày)"
                           : shippingMethod === "express"
-                          ? "Giao hàng nhanh (1-2 ngày)"
-                          : "Giao hàng hỏa tốc (24 giờ)"}
+                            ? "Giao hàng nhanh (1-2 ngày)"
+                            : "Giao hàng hỏa tốc (24 giờ)"}
                       </Typography>
                     </>
                   ) : (
@@ -654,7 +655,7 @@ const OrderConfirmation: React.FC = () => {
             {orderDetails &&
               orderDetails.orderDetailsItems &&
               orderDetails.orderDetailsItems.length > 0 && (
-                <Box sx={{ mt: 4 }}>
+                <Box sx={{ mt: 8 }}>
                   <Typography
                     variant="h6"
                     sx={{
@@ -689,9 +690,9 @@ const OrderConfirmation: React.FC = () => {
                                 index % 2 === 0
                                   ? "transparent"
                                   : alpha(
-                                      theme.palette.background.default,
-                                      0.5
-                                    ),
+                                    theme.palette.background.default,
+                                    0.5
+                                  ),
                             }}
                           >
                             <Box
@@ -727,8 +728,8 @@ const OrderConfirmation: React.FC = () => {
                           </ListItem>
                           {index <
                             orderDetails.orderDetailsItems.length - 1 && (
-                            <Divider />
-                          )}
+                              <Divider />
+                            )}
                         </React.Fragment>
                       ))}
                     </List>

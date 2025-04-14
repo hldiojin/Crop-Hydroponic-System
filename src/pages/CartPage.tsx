@@ -80,6 +80,7 @@ const CartPage: React.FC<CartPageProps> = ({
     Record<string, number>
   >({});
   const [devices, setDevices] = useState<Device[]>([]);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   // Thêm state để theo dõi các sản phẩm được chọn
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>(
@@ -92,8 +93,8 @@ const CartPage: React.FC<CartPageProps> = ({
     .filter((item) => selectedItems[item.id])
     .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
 
-  const selectedShipping = selectedSubtotal > 100 ? 0 : 15;
-  const selectedTotal = selectedSubtotal + selectedShipping;
+  // const selectedShipping = selectedSubtotal > 100 ? 0 : 15;
+  const selectedTotal = selectedSubtotal;
 
   // Số lượng sản phẩm được chọn
   const selectedCount = Object.values(selectedItems).filter(Boolean).length;
@@ -143,31 +144,31 @@ const CartPage: React.FC<CartPageProps> = ({
         const details = await cartService.getCartDetails();
 
         // Check if we have selected products from the device selection page
-        const selectedCartData = localStorage.getItem("selectedCartDetails");
-        if (selectedCartData) {
-          const selectedProducts = JSON.parse(selectedCartData);
-          // Combine existing cart details with selected products
-          setCartDetails([...details, ...selectedProducts]);
-        } else {
-          setCartDetails(details);
-        }
+        //const selectedCartData = localStorage.getItem("selectedCartDetails");
+        // if (selectedCartData) {
+        //   const selectedProducts = JSON.parse(selectedCartData);
+        //   // Combine existing cart details with selected products
+        //   setCartDetails([...details, ...selectedProducts]);
+        // } else {
+        setCartDetails(details);
+        // }
 
         // Check if we have selected devices from the device selection page
-        const devicesData = localStorage.getItem("selectedDevices");
-        if (devicesData) {
-          setSelectedDevices(JSON.parse(devicesData));
+        // const devicesData = localStorage.getItem("selectedDevices");
+        // if (devicesData) {
+        //   setSelectedDevices(JSON.parse(devicesData));
 
-          // Load device details to display them
-          try {
-            const devicesList = await deviceService.getAll();
-            setDevices(devicesList);
-          } catch (err) {
-            console.error("Failed to fetch devices:", err);
-          }
-        }
+        //   // Load device details to display them
+        //   try {
+        //     const devicesList = await deviceService.getAll();
+        //     setDevices(devicesList);
+        //   } catch (err) {
+        //     console.error("Failed to fetch devices:", err);
+        //   }
+        // }
 
         // Lưu dữ liệu giỏ hàng vào localStorage
-        localStorage.setItem("cartDetails", JSON.stringify(details));
+        // localStorage.setItem("cartDetails", JSON.stringify(details));
       } catch (err) {
         console.error("Failed to fetch cart details:", err);
         setError("Failed to load cart items.");
@@ -187,6 +188,11 @@ const CartPage: React.FC<CartPageProps> = ({
         // Nếu sản phẩm chưa có trong state, mặc định chọn tất cả
         initialSelectedItems[item.id] =
           selectedItems[item.id] !== undefined ? selectedItems[item.id] : true;
+      });
+
+      const initialQuantities: Record<string, number> = {};
+      cartDetails.forEach((item) => {
+        initialQuantities[item.id] = item.quantity;
       });
       setSelectedItems(initialSelectedItems);
 
@@ -208,18 +214,17 @@ const CartPage: React.FC<CartPageProps> = ({
     const newQuantity = currentQuantity + change;
 
     // First update UI optimistically
-    updateQuantity(productId, change);
+    // updateQuantity(productId, change);
 
     // Then update on the server
     try {
+      // updateQuantity(productId, change);
       await cartService.updateCartQuantity(productId, newQuantity);
 
       // Refresh cart details after any change
       const details = await cartService.getCartDetails();
       setCartDetails(details);
 
-      // Lưu dữ liệu giỏ hàng mới nhất vào localStorage
-      localStorage.setItem("cartDetails", JSON.stringify(details));
     } catch (error) {
       console.error("Failed to update cart item:", error);
     }
@@ -237,8 +242,6 @@ const CartPage: React.FC<CartPageProps> = ({
       const details = await cartService.getCartDetails();
       setCartDetails(details);
 
-      // Lưu dữ liệu giỏ hàng mới nhất vào localStorage
-      localStorage.setItem("cartDetails", JSON.stringify(details));
     } catch (error) {
       console.error("Failed to remove cart item:", error);
     }
@@ -253,10 +256,10 @@ const CartPage: React.FC<CartPageProps> = ({
       );
 
       // Lưu danh sách sản phẩm được chọn vào localStorage
-      localStorage.setItem(
-        "selectedCartDetails",
-        JSON.stringify(selectedProducts)
-      );
+      // localStorage.setItem(
+      //   "selectedCartDetails",
+      //   JSON.stringify(selectedProducts)
+      // );
 
       // Prepare order data
       const orderData = {
@@ -902,7 +905,7 @@ const CartPage: React.FC<CartPageProps> = ({
                         </Typography>
 
                         <Chip
-                          label={`$${item.unitPrice.toLocaleString()}`}
+                          label={`${item.unitPrice.toLocaleString()}đ`}
                           size="small"
                           color="primary"
                           variant="outlined"
@@ -1136,30 +1139,6 @@ const CartPage: React.FC<CartPageProps> = ({
                   </Typography>
                   <Typography variant="body1" fontWeight="bold">
                     ${selectedSubtotal.toLocaleString()}
-                  </Typography>
-                </Box>
-
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Typography variant="body1" color="text.secondary">
-                    Shipping
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {selectedShipping === 0 ? (
-                      <Chip
-                        label="FREE"
-                        color="success"
-                        size="small"
-                        sx={{ fontWeight: "bold" }}
-                      />
-                    ) : (
-                      `$${selectedShipping.toLocaleString()}`
-                    )}
                   </Typography>
                 </Box>
 
