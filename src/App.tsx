@@ -317,191 +317,188 @@ const MainContent: React.FC<{
   onLogout,
   cartItemsCount,
 }) => {
-    const location = useLocation();
+  const location = useLocation();
 
-    // Define paths where Navbar and Footer should be hidden
-    const noLayoutPaths = [
-      "/login",
-      "/register",
-      "/cart",
-      "/checkout",
-      "/profile",
-      "/admin",
-      "/favorites",
-    ];
+  // Define paths where Navbar and Footer should be hidden
+  const noLayoutPaths = [
+    "/login",
+    "/register",
+    "/cart",
+    "/checkout",
+    "/profile",
+    "/admin",
+    "/favorites",
+  ];
 
-    // Check if current path is in the noLayoutPaths list
-    const hideLayout = noLayoutPaths.some(
-      (path) =>
-        location.pathname === path || location.pathname.startsWith(path + "/")
-    );
+  // Check if current path is in the noLayoutPaths list
+  const hideLayout = noLayoutPaths.some(
+    (path) =>
+      location.pathname === path || location.pathname.startsWith(path + "/")
+  );
 
-    // Only show HeroSection on homepage
-    const showHeroSection = location.pathname === "/";
+  // Only show HeroSection on homepage
+  const showHeroSection = location.pathname === "/";
 
-    return (
-      <>
-        {showHeroSection && <HeroSection />}
-        <Routes>
-          <Route
-            path="/"
-            element={
-              loading ? (
-                <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-                  <CircularProgress />
-                </Box>
-              ) : (
-                <ProductList
-                  products={products}
-                  onAddToCart={handleAddToCart}
-                  onEdit={handleEditProduct}
-                  onFavorite={handleFavoriteProduct}
-                  favorites={favorites}
-                />
-              )
-            }
-          />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route
-            path="/product/:id"
-            element={
-              <ProductDetail
+  return (
+    <>
+      {showHeroSection && <HeroSection />}
+      <Routes>
+        <Route
+          path="/"
+          element={
+            loading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <ProductList
                 products={products}
                 onAddToCart={handleAddToCart}
+                onEdit={handleEditProduct}
                 onFavorite={handleFavoriteProduct}
                 favorites={favorites}
               />
-            }
-          />
-          <Route
-            path="/devices"
-            element={
-              <ProtectedRoute>
-                <DeviceSelectionPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/cart"
-            element={
-              <ProtectedRoute>
-                <CartPage
-                  cart={cart}
-                  updateQuantity={handleUpdateQuantity}
-                  removeFromCart={handleRemoveFromCart}
+            )
+          }
+        />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/product/:id"
+          element={
+            <ProductDetail
+              products={products}
+              onAddToCart={handleAddToCart}
+              onFavorite={handleFavoriteProduct}
+              favorites={favorites}
+            />
+          }
+        />
+        <Route
+          path="/devices"
+          element={
+            <ProtectedRoute>
+              <DeviceSelectionPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute>
+              <CartPage
+                cart={cart}
+                updateQuantity={handleUpdateQuantity}
+                removeFromCart={handleRemoveFromCart}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout/shipping"
+          element={
+            <ProtectedRoute>
+              <ShippingPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout/payment"
+          element={
+            <ProtectedRoute>
+              <PaymentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/checkout/confirmation" element={<OrderConfirmation />} />
+        <Route
+          path="/plants"
+          element={
+            <PlantsPage
+              onAddToCart={handleAddToCart}
+              onEdit={handleEditProduct}
+              onFavorite={handleFavoriteProduct}
+              favorites={favorites}
+            />
+          }
+        />
+        <Route
+          path="/systems"
+          element={
+            <SystemsPage
+              onAddToCart={handleAddToCart}
+              onEdit={handleEditProduct}
+              onFavorite={handleFavoriteProduct}
+              favorites={favorites}
+            />
+          }
+        />
+        <Route
+          path="/nutrients"
+          element={
+            <NutrientsPage
+              onAddToCart={handleAddToCart}
+              onEdit={handleEditProduct}
+              onFavorite={handleFavoriteProduct}
+              favorites={favorites}
+            />
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <ProfilePage />
+              </Box>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/favorites"
+          element={
+            <ProtectedRoute>
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <FavoritePage
+                  products={products}
+                  favorites={favorites}
+                  onRemoveFavorite={handleFavoriteProduct}
+                  onAddToCart={handleAddToCart}
                 />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/checkout/shipping"
-            element={
-              <ProtectedRoute>
-                <ShippingPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/checkout/payment"
-            element={
-              <ProtectedRoute>
-                <PaymentPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/checkout/confirmation"
-            element={<OrderConfirmation />}
-          />
-          <Route
-            path="/plants"
-            element={
-              <PlantsPage
-                onAddToCart={handleAddToCart}
-                onEdit={handleEditProduct}
-                onFavorite={handleFavoriteProduct}
-                favorites={favorites}
-              />
-            }
-          />
-          <Route
-            path="/systems"
-            element={
-              <SystemsPage
-                onAddToCart={handleAddToCart}
-                onEdit={handleEditProduct}
-                onFavorite={handleFavoriteProduct}
-                favorites={favorites}
-              />
-            }
-          />
-          <Route
-            path="/nutrients"
-            element={
-              <NutrientsPage
-                onAddToCart={handleAddToCart}
-                onEdit={handleEditProduct}
-                onFavorite={handleFavoriteProduct}
-                favorites={favorites}
-              />
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Box sx={{ p: 3 }}>
-                  <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
-                  <ProfilePage />
-                </Box>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/favorites"
-            element={
-              <ProtectedRoute>
-                <Box sx={{ p: 3 }}>
-                  <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
-                  <FavoritePage
-                    products={products}
-                    favorites={favorites}
-                    onRemoveFavorite={handleFavoriteProduct}
-                    onAddToCart={handleAddToCart}
-                  />
-                </Box>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <AdminRoute>
-                <Box sx={{ p: 3 }}>
-                  <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
-                  <AdminDashboard />
-                </Box>
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/checkout"
-            element={
-              <ProtectedRoute>
-                <Box sx={{ p: 3 }}>
-                  <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
-                  <CheckoutPage />
-                </Box>
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/payos-callback" element={<PayOSCallback />} />
-          <Route path="/payment" element={<PayOSCallback />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </>
-    );
-  };
+              </Box>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <AdminDashboard />
+              </Box>
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/checkout"
+          element={
+            <ProtectedRoute>
+              <Box sx={{ p: 3 }}>
+                <Navbar cartItemsCount={cartItemsCount} onLogout={onLogout} />
+                <CheckoutPage />
+              </Box>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/payos-callback" element={<PayOSCallback />} />
+        <Route path="/payment" element={<PayOSCallback />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </>
+  );
+};
 
 export default App;

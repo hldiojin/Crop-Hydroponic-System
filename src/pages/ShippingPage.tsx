@@ -921,18 +921,7 @@ const ShippingPage: React.FC = () => {
                     />
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    {/* <TextField
-                      fullWidth
-                      id="province"
-                      name="province"
-                      label="Province/City"
-                      value={formData.province}
-                      onChange={handleFormChange}
-                      error={!!formErrors.province}
-                      helperText={formErrors.province}
-                      sx={{ mb: 2 }}
-                    /> */}
-                    <FormControl sx={{ m: 1, minWidth: 200 }}>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
                       <InputLabel id="demo-simple-select-standard-label">Province</InputLabel>
                       <Select
                         labelId="demo-simple-select-label"
@@ -952,18 +941,7 @@ const ShippingPage: React.FC = () => {
                     </FormControl>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    {/* <TextField
-                      fullWidth
-                      id="district"
-                      name="district"
-                      label="District"
-                      value={formData.district}
-                      onChange={handleFormChange}
-                      error={!!formErrors.district}
-                      helperText={formErrors.district}
-                      sx={{ mb: 2 }}
-                    /> */}
-                    <FormControl sx={{ m: 1, minWidth: 200 }}>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
                       <InputLabel id="demo-simple-select-standard-label">District</InputLabel>
                       <Select
                         labelId="demo-simple-select-label"
@@ -983,18 +961,7 @@ const ShippingPage: React.FC = () => {
                     </FormControl>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    {/* <TextField
-                      fullWidth
-                      id="ward"
-                      name="ward"
-                      label="Ward"
-                      value={formData.ward}
-                      onChange={handleFormChange}
-                      error={!!formErrors.ward}
-                      helperText={formErrors.ward}
-                      sx={{ mb: 2 }}
-                    /> */}
-                    <FormControl sx={{ m: 1, minWidth: 200 }}>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
                       <InputLabel id="demo-simple-select-standard-label">Ward</InputLabel>
                       <Select
                         labelId="demo-simple-select-label"
