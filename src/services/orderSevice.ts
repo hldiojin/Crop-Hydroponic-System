@@ -54,6 +54,29 @@ export interface OrderDetail {
   transactions: Transaction[];
 }
 
+export interface OrderSummary {
+  id: string;
+  userId: string;
+  fullName: string;
+  userAddressId: string;
+  totalPrice: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface OrdersResponse {
+  statusCodes: number;
+  response: {
+    data: OrderSummary[];
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    pageSize: number;
+    lastPage: boolean;
+  };
+}
+
 export const submitOrder = async (orderData: OrderData): Promise<any> => {
   try {
     const response = await api.post("/order", orderData);
@@ -70,6 +93,24 @@ export const getOrderById = async (orderId: string): Promise<any> => {
     return response.data;
   } catch (error) {
     console.error(`Error fetching order ${orderId}:`, error);
+    throw error;
+  }
+};
+
+export const getAllOrders = async (
+  pageIndex: number = 1,
+  pageSize: number = 10
+): Promise<OrdersResponse> => {
+  try {
+    const response = await api.get(
+      `/order?pageIndex=${pageIndex}&pageSize=${pageSize}`,
+      {
+        withCredentials: true,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching orders:", error);
     throw error;
   }
 };
@@ -108,7 +149,7 @@ export const checkTransactionStatus = async (orderId: string): Promise<any> => {
       console.error("Invalid transaction ID:", transactionId);
       return {
         statusCodes: 400,
-        response: { success: false, message: "Invalid transaction ID" }
+        response: { success: false, message: "Invalid transaction ID" },
       };
     }
 

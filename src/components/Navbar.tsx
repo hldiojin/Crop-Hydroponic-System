@@ -1,6 +1,6 @@
 // src/components/Navbar.tsx
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -26,8 +26,14 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ cartItemsCount, onLogout }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, user, logout, isAdmin } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Hide navbar on login and register pages
+  if (location.pathname === '/login' || location.pathname === '/register') {
+    return null;
+  }
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);

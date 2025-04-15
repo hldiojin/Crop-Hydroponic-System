@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
@@ -233,7 +232,7 @@ const ProductCard: React.FC<Props> = ({
           </Typography>
 
           <Typography variant="h6" color="primary" sx={{ fontWeight: 700 }}>
-            ${product.price.toLocaleString()}
+            {product.price.toLocaleString()} VND
           </Typography>
 
           <Typography

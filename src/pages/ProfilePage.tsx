@@ -33,6 +33,8 @@ import {
   TableRow,
   useTheme,
   Grid,
+  List,
+  ListItem,
 } from "@mui/material";
 import {
   Edit as EditIcon,
@@ -49,11 +51,19 @@ import {
   Help as HelpIcon,
   ArrowBack as ArrowBackIcon,
   Dashboard as DashboardIcon,
+  ShoppingBasket as OrdersIcon,
+  RemoveRedEye as ViewIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import ticketService from "../services/ticketService";
+import {
+  getAllOrders,
+  getOrderById,
+  OrderDetail,
+  OrderSummary,
+} from "../services/orderSevice";
 import { Ticket, TicketRequest } from "../types/types";
 import { motion } from "framer-motion";
 import {
@@ -65,7 +75,7 @@ import {
   containerVariants,
   itemVariants,
   logoVariants,
-  buttonVariants
+  buttonVariants,
 } from "../utils/motion";
 
 const ProfilePage: React.FC = () => {
@@ -134,7 +144,26 @@ const ProfilePage: React.FC = () => {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [selectedTicketDetails, setSelectedTicketDetails] = useState<any>(null);
   const [loadingTicketDetails, setLoadingTicketDetails] = useState(false);
-  const [ticketDetailsError, setTicketDetailsError] = useState<string | null>(null);
+  const [ticketDetailsError, setTicketDetailsError] = useState<string | null>(
+    null
+  );
+
+  // Order state
+  const [ordersDialogOpen, setOrdersDialogOpen] = useState(false);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [orderPage, setOrderPage] = useState(1);
+  const [totalOrderPages, setTotalOrderPages] = useState(1);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  // Order detail state
+  const [orderDetailsDialogOpen, setOrderDetailsDialogOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedOrderDetails, setSelectedOrderDetails] =
+    useState<OrderDetail | null>(null);
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
+  const [orderDetailsError, setOrderDetailsError] = useState<string | null>(
+    null
+  );
 
   const checkedCookiesRef = useRef(false);
 
@@ -493,13 +522,15 @@ const ProfilePage: React.FC = () => {
     setSelectedTicketId(ticketId);
     setLoadingTicketDetails(true);
     setTicketDetailsError(null);
-    
+
     try {
       const response = await ticketService.getTicketById(ticketId);
       if (response && response.statusCodes === 200) {
         setSelectedTicketDetails(response.response.data);
       } else {
-        setTicketDetailsError("Failed to fetch ticket details. Please try again.");
+        setTicketDetailsError(
+          "Failed to fetch ticket details. Please try again."
+        );
       }
     } catch (error) {
       console.error("Error fetching ticket details:", error);
@@ -518,17 +549,19 @@ const ProfilePage: React.FC = () => {
 
   // Format date string for better display
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   // Helper function to get status chip color
-  const getStatusColor = (status: string): "warning" | "info" | "success" | "error" => {
+  const getStatusColor = (
+    status: string
+  ): "warning" | "info" | "success" | "error" => {
     switch (status) {
       case "Pending":
         return "warning";
@@ -547,13 +580,120 @@ const ProfilePage: React.FC = () => {
   const pageVariants = {
     initial: { opacity: 0, y: 20 },
     in: { opacity: 1, y: 0 },
-    out: { opacity: 0, y: -20 }
+    out: { opacity: 0, y: -20 },
   };
 
   const pageTransition = {
     type: "tween",
     ease: "anticipate",
-    duration: 0.5
+    duration: 0.5,
+  };
+
+  // Add handler functions for orders
+  const handleViewAllOrders = async () => {
+    setIsLoadingOrders(true);
+    try {
+      const response = await getAllOrders(orderPage);
+      setOrders(response.response.data);
+      setTotalOrderPages(response.response.totalPages);
+      setOrdersDialogOpen(true);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      setSnackbar({
+        open: true,
+        message: "Failed to load orders",
+        severity: "error",
+      });
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  const handleLoadMoreOrders = async () => {
+    if (orderPage < totalOrderPages) {
+      setIsLoadingOrders(true);
+      try {
+        const nextPage = orderPage + 1;
+        const response = await getAllOrders(nextPage);
+        setOrders((prev) => [...prev, ...response.response.data]);
+        setOrderPage(nextPage);
+        setTotalOrderPages(response.response.totalPages);
+      } catch (error) {
+        console.error("Error fetching more orders:", error);
+        setSnackbar({
+          open: true,
+          message: "Failed to load more orders",
+          severity: "error",
+        });
+      } finally {
+        setIsLoadingOrders(false);
+      }
+    }
+  };
+
+  const handleCloseOrdersDialog = () => {
+    setOrdersDialogOpen(false);
+    setOrderPage(1);
+  };
+
+  const handleViewOrderDetails = async (orderId: string) => {
+    setSelectedOrderId(orderId);
+    setLoadingOrderDetails(true);
+    setOrderDetailsError(null);
+
+    try {
+      const response = await getOrderById(orderId);
+      if (response && response.statusCodes === 200) {
+        setSelectedOrderDetails(response.response.data);
+      } else {
+        setOrderDetailsError(
+          "Failed to fetch order details. Please try again."
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+      setOrderDetailsError("An error occurred while fetching order details");
+    } finally {
+      setLoadingOrderDetails(false);
+      setOrderDetailsDialogOpen(true);
+    }
+  };
+
+  const handleCloseOrderDetailsDialog = () => {
+    setOrderDetailsDialogOpen(false);
+    setSelectedOrderDetails(null);
+    setSelectedOrderId(null);
+  };
+
+  // Helper function to get status color for orders
+  const getOrderStatusColor = (
+    status: string
+  ): "warning" | "info" | "success" | "error" => {
+    switch (status.toLowerCase()) {
+      case "pending":
+        return "warning";
+      case "processing":
+        return "info";
+      case "shipped":
+      case "delivering":
+        return "info";
+      case "delivered":
+      case "done":
+        return "success";
+      case "cancelled":
+        return "error";
+      default:
+        return "info";
+    }
+  };
+
+  // Helper function to format currency
+  const formatCurrency = (amount: number) => {
+    return (
+      new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" })
+        .format(amount)
+        .replace("₫", "") + " ₫"
+    );
   };
 
   return (
@@ -563,13 +703,13 @@ const ProfilePage: React.FC = () => {
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      style={{ 
-        width: '100%', 
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f8f9fa 0%, #e8f5e9 100%)',
-        backgroundAttachment: 'fixed',
-        overflow: 'auto',
-        paddingTop: '84px' // Increased padding to move content away from navbar
+      style={{
+        width: "100%",
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #f8f9fa 0%, #e8f5e9 100%)",
+        backgroundAttachment: "fixed",
+        overflow: "auto",
+        paddingTop: "84px", // Increased padding to move content away from navbar
       }}
     >
       {loadingProfile ? (
@@ -581,8 +721,14 @@ const ProfilePage: React.FC = () => {
           flexDirection="column"
           gap={2}
         >
-          <CircularProgress size={60} thickness={4} sx={{ color: 'primary.main' }} />
-          <Typography variant="h6" color="text.secondary">Loading your profile...</Typography>
+          <CircularProgress
+            size={60}
+            thickness={4}
+            sx={{ color: "primary.main" }}
+          />
+          <Typography variant="h6" color="text.secondary">
+            Loading your profile...
+          </Typography>
         </Box>
       ) : (
         <MotionBox
@@ -590,41 +736,43 @@ const ProfilePage: React.FC = () => {
           initial="hidden"
           animate="visible"
           sx={{
-            width: '100%',
-            maxWidth: '1400px',
-            margin: '0 auto',
-            minHeight: 'calc(100vh - 84px)', 
+            width: "100%",
+            maxWidth: "1400px",
+            margin: "0 auto",
+            minHeight: "calc(100vh - 84px)",
             p: { xs: 2, sm: 3, md: 5 },
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'relative',
+            display: "flex",
+            flexDirection: "column",
+            position: "relative",
           }}
         >
           {/* Decorative elements */}
           <Box
             sx={{
-              position: 'absolute',
-              top: '5%',
-              right: '5%',
-              width: '300px',
-              height: '300px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(76, 175, 80, 0.08) 0%, rgba(76, 175, 80, 0.03) 70%, rgba(76, 175, 80, 0) 100%)',
+              position: "absolute",
+              top: "5%",
+              right: "5%",
+              width: "300px",
+              height: "300px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(76, 175, 80, 0.08) 0%, rgba(76, 175, 80, 0.03) 70%, rgba(76, 175, 80, 0) 100%)",
               zIndex: 0,
-              display: { xs: 'none', md: 'block' }
+              display: { xs: "none", md: "block" },
             }}
           />
           <Box
             sx={{
-              position: 'absolute',
-              bottom: '10%',
-              left: '5%',
-              width: '250px',
-              height: '250px',
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(33, 150, 243, 0.06) 0%, rgba(33, 150, 243, 0.02) 70%, rgba(33, 150, 243, 0) 100%)',
+              position: "absolute",
+              bottom: "10%",
+              left: "5%",
+              width: "250px",
+              height: "250px",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(33, 150, 243, 0.06) 0%, rgba(33, 150, 243, 0.02) 70%, rgba(33, 150, 243, 0) 100%)",
               zIndex: 0,
-              display: { xs: 'none', md: 'block' }
+              display: { xs: "none", md: "block" },
             }}
           />
 
@@ -632,43 +780,43 @@ const ProfilePage: React.FC = () => {
           <MotionBox
             variants={itemVariants}
             sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               mb: { xs: 3, md: 5 },
-              position: 'relative',
-              zIndex: 1
+              position: "relative",
+              zIndex: 1,
             }}
           >
-            <IconButton 
-              color="primary" 
-              onClick={() => navigate('/')}
-              sx={{ 
-                bgcolor: 'rgba(46, 125, 50, 0.1)',
-                '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.2)' },
-                boxShadow: '0 4px 8px rgba(0,0,0,0.08)',
+            <IconButton
+              color="primary"
+              onClick={() => navigate("/")}
+              sx={{
+                bgcolor: "rgba(46, 125, 50, 0.1)",
+                "&:hover": { bgcolor: "rgba(46, 125, 50, 0.2)" },
+                boxShadow: "0 4px 8px rgba(0,0,0,0.08)",
                 width: 48,
-                height: 48
+                height: 48,
               }}
             >
               <ArrowBackIcon />
             </IconButton>
-            
-            <MotionTypography 
-              variant="h4" 
-              component="h1" 
+
+            <MotionTypography
+              variant="h4"
+              component="h1"
               fontWeight="bold"
               color="primary"
-              sx={{ 
-                textAlign: 'center', 
+              sx={{
+                textAlign: "center",
                 flex: 1,
-                fontSize: { xs: '1.75rem', sm: '2.125rem' },
-                textShadow: '0 2px 4px rgba(0,0,0,0.08)'
+                fontSize: { xs: "1.75rem", sm: "2.125rem" },
+                textShadow: "0 2px 4px rgba(0,0,0,0.08)",
               }}
             >
               My Profile
             </MotionTypography>
-            
+
             {/* Just a dummy element to center the title */}
             <Box sx={{ width: 48 }} />
           </MotionBox>
@@ -677,23 +825,23 @@ const ProfilePage: React.FC = () => {
           <MotionBox
             variants={containerVariants}
             sx={{
-              display: 'flex',
-              flexDirection: { xs: 'column', md: 'row' },
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
               gap: { xs: 3, md: 5 },
               flex: 1,
-              position: 'relative',
-              zIndex: 1
+              position: "relative",
+              zIndex: 1,
             }}
           >
             {/* Left sidebar with avatar and quick actions */}
             <MotionBox
               variants={itemVariants}
               sx={{
-                width: { xs: '100%', md: '320px' },
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4
+                width: { xs: "100%", md: "320px" },
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
               }}
             >
               <Card
@@ -701,15 +849,15 @@ const ProfilePage: React.FC = () => {
                 sx={{
                   borderRadius: 6,
                   p: { xs: 3, md: 4 },
-                  width: '100%',
-                  textAlign: 'center',
-                  background: 'linear-gradient(to bottom, #ffffff, #f5f5f5)',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
-                    transform: 'translateY(-5px)'
-                  }
+                  width: "100%",
+                  textAlign: "center",
+                  background: "linear-gradient(to bottom, #ffffff, #f5f5f5)",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    boxShadow: "0 12px 40px rgba(0,0,0,0.15)",
+                    transform: "translateY(-5px)",
+                  },
                 }}
               >
                 <Box position="relative" display="inline-block" mb={3}>
@@ -720,13 +868,13 @@ const ProfilePage: React.FC = () => {
                     sx={{
                       width: 140,
                       height: 140,
-                      border: '5px solid white',
-                      boxShadow: '0 8px 20px rgba(46, 125, 50, 0.2)',
-                      margin: '0 auto',
-                      transition: 'transform 0.3s ease',
-                      '&:hover': {
-                        transform: 'scale(1.05)'
-                      }
+                      border: "5px solid white",
+                      boxShadow: "0 8px 20px rgba(46, 125, 50, 0.2)",
+                      margin: "0 auto",
+                      transition: "transform 0.3s ease",
+                      "&:hover": {
+                        transform: "scale(1.05)",
+                      },
                     }}
                   />
                   {isEditing && (
@@ -754,7 +902,7 @@ const ProfilePage: React.FC = () => {
                           boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
                           "&:hover": { backgroundColor: "#f5f5f5" },
                           width: 42,
-                          height: 42
+                          height: 42,
                         }}
                       >
                         <AddPhotoIcon />
@@ -763,9 +911,9 @@ const ProfilePage: React.FC = () => {
                   )}
                 </Box>
 
-                <MotionTypography 
-                  variant="h5" 
-                  component="h2" 
+                <MotionTypography
+                  variant="h5"
+                  component="h2"
                   fontWeight="bold"
                   color="primary.dark"
                   gutterBottom
@@ -781,7 +929,7 @@ const ProfilePage: React.FC = () => {
                     justifyContent: "center",
                     flexWrap: "wrap",
                     gap: 1,
-                    mb: 3
+                    mb: 3,
                   }}
                 >
                   <Chip
@@ -789,10 +937,10 @@ const ProfilePage: React.FC = () => {
                     label={user?.role || "User"}
                     color="primary"
                     size="small"
-                    sx={{ 
-                      fontWeight: 'medium',
+                    sx={{
+                      fontWeight: "medium",
                       px: 1,
-                      boxShadow: '0 2px 5px rgba(0,0,0,0.08)'
+                      boxShadow: "0 2px 5px rgba(0,0,0,0.08)",
                     }}
                   />
 
@@ -801,96 +949,14 @@ const ProfilePage: React.FC = () => {
                       label={user.status}
                       color={user.status === "Active" ? "success" : "warning"}
                       size="small"
-                      sx={{ 
-                        fontWeight: 'medium',
+                      sx={{
+                        fontWeight: "medium",
                         px: 1,
-                        boxShadow: '0 2px 5px rgba(0,0,0,0.08)'
+                        boxShadow: "0 2px 5px rgba(0,0,0,0.08)",
                       }}
                     />
                   )}
                 </Box>
-
-                {/* Action buttons */}
-                <Stack spacing={2} mt={3}>
-                  {!isEditing ? (
-                    <MotionButton
-                      variants={buttonVariants}
-                      whileHover="hover"
-                      whileTap="tap"
-                      startIcon={<EditIcon />}
-                      variant="contained"
-                      color="primary"
-                      onClick={handleEdit}
-                      fullWidth
-                      sx={{
-                        py: 1.5,
-                        borderRadius: 3,
-                        boxShadow: '0 4px 12px rgba(46, 125, 50, 0.25)'
-                      }}
-                    >
-                      Edit Profile
-                    </MotionButton>
-                  ) : (
-                    <>
-                      <MotionButton
-                        variants={buttonVariants}
-                        whileHover="hover"
-                        whileTap="tap"
-                        startIcon={loading ? undefined : <SaveIcon />}
-                        variant="contained"
-                        color="success"
-                        onClick={handleSave}
-                        disabled={loading}
-                        fullWidth
-                        sx={{
-                          py: 1.5,
-                          borderRadius: 3,
-                          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.25)'
-                        }}
-                      >
-                        {loading ? (
-                          <CircularProgress size={24} color="inherit" />
-                        ) : (
-                          "Save Changes"
-                        )}
-                      </MotionButton>
-                      <MotionButton
-                        variants={buttonVariants}
-                        whileHover="hover"
-                        whileTap="tap"
-                        startIcon={<CancelIcon />}
-                        variant="outlined"
-                        color="error"
-                        onClick={handleCancel}
-                        disabled={loading}
-                        fullWidth
-                        sx={{
-                          py: 1.5,
-                          borderRadius: 3
-                        }}
-                      >
-                        Cancel
-                      </MotionButton>
-                    </>
-                  )}
-                  
-                  <MotionButton
-                    variants={buttonVariants}
-                    whileHover="hover"
-                    whileTap="tap"
-                    startIcon={<DashboardIcon />}
-                    variant="outlined"
-                    color="primary"
-                    onClick={() => navigate('/')}
-                    fullWidth
-                    sx={{
-                      py: 1.5,
-                      borderRadius: 3
-                    }}
-                  >
-                    Go to Dashboard
-                  </MotionButton>
-                </Stack>
               </Card>
 
               {/* Quick actions card */}
@@ -899,19 +965,19 @@ const ProfilePage: React.FC = () => {
                 sx={{
                   borderRadius: 6,
                   p: { xs: 3, md: 4 },
-                  width: '100%',
-                  background: 'linear-gradient(to bottom, #ffffff, #f8f8f8)',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
-                    transform: 'translateY(-5px)'
-                  }
+                  width: "100%",
+                  background: "linear-gradient(to bottom, #ffffff, #f8f8f8)",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+                  transition: "all 0.3s ease",
+                  "&:hover": {
+                    boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+                    transform: "translateY(-5px)",
+                  },
                 }}
               >
-                <MotionTypography 
-                  variant="h6" 
-                  component="h3" 
+                <MotionTypography
+                  variant="h6"
+                  component="h3"
                   fontWeight="bold"
                   color="primary.dark"
                   gutterBottom
@@ -933,13 +999,33 @@ const ProfilePage: React.FC = () => {
                     sx={{
                       py: 1.5,
                       borderRadius: 3,
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                      '&:hover': {
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
-                      }
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+                      "&:hover": {
+                        boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+                      },
                     }}
                   >
                     Change Password
+                  </MotionButton>
+
+                  <MotionButton
+                    variants={buttonVariants}
+                    whileHover="hover"
+                    whileTap="tap"
+                    startIcon={<OrdersIcon />}
+                    variant="outlined"
+                    onClick={handleViewAllOrders}
+                    fullWidth
+                    sx={{
+                      py: 1.5,
+                      borderRadius: 3,
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+                      "&:hover": {
+                        boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+                      },
+                    }}
+                  >
+                    View Orders
                   </MotionButton>
 
                   <MotionButton
@@ -954,10 +1040,10 @@ const ProfilePage: React.FC = () => {
                     sx={{
                       py: 1.5,
                       borderRadius: 3,
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                      '&:hover': {
-                        boxShadow: '0 4px 10px rgba(0,0,0,0.1)'
-                      }
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+                      "&:hover": {
+                        boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+                      },
                     }}
                   >
                     {loadingProfile ? (
@@ -975,9 +1061,9 @@ const ProfilePage: React.FC = () => {
               variants={itemVariants}
               sx={{
                 flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
               }}
             >
               {/* Personal Information Card */}
@@ -985,62 +1071,63 @@ const ProfilePage: React.FC = () => {
                 elevation={4}
                 sx={{
                   borderRadius: 6,
-                  overflow: 'hidden',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                  transition: 'transform 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-5px)',
-                    boxShadow: '0 12px 32px rgba(0,0,0,0.12)'
-                  }
+                  overflow: "hidden",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+                  transition: "transform 0.3s ease",
+                  "&:hover": {
+                    transform: "translateY(-5px)",
+                    boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+                  },
                 }}
               >
                 <Box
                   sx={{
                     p: { xs: 3, md: 4 },
-                    background: 'linear-gradient(120deg, #2e7d32, #60ad5e)',
-                    color: 'white',
-                    position: 'relative',
-                    overflow: 'hidden'
+                    background: "linear-gradient(120deg, #2e7d32, #60ad5e)",
+                    color: "white",
+                    position: "relative",
+                    overflow: "hidden",
                   }}
                 >
                   <Box
                     sx={{
-                      position: 'absolute',
+                      position: "absolute",
                       top: 0,
                       right: 0,
-                      width: '150px',
-                      height: '150px',
-                      background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)',
-                      borderRadius: '50%'
+                      width: "150px",
+                      height: "150px",
+                      background:
+                        "radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)",
+                      borderRadius: "50%",
                     }}
                   />
-                  
-                  <MotionTypography 
-                    variant="h6" 
+
+                  <MotionTypography
+                    variant="h6"
                     fontWeight="bold"
                     variants={itemVariants}
-                    sx={{ 
-                      position: 'relative', 
+                    sx={{
+                      position: "relative",
                       zIndex: 1,
-                      textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                      fontSize: { xs: '1.2rem', md: '1.4rem' }
+                      textShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      fontSize: { xs: "1.2rem", md: "1.4rem" },
                     }}
                   >
                     Personal Information
                   </MotionTypography>
                 </Box>
-                
+
                 <Box sx={{ p: { xs: 3, md: 4 } }}>
                   {error && (
-                    <Alert 
-                      severity="error" 
-                      onClose={clearError} 
+                    <Alert
+                      severity="error"
+                      onClose={clearError}
                       sx={{ mb: 3, borderRadius: 2 }}
                     >
                       {error}
                     </Alert>
                   )}
-                
+
                   <Stack spacing={3}>
                     <MotionTextField
                       variants={itemVariants}
@@ -1059,10 +1146,12 @@ const ProfilePage: React.FC = () => {
                         ),
                         sx: {
                           borderRadius: 2,
-                          '&:hover': {
-                            boxShadow: isEditing ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
-                          }
-                        }
+                          "&:hover": {
+                            boxShadow: isEditing
+                              ? "0 2px 8px rgba(0,0,0,0.08)"
+                              : "none",
+                          },
+                        },
                       }}
                     />
 
@@ -1083,8 +1172,8 @@ const ProfilePage: React.FC = () => {
                           </InputAdornment>
                         ),
                         sx: {
-                          borderRadius: 2
-                        }
+                          borderRadius: 2,
+                        },
                       }}
                     />
 
@@ -1105,10 +1194,12 @@ const ProfilePage: React.FC = () => {
                         ),
                         sx: {
                           borderRadius: 2,
-                          '&:hover': {
-                            boxShadow: isEditing ? '0 2px 8px rgba(0,0,0,0.08)' : 'none'
-                          }
-                        }
+                          "&:hover": {
+                            boxShadow: isEditing
+                              ? "0 2px 8px rgba(0,0,0,0.08)"
+                              : "none",
+                          },
+                        },
                       }}
                     />
                   </Stack>
@@ -1120,68 +1211,69 @@ const ProfilePage: React.FC = () => {
                 elevation={4}
                 sx={{
                   borderRadius: 6,
-                  overflow: 'hidden',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                  transition: 'transform 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-5px)',
-                    boxShadow: '0 12px 32px rgba(0,0,0,0.12)'
-                  }
+                  overflow: "hidden",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+                  transition: "transform 0.3s ease",
+                  "&:hover": {
+                    transform: "translateY(-5px)",
+                    boxShadow: "0 12px 32px rgba(0,0,0,0.12)",
+                  },
                 }}
               >
                 <Box
                   sx={{
                     p: { xs: 3, md: 4 },
-                    background: 'linear-gradient(120deg, #1976d2, #42a5f5)',
-                    color: 'white',
-                    position: 'relative',
-                    overflow: 'hidden'
+                    background: "linear-gradient(120deg, #1976d2, #42a5f5)",
+                    color: "white",
+                    position: "relative",
+                    overflow: "hidden",
                   }}
                 >
                   <Box
                     sx={{
-                      position: 'absolute',
+                      position: "absolute",
                       top: 0,
                       right: 0,
-                      width: '150px',
-                      height: '150px',
-                      background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)',
-                      borderRadius: '50%'
+                      width: "150px",
+                      height: "150px",
+                      background:
+                        "radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)",
+                      borderRadius: "50%",
                     }}
                   />
-                  
-                  <MotionTypography 
-                    variant="h6" 
+
+                  <MotionTypography
+                    variant="h6"
                     fontWeight="bold"
                     variants={itemVariants}
-                    sx={{ 
-                      position: 'relative', 
+                    sx={{
+                      position: "relative",
                       zIndex: 1,
-                      textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                      fontSize: { xs: '1.2rem', md: '1.4rem' }
+                      textShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                      fontSize: { xs: "1.2rem", md: "1.4rem" },
                     }}
                   >
                     Support & Help
                   </MotionTypography>
                 </Box>
-                
+
                 <Box sx={{ p: { xs: 3, md: 4 } }}>
-                  <Typography 
-                    variant="body1" 
-                    color="text.secondary" 
+                  <Typography
+                    variant="body1"
+                    color="text.secondary"
                     paragraph
                     sx={{
-                      fontSize: '1rem',
-                      lineHeight: 1.6
+                      fontSize: "1rem",
+                      lineHeight: 1.6,
                     }}
                   >
-                    Need help with your account or have a question about our services?
-                    Our support team is ready to assist you.
+                    Need help with your account or have a question about our
+                    services? Our support team is ready to assist you.
                   </Typography>
-                  
-                  <Stack 
-                    direction={{ xs: 'column', sm: 'row' }} 
-                    spacing={2} 
+
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    spacing={2}
                     sx={{ mt: 3 }}
                   >
                     <MotionButton
@@ -1192,11 +1284,11 @@ const ProfilePage: React.FC = () => {
                       variant="contained"
                       color="info"
                       onClick={handleTicketModalOpen}
-                      sx={{ 
+                      sx={{
                         flex: 1,
                         py: 1.5,
                         borderRadius: 3,
-                        boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)'
+                        boxShadow: "0 4px 12px rgba(33, 150, 243, 0.3)",
                       }}
                     >
                       Submit Ticket
@@ -1210,10 +1302,10 @@ const ProfilePage: React.FC = () => {
                       variant="outlined"
                       color="info"
                       onClick={handleViewAllTickets}
-                      sx={{ 
+                      sx={{
                         flex: 1,
                         py: 1.5,
-                        borderRadius: 3
+                        borderRadius: 3,
                       }}
                     >
                       View All Tickets
@@ -1235,18 +1327,20 @@ const ProfilePage: React.FC = () => {
         PaperProps={{
           sx: {
             borderRadius: 2,
-            overflow: 'hidden'
-          }
+            overflow: "hidden",
+          },
         }}
       >
         <DialogTitle
           sx={{
-            background: 'linear-gradient(120deg, #1976d2, #42a5f5)',
-            color: 'white',
-            p: 3
+            background: "linear-gradient(120deg, #1976d2, #42a5f5)",
+            color: "white",
+            p: 3,
           }}
         >
-          <Typography variant="h6" fontWeight="bold">Your Support Tickets</Typography>
+          <Typography variant="h6" fontWeight="bold">
+            Your Support Tickets
+          </Typography>
         </DialogTitle>
         <DialogContent sx={{ p: 0 }}>
           {isLoadingTickets ? (
@@ -1263,25 +1357,35 @@ const ProfilePage: React.FC = () => {
             <TableContainer>
               <Table>
                 <TableHead>
-                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Type</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Created At</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                  <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Description
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Type</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Created At
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {tickets.map((ticket) => (
-                    <TableRow 
+                    <TableRow
                       key={ticket.id}
-                      sx={{ 
-                        '&:hover': { 
-                          backgroundColor: 'rgba(0, 0, 0, 0.02)' 
-                        }
+                      sx={{
+                        "&:hover": {
+                          backgroundColor: "rgba(0, 0, 0, 0.02)",
+                        },
                       }}
                     >
-                      <TableCell sx={{ maxWidth: 300, whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                      <TableCell
+                        sx={{
+                          maxWidth: 300,
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        }}
+                      >
                         {ticket.briefDescription}
                       </TableCell>
                       <TableCell>{ticket.type}</TableCell>
@@ -1290,7 +1394,7 @@ const ProfilePage: React.FC = () => {
                           label={ticket.status}
                           color={getStatusColor(ticket.status)}
                           size="small"
-                          sx={{ fontWeight: 'medium' }}
+                          sx={{ fontWeight: "medium" }}
                         />
                       </TableCell>
                       <TableCell>
@@ -1302,10 +1406,12 @@ const ProfilePage: React.FC = () => {
                           color="primary"
                           onClick={() => handleViewTicketDetails(ticket.id)}
                           sx={{
-                            minWidth: 'auto',
+                            minWidth: "auto",
                             borderRadius: 2,
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
-                            '&:hover': { boxShadow: '0 4px 8px rgba(0,0,0,0.15)' }
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.08)",
+                            "&:hover": {
+                              boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+                            },
                           }}
                         >
                           View Details
@@ -1318,20 +1424,24 @@ const ProfilePage: React.FC = () => {
             </TableContainer>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0, 0, 0, 0.08)' }}>
+        <DialogActions
+          sx={{ p: 2, borderTop: "1px solid rgba(0, 0, 0, 0.08)" }}
+        >
           {ticketPage < totalTicketPages && (
             <Button
               onClick={handleLoadMoreTickets}
               disabled={isLoadingTickets}
               variant="outlined"
               color="primary"
-              startIcon={isLoadingTickets ? <CircularProgress size={16} /> : null}
+              startIcon={
+                isLoadingTickets ? <CircularProgress size={16} /> : null
+              }
             >
               {isLoadingTickets ? "Loading..." : "Load More"}
             </Button>
           )}
-          <Button 
-            onClick={handleCloseTicketsDialog} 
+          <Button
+            onClick={handleCloseTicketsDialog}
             variant="contained"
             color="primary"
           >
@@ -1349,32 +1459,39 @@ const ProfilePage: React.FC = () => {
         PaperProps={{
           sx: {
             borderRadius: 2,
-            overflow: 'hidden',
-            maxHeight: '90vh'
-          }
+            overflow: "hidden",
+            maxHeight: "90vh",
+          },
         }}
       >
         <DialogTitle
           sx={{
-            background: 'linear-gradient(120deg, #1976d2, #42a5f5)',
-            color: 'white',
+            background: "linear-gradient(120deg, #1976d2, #42a5f5)",
+            color: "white",
             p: 3,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
-          <Typography variant="h6" fontWeight="bold">Ticket Details</Typography>
-          <Chip 
+          <Typography variant="h6" fontWeight="bold">
+            Ticket Details
+          </Typography>
+          <Chip
             label={selectedTicketDetails?.status || "Loading"}
             color={getStatusColor(selectedTicketDetails?.status || "Pending")}
             size="small"
-            sx={{ fontWeight: 'bold', px: 1 }}
+            sx={{ fontWeight: "bold", px: 1 }}
           />
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           {loadingTicketDetails ? (
-            <Box display="flex" justifyContent="center" alignItems="center" height="200px">
+            <Box
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              height="200px"
+            >
               <CircularProgress />
             </Box>
           ) : ticketDetailsError ? (
@@ -1385,22 +1502,34 @@ const ProfilePage: React.FC = () => {
             <Box>
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  <Card variant="outlined" sx={{ p: 2, height: "100%" }}>
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
                       Ticket ID
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedTicketDetails.id}
                     </Typography>
-                    
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
                       Type
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedTicketDetails.type}
                     </Typography>
-                    
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
                       Created At
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
@@ -1408,34 +1537,50 @@ const ProfilePage: React.FC = () => {
                     </Typography>
                   </Card>
                 </Grid>
-                
+
                 <Grid item xs={12} md={6}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  <Card variant="outlined" sx={{ p: 2, height: "100%" }}>
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
                       Status
                     </Typography>
                     <Box sx={{ mb: 2 }}>
-                      <Chip 
+                      <Chip
                         label={selectedTicketDetails.status}
                         color={getStatusColor(selectedTicketDetails.status)}
-                        sx={{ fontWeight: 'medium' }}
+                        sx={{ fontWeight: "medium" }}
                       />
                     </Box>
-                    
+
                     {selectedTicketDetails.statusUpdatedAt && (
                       <>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          gutterBottom
+                        >
                           Status Updated
                         </Typography>
-                        <Typography variant="body1" fontWeight="medium" paragraph>
+                        <Typography
+                          variant="body1"
+                          fontWeight="medium"
+                          paragraph
+                        >
                           {formatDate(selectedTicketDetails.statusUpdatedAt)}
                         </Typography>
                       </>
                     )}
-                    
+
                     {selectedTicketDetails.assignee && (
                       <>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          gutterBottom
+                        >
                           Assigned To
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
@@ -1445,196 +1590,290 @@ const ProfilePage: React.FC = () => {
                     )}
                   </Card>
                 </Grid>
-                
+
                 <Grid item xs={12}>
                   <Card variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
                       Description
                     </Typography>
-                    <Typography variant="body1" paragraph sx={{ whiteSpace: 'pre-wrap' }}>
+                    <Typography
+                      variant="body1"
+                      paragraph
+                      sx={{ whiteSpace: "pre-wrap" }}
+                    >
                       {selectedTicketDetails.description}
                     </Typography>
                   </Card>
                 </Grid>
-                
-                {selectedTicketDetails.attachments && selectedTicketDetails.attachments.length > 0 && (
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                      Attachments
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                      {selectedTicketDetails.attachments.map((attachment: string, index: number) => {
-                        // Extract file extension to determine type
-                        const fileExt = attachment.split('.').pop()?.toLowerCase() || '';
-                        const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExt);
-                        
-                        return (
-                          <Card 
-                            key={index} 
-                            variant="outlined" 
-                            sx={{ 
-                              width: 200, 
-                              overflow: 'hidden',
-                              transition: 'transform 0.2s',
-                              '&:hover': {
-                                transform: 'scale(1.05)',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                              }
-                            }}
-                          >
-                            <a 
-                              href={attachment} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              style={{ textDecoration: 'none', color: 'inherit' }}
-                            >
-                              {isImage ? (
-                                <Box 
-                                  component="img" 
-                                  src={attachment} 
-                                  alt={`Attachment ${index + 1}`}
-                                  sx={{ 
-                                    width: '100%', 
-                                    height: 120, 
-                                    objectFit: 'cover' 
-                                  }}
-                                />
-                              ) : (
-                                <Box 
-                                  sx={{ 
-                                    width: '100%', 
-                                    height: 120, 
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    bgcolor: 'grey.100'
+
+                {selectedTicketDetails.attachments &&
+                  selectedTicketDetails.attachments.length > 0 && (
+                    <Grid item xs={12}>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight="bold"
+                        gutterBottom
+                      >
+                        Attachments
+                      </Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                        {selectedTicketDetails.attachments.map(
+                          (attachment: string, index: number) => {
+                            // Extract file extension to determine type
+                            const fileExt =
+                              attachment.split(".").pop()?.toLowerCase() || "";
+                            const isImage = [
+                              "jpg",
+                              "jpeg",
+                              "png",
+                              "gif",
+                              "webp",
+                              "bmp",
+                            ].includes(fileExt);
+
+                            return (
+                              <Card
+                                key={index}
+                                variant="outlined"
+                                sx={{
+                                  width: 200,
+                                  overflow: "hidden",
+                                  transition: "transform 0.2s",
+                                  "&:hover": {
+                                    transform: "scale(1.05)",
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                  },
+                                }}
+                              >
+                                <a
+                                  href={attachment}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    textDecoration: "none",
+                                    color: "inherit",
                                   }}
                                 >
-                                  <Typography variant="body2" color="text.secondary">
-                                    {fileExt.toUpperCase()} File
-                                  </Typography>
-                                </Box>
-                              )}
-                              <Box sx={{ p: 1 }}>
-                                <Typography variant="caption" noWrap>
-                                  {`Attachment ${index + 1}`}
-                                </Typography>
-                              </Box>
-                            </a>
-                          </Card>
-                        );
-                      })}
-                    </Box>
-                  </Grid>
-                )}
-                
-                {selectedTicketDetails.ticketResponses && selectedTicketDetails.ticketResponses.length > 0 && (
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                      Responses
-                    </Typography>
-                    <Stack spacing={2}>
-                      {selectedTicketDetails.ticketResponses.map((response: any, index: number) => {
-                        const isStaff = response.userId !== selectedTicketDetails.createdBy;
-                        
-                        return (
-                          <Card 
-                            key={index} 
-                            variant="outlined" 
-                            sx={{ 
-                              p: 2,
-                              bgcolor: isStaff ? 'primary.lightest' : 'grey.50',
-                              borderLeft: isStaff ? '4px solid #1976d2' : '4px solid #4caf50'
-                            }}
-                          >
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                              <Typography variant="subtitle2" fontWeight="bold">
-                                {isStaff ? response.userFullName || 'Support Staff' : 'You'}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {formatDate(response.createdAt)}
-                              </Typography>
-                            </Box>
-                            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                              {response.message}
-                            </Typography>
-                            
-                            {/* Handle response attachments if they exist */}
-                            {response.attachments && response.attachments.length > 0 && (
-                              <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                {response.attachments.map((attachment: string, attIndex: number) => {
-                                  const fileExt = attachment.split('.').pop()?.toLowerCase() || '';
-                                  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(fileExt);
-                                  
-                                  return isImage ? (
+                                  {isImage ? (
                                     <Box
-                                      key={attIndex}
-                                      component="a"
-                                      href={attachment}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                      component="img"
+                                      src={attachment}
+                                      alt={`Attachment ${index + 1}`}
                                       sx={{
-                                        display: 'block',
-                                        width: 80,
-                                        height: 80,
-                                        borderRadius: 1,
-                                        overflow: 'hidden',
-                                        border: '1px solid rgba(0,0,0,0.1)'
+                                        width: "100%",
+                                        height: 120,
+                                        objectFit: "cover",
                                       }}
-                                    >
-                                      <Box
-                                        component="img"
-                                        src={attachment}
-                                        alt={`Response ${index + 1} Attachment ${attIndex + 1}`}
-                                        sx={{
-                                          width: '100%',
-                                          height: '100%',
-                                          objectFit: 'cover'
-                                        }}
-                                      />
-                                    </Box>
+                                    />
                                   ) : (
                                     <Box
-                                      key={attIndex}
-                                      component="a"
-                                      href={attachment}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
                                       sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        width: 80,
-                                        height: 80,
-                                        borderRadius: 1,
-                                        bgcolor: 'grey.100',
-                                        border: '1px solid rgba(0,0,0,0.1)',
-                                        textDecoration: 'none'
+                                        width: "100%",
+                                        height: 120,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        bgcolor: "grey.100",
                                       }}
                                     >
-                                      <Typography variant="caption" color="text.secondary">
-                                        {fileExt.toUpperCase()}
+                                      <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                      >
+                                        {fileExt.toUpperCase()} File
                                       </Typography>
                                     </Box>
-                                  );
-                                })}
-                              </Box>
-                            )}
-                          </Card>
-                        );
-                      })}
-                    </Stack>
-                  </Grid>
-                )}
+                                  )}
+                                  <Box sx={{ p: 1 }}>
+                                    <Typography variant="caption" noWrap>
+                                      {`Attachment ${index + 1}`}
+                                    </Typography>
+                                  </Box>
+                                </a>
+                              </Card>
+                            );
+                          }
+                        )}
+                      </Box>
+                    </Grid>
+                  )}
+
+                {selectedTicketDetails.ticketResponses &&
+                  selectedTicketDetails.ticketResponses.length > 0 && (
+                    <Grid item xs={12}>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight="bold"
+                        gutterBottom
+                      >
+                        Responses
+                      </Typography>
+                      <Stack spacing={2}>
+                        {selectedTicketDetails.ticketResponses.map(
+                          (response: any, index: number) => {
+                            const isStaff =
+                              response.userId !==
+                              selectedTicketDetails.createdBy;
+
+                            return (
+                              <Card
+                                key={index}
+                                variant="outlined"
+                                sx={{
+                                  p: 2,
+                                  bgcolor: isStaff
+                                    ? "primary.lightest"
+                                    : "grey.50",
+                                  borderLeft: isStaff
+                                    ? "4px solid #1976d2"
+                                    : "4px solid #4caf50",
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    mb: 1,
+                                  }}
+                                >
+                                  <Typography
+                                    variant="subtitle2"
+                                    fontWeight="bold"
+                                  >
+                                    {isStaff
+                                      ? response.userFullName || "Support Staff"
+                                      : "You"}
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    {formatDate(response.createdAt)}
+                                  </Typography>
+                                </Box>
+                                <Typography
+                                  variant="body2"
+                                  sx={{ whiteSpace: "pre-wrap" }}
+                                >
+                                  {response.message}
+                                </Typography>
+
+                                {/* Handle response attachments if they exist */}
+                                {response.attachments &&
+                                  response.attachments.length > 0 && (
+                                    <Box
+                                      sx={{
+                                        mt: 2,
+                                        display: "flex",
+                                        flexWrap: "wrap",
+                                        gap: 1,
+                                      }}
+                                    >
+                                      {response.attachments.map(
+                                        (
+                                          attachment: string,
+                                          attIndex: number
+                                        ) => {
+                                          const fileExt =
+                                            attachment
+                                              .split(".")
+                                              .pop()
+                                              ?.toLowerCase() || "";
+                                          const isImage = [
+                                            "jpg",
+                                            "jpeg",
+                                            "png",
+                                            "gif",
+                                            "webp",
+                                            "bmp",
+                                          ].includes(fileExt);
+
+                                          return isImage ? (
+                                            <Box
+                                              key={attIndex}
+                                              component="a"
+                                              href={attachment}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              sx={{
+                                                display: "block",
+                                                width: 80,
+                                                height: 80,
+                                                borderRadius: 1,
+                                                overflow: "hidden",
+                                                border:
+                                                  "1px solid rgba(0,0,0,0.1)",
+                                              }}
+                                            >
+                                              <Box
+                                                component="img"
+                                                src={attachment}
+                                                alt={`Response ${
+                                                  index + 1
+                                                } Attachment ${attIndex + 1}`}
+                                                sx={{
+                                                  width: "100%",
+                                                  height: "100%",
+                                                  objectFit: "cover",
+                                                }}
+                                              />
+                                            </Box>
+                                          ) : (
+                                            <Box
+                                              key={attIndex}
+                                              component="a"
+                                              href={attachment}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                width: 80,
+                                                height: 80,
+                                                borderRadius: 1,
+                                                bgcolor: "grey.100",
+                                                border:
+                                                  "1px solid rgba(0,0,0,0.1)",
+                                                textDecoration: "none",
+                                              }}
+                                            >
+                                              <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                              >
+                                                {fileExt.toUpperCase()}
+                                              </Typography>
+                                            </Box>
+                                          );
+                                        }
+                                      )}
+                                    </Box>
+                                  )}
+                              </Card>
+                            );
+                          }
+                        )}
+                      </Stack>
+                    </Grid>
+                  )}
               </Grid>
             </Box>
           ) : (
-            <Typography color="text.secondary">No ticket details available</Typography>
+            <Typography color="text.secondary">
+              No ticket details available
+            </Typography>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, borderTop: '1px solid rgba(0, 0, 0, 0.08)' }}>
-          <Button 
-            onClick={handleCloseTicketDetailsDialog} 
+        <DialogActions
+          sx={{ p: 2, borderTop: "1px solid rgba(0, 0, 0, 0.08)" }}
+        >
+          <Button
+            onClick={handleCloseTicketDetailsDialog}
             variant="contained"
             color="primary"
           >
@@ -1892,11 +2131,15 @@ const ProfilePage: React.FC = () => {
               value={ticketData.Description}
               onChange={handleTicketDescriptionChange}
               error={!!ticketError}
-              helperText={ticketError ? ticketError : "Please describe your issue in detail"}
+              helperText={
+                ticketError
+                  ? ticketError
+                  : "Please describe your issue in detail"
+              }
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1
-                }
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 1,
+                },
               }}
             />
 
@@ -1925,7 +2168,10 @@ const ProfilePage: React.FC = () => {
                 </motion.div>
               </label>
               {ticketAttachments.length > 0 && (
-                <Typography variant="body2" sx={{ mt: 1, color: 'success.main' }}>
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 1, color: "success.main" }}
+                >
                   {ticketAttachments.length} file(s) selected
                 </Typography>
               )}
@@ -1964,6 +2210,474 @@ const ProfilePage: React.FC = () => {
         </Box>
       </Modal>
 
+      {/* Orders Dialog */}
+      <Dialog
+        open={ordersDialogOpen}
+        onClose={handleCloseOrdersDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: "hidden",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(120deg, #2e7d32, #4caf50)",
+            color: "white",
+            p: 3,
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold">
+            Your Orders
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          {isLoadingOrders ? (
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
+            </Box>
+          ) : orders.length === 0 ? (
+            <Box p={4} textAlign="center">
+              <Typography variant="body1" color="text.secondary">
+                You haven't placed any orders yet.
+              </Typography>
+            </Box>
+          ) : (
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                    <TableCell sx={{ fontWeight: "bold" }}>Order ID</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Date</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Total</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {orders.map((order) => (
+                    <TableRow
+                      key={order.id}
+                      sx={{
+                        "&:hover": {
+                          backgroundColor: "rgba(0, 0, 0, 0.02)",
+                        },
+                      }}
+                    >
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="medium">
+                          {order.id.substring(0, 8)}...
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="medium">
+                          {formatCurrency(order.totalPrice)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={order.status}
+                          color={getOrderStatusColor(order.status)}
+                          size="small"
+                          sx={{ fontWeight: "medium" }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="small"
+                          color="primary"
+                          startIcon={<ViewIcon />}
+                          onClick={() => handleViewOrderDetails(order.id)}
+                          sx={{
+                            minWidth: "auto",
+                            borderRadius: 2,
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.08)",
+                            "&:hover": {
+                              boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+                            },
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions
+          sx={{ p: 2, borderTop: "1px solid rgba(0, 0, 0, 0.08)" }}
+        >
+          {orderPage < totalOrderPages && (
+            <Button
+              onClick={handleLoadMoreOrders}
+              disabled={isLoadingOrders}
+              variant="outlined"
+              color="primary"
+              startIcon={
+                isLoadingOrders ? <CircularProgress size={16} /> : null
+              }
+            >
+              {isLoadingOrders ? "Loading..." : "Load More"}
+            </Button>
+          )}
+          <Button
+            onClick={handleCloseOrdersDialog}
+            variant="contained"
+            color="primary"
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Order Details Dialog */}
+      <Dialog
+        open={orderDetailsDialogOpen}
+        onClose={handleCloseOrderDetailsDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: "hidden",
+            maxHeight: "90vh",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(120deg, #2e7d32, #4caf50)",
+            color: "white",
+            p: 3,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold">
+            Order Details
+          </Typography>
+          {selectedOrderDetails && (
+            <Chip
+              label={selectedOrderDetails.status}
+              color={getOrderStatusColor(selectedOrderDetails.status)}
+              size="small"
+              sx={{ fontWeight: "bold", px: 1 }}
+            />
+          )}
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {loadingOrderDetails ? (
+            <Box
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              height="200px"
+            >
+              <CircularProgress />
+            </Box>
+          ) : orderDetailsError ? (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {orderDetailsError}
+            </Alert>
+          ) : selectedOrderDetails ? (
+            <Box>
+              <Grid container spacing={3}>
+                {/* Order Summary */}
+                <Grid item xs={12} md={6}>
+                  <Card variant="outlined" sx={{ p: 2, height: "100%" }}>
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
+                      Order ID
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium" paragraph>
+                      {selectedOrderDetails.orderId}
+                    </Typography>
+
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
+                      Date Placed
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium" paragraph>
+                      {selectedOrderDetails.transactions &&
+                      selectedOrderDetails.transactions.length > 0
+                        ? formatDate(
+                            selectedOrderDetails.transactions[0].createdAt
+                          )
+                        : "N/A"}
+                    </Typography>
+
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
+                      Status
+                    </Typography>
+                    <Box sx={{ mb: 2 }}>
+                      <Chip
+                        label={selectedOrderDetails.status}
+                        color={getOrderStatusColor(selectedOrderDetails.status)}
+                        sx={{ fontWeight: "medium" }}
+                      />
+                    </Box>
+                  </Card>
+                </Grid>
+
+                {/* Payment Information */}
+                <Grid item xs={12} md={6}>
+                  <Card variant="outlined" sx={{ p: 2, height: "100%" }}>
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
+                      Payment Method
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium" paragraph>
+                      {selectedOrderDetails.transactions &&
+                      selectedOrderDetails.transactions.length > 0
+                        ? selectedOrderDetails.transactions[0].paymentMethod ===
+                          "BANK"
+                          ? "Online Payment (PayOS)"
+                          : "Cash on Delivery"
+                        : "N/A"}
+                    </Typography>
+
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
+                      Payment Status
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium" paragraph>
+                      {selectedOrderDetails.transactions &&
+                      selectedOrderDetails.transactions.length > 0
+                        ? selectedOrderDetails.transactions[0].paymentStatus
+                        : "N/A"}
+                    </Typography>
+
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
+                      Total Amount
+                    </Typography>
+                    <Typography
+                      variant="h6"
+                      fontWeight="bold"
+                      color="primary.main"
+                    >
+                      {formatCurrency(selectedOrderDetails.totalPrice)}
+                    </Typography>
+                  </Card>
+                </Grid>
+
+                {/* Shipping Information */}
+                <Grid item xs={12}>
+                  <Card variant="outlined" sx={{ p: 2 }}>
+                    <Typography
+                      variant="subtitle2"
+                      color="text.secondary"
+                      gutterBottom
+                    >
+                      Shipping Address
+                    </Typography>
+
+                    {selectedOrderDetails.userAddress ? (
+                      <Box>
+                        <Typography variant="body1" fontWeight="medium">
+                          {selectedOrderDetails.userAddress.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {selectedOrderDetails.userAddress.phone}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {selectedOrderDetails.userAddress.address}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No shipping address information available.
+                      </Typography>
+                    )}
+                  </Card>
+                </Grid>
+
+                {/* Order Items */}
+                <Grid item xs={12}>
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
+                    Order Items
+                  </Typography>
+
+                  {selectedOrderDetails.orderDetailsItems &&
+                  selectedOrderDetails.orderDetailsItems.length > 0 ? (
+                    <Card
+                      variant="outlined"
+                      sx={{ borderRadius: 2, overflow: "hidden" }}
+                    >
+                      <List disablePadding>
+                        {selectedOrderDetails.orderDetailsItems.map(
+                          (item, index) => (
+                            <React.Fragment key={item.orderDetailsId}>
+                              <ListItem
+                                sx={{
+                                  py: 2,
+                                  px: 3,
+                                  bgcolor:
+                                    index % 2 === 0
+                                      ? "transparent"
+                                      : "rgba(0, 0, 0, 0.02)",
+                                }}
+                              >
+                                <Box
+                                  component="img"
+                                  src={item.productImage}
+                                  alt={item.productName}
+                                  sx={{
+                                    width: 60,
+                                    height: 60,
+                                    objectFit: "cover",
+                                    borderRadius: 1,
+                                    mr: 2,
+                                    border: "1px solid rgba(0,0,0,0.1)",
+                                  }}
+                                />
+                                <Box sx={{ flexGrow: 1 }}>
+                                  <Typography
+                                    variant="subtitle2"
+                                    fontWeight="bold"
+                                  >
+                                    {item.productName}
+                                  </Typography>
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                  >
+                                    {formatCurrency(item.price)} ×{" "}
+                                    {item.quantity}
+                                  </Typography>
+                                </Box>
+                                <Typography
+                                  variant="subtitle2"
+                                  fontWeight="bold"
+                                >
+                                  {formatCurrency(item.totalPrice)}
+                                </Typography>
+                              </ListItem>
+                              {index <
+                                selectedOrderDetails.orderDetailsItems.length -
+                                  1 && <Divider />}
+                            </React.Fragment>
+                          )
+                        )}
+                      </List>
+
+                      <Box
+                        sx={{
+                          p: 2,
+                          bgcolor: "rgba(0, 0, 0, 0.02)",
+                          borderTop: "1px solid rgba(0, 0, 0, 0.1)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Subtotal:
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ mt: 1 }}
+                          >
+                            Shipping:
+                          </Typography>
+                        </Box>
+                        <Box sx={{ textAlign: "right" }}>
+                          <Typography variant="body2" fontWeight="medium">
+                            {formatCurrency(selectedOrderDetails.price)}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            sx={{ mt: 1 }}
+                          >
+                            {formatCurrency(selectedOrderDetails.shippingFee)}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Box
+                        sx={{
+                          p: 2,
+                          bgcolor: "primary.lightest",
+                          borderTop: "1px solid rgba(0, 0, 0, 0.1)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          Total:
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          fontWeight="bold"
+                          color="primary.main"
+                        >
+                          {formatCurrency(selectedOrderDetails.totalPrice)}
+                        </Typography>
+                      </Box>
+                    </Card>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No items in this order.
+                    </Typography>
+                  )}
+                </Grid>
+              </Grid>
+            </Box>
+          ) : (
+            <Typography color="text.secondary">
+              No order details available
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions
+          sx={{ p: 2, borderTop: "1px solid rgba(0, 0, 0, 0.08)" }}
+        >
+          <Button
+            onClick={handleCloseOrderDetailsDialog}
+            variant="contained"
+            color="primary"
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -1971,14 +2685,14 @@ const ProfilePage: React.FC = () => {
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
         sx={{ mt: 8 }} // Give more space from the top
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
+        <Alert
+          onClose={handleCloseSnackbar}
           severity={snackbar.severity}
           variant="filled"
           elevation={6}
-          sx={{ 
-            width: '100%', 
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15)' 
+          sx={{
+            width: "100%",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
           }}
         >
           {snackbar.message}
