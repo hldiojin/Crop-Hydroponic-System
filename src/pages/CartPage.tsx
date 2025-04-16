@@ -81,7 +81,6 @@ const CartPage: React.FC<CartPageProps> = ({
   >({});
   const [devices, setDevices] = useState<Device[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [deviceData, setDeviceData] = useState<any>(null);
 
   // Thêm state để theo dõi các sản phẩm được chọn
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>(
@@ -89,22 +88,10 @@ const CartPage: React.FC<CartPageProps> = ({
   );
   const [selectAll, setSelectAll] = useState<boolean>(false);
 
-  // Calculate total based on cart details from API
-  const subtotal = cartDetails.reduce(
-    (sum, item) => sum + item.unitPrice * item.quantity,
-    0
-  );
-
-  // Calculate selected items total
+  // Tính toán tổng tiền dựa trên các sản phẩm được chọn
   const selectedSubtotal = cartDetails
     .filter((item) => selectedItems[item.id])
     .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-
-  // Calculate device total
-  const deviceTotal = deviceData ? deviceData.price * deviceData.quantity : 0;
-  
-  // Add device total to selected subtotal
-  const totalWithDevice = selectedSubtotal + deviceTotal;
 
   // const selectedShipping = selectedSubtotal > 100 ? 0 : 15;
   const selectedTotal = selectedSubtotal;
@@ -139,6 +126,15 @@ const CartPage: React.FC<CartPageProps> = ({
     setSelectAll(allSelected);
   };
 
+  // Calculate total based on cart details from API
+  const subtotal = cartDetails.reduce(
+    (sum, item) => sum + item.unitPrice * item.quantity,
+    0
+  );
+
+  const shipping = subtotal > 100 ? 0 : 15;
+  const total = subtotal + shipping;
+
   useEffect(() => {
     const fetchCartDetails = async () => {
       try {
@@ -146,19 +142,33 @@ const CartPage: React.FC<CartPageProps> = ({
 
         // Load cart details from API
         const details = await cartService.getCartDetails();
+
+        // Check if we have selected products from the device selection page
+        //const selectedCartData = localStorage.getItem("selectedCartDetails");
+        // if (selectedCartData) {
+        //   const selectedProducts = JSON.parse(selectedCartData);
+        //   // Combine existing cart details with selected products
+        //   setCartDetails([...details, ...selectedProducts]);
+        // } else {
         setCartDetails(details);
+        // }
 
         // Check if we have selected devices from the device selection page
-        const devicesData = localStorage.getItem("selectedDevices");
-        if (devicesData) {
-          setSelectedDevices(JSON.parse(devicesData));
+        // const devicesData = localStorage.getItem("selectedDevices");
+        // if (devicesData) {
+        //   setSelectedDevices(JSON.parse(devicesData));
 
-          // Get the device details from localStorage
-          const deviceDataStr = localStorage.getItem("deviceData");
-          if (deviceDataStr) {
-            setDeviceData(JSON.parse(deviceDataStr));
-          }
-        }
+        //   // Load device details to display them
+        //   try {
+        //     const devicesList = await deviceService.getAll();
+        //     setDevices(devicesList);
+        //   } catch (err) {
+        //     console.error("Failed to fetch devices:", err);
+        //   }
+        // }
+
+        // Lưu dữ liệu giỏ hàng vào localStorage
+        // localStorage.setItem("cartDetails", JSON.stringify(details));
       } catch (err) {
         console.error("Failed to fetch cart details:", err);
         setError("Failed to load cart items.");
@@ -214,6 +224,7 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after any change
       const details = await cartService.getCartDetails();
       setCartDetails(details);
+
     } catch (error) {
       console.error("Failed to update cart item:", error);
     }
@@ -230,6 +241,7 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after removing
       const details = await cartService.getCartDetails();
       setCartDetails(details);
+
     } catch (error) {
       console.error("Failed to remove cart item:", error);
     }
@@ -238,16 +250,16 @@ const CartPage: React.FC<CartPageProps> = ({
   // Hàm xử lý khi nhấn "Proceed to Checkout"
   const handleProceedToCheckout = async () => {
     try {
-      // Ensure a device has been selected
-      if (!deviceData) {
-        alert("You must select a device before proceeding to checkout. Please go back to the device selection page.");
-        return;
-      }
-
       // Lọc các sản phẩm được chọn
       const selectedProducts = cartDetails.filter(
         (item) => selectedItems[item.id]
       );
+
+      // Lưu danh sách sản phẩm được chọn vào localStorage
+      // localStorage.setItem(
+      //   "selectedCartDetails",
+      //   JSON.stringify(selectedProducts)
+      // );
 
       // Prepare order data
       const orderData = {
@@ -256,13 +268,16 @@ const CartPage: React.FC<CartPageProps> = ({
           unitPrice: item.unitPrice,
           quantity: item.quantity,
         })),
-        devices: [
-          {
-            id: deviceData.id,
-            unitPrice: deviceData.price,
-            quantity: deviceData.quantity,
-          }
-        ],
+        devices: Object.entries(selectedDevices)
+          .filter(([_, quantity]) => quantity > 0)
+          .map(([deviceId, quantity]) => {
+            const device = devices.find((d) => d.id === deviceId);
+            return {
+              id: deviceId,
+              unitPrice: device?.price || 0,
+              quantity: quantity,
+            };
+          }),
       };
 
       // Call API to create order
@@ -297,6 +312,7 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after removing
       const details = await cartService.getCartDetails();
       setCartDetails(details);
+
     } catch (error) {
       console.error("Failed to remove cart item:", error);
     }
@@ -994,7 +1010,7 @@ const CartPage: React.FC<CartPageProps> = ({
                         WebkitTextFillColor: "transparent",
                       }}
                     >
-                      {(item.unitPrice * item.quantity).toLocaleString()} VND
+                      ${(item.unitPrice * item.quantity).toLocaleString()}
                     </Typography>
 
                     <Button
@@ -1122,26 +1138,9 @@ const CartPage: React.FC<CartPageProps> = ({
                     {selectedCount > 1 ? "items" : "item"})
                   </Typography>
                   <Typography variant="body1" fontWeight="bold">
-                    {selectedSubtotal.toLocaleString()} VND
+                    ${selectedSubtotal.toLocaleString()}
                   </Typography>
                 </Box>
-
-                {deviceData && (
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Typography variant="body1" color="text.secondary">
-                      Device (required)
-                    </Typography>
-                    <Typography variant="body1" fontWeight="bold">
-                      {deviceTotal.toLocaleString()} VND
-                    </Typography>
-                  </Box>
-                )}
 
                 <Divider />
 
@@ -1165,7 +1164,7 @@ const CartPage: React.FC<CartPageProps> = ({
                       WebkitTextFillColor: "transparent",
                     }}
                   >
-                    {totalWithDevice.toLocaleString()} VND
+                    ${selectedTotal.toLocaleString()}
                   </Typography>
                 </Box>
 
@@ -1176,7 +1175,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   size="large"
                   startIcon={<Payment />}
                   onClick={handleProceedToCheckout}
-                  disabled={selectedCount === 0 && !deviceData} // Disable if no products selected and no device
+                  disabled={selectedCount === 0} // Vô hiệu hóa nút nếu không có sản phẩm nào được chọn
                   whileHover={{
                     scale: 1.02,
                     boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
@@ -1190,9 +1189,10 @@ const CartPage: React.FC<CartPageProps> = ({
                     boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
                   }}
                 >
-                  {deviceData 
-                    ? `Proceed to Checkout (${selectedCount > 0 ? selectedCount + 1 : 1} item${selectedCount > 0 ? 's' : ''})`
-                    : "Select a device first"}
+                  {selectedCount > 0
+                    ? `Checkout (${selectedCount} item${selectedCount > 1 ? "s" : ""
+                    })`
+                    : "Select items to checkout"}
                 </MotionButton>
 
                 {/* Payment methods - Updated */}
@@ -1285,99 +1285,122 @@ const CartPage: React.FC<CartPageProps> = ({
       </Grid>
 
       {/* Add selected devices section */}
-      {deviceData && (
-        <MotionPaper
-          variants={itemVariants}
-          elevation={3}
-          sx={{
-            p: 3,
-            borderRadius: 3,
-            bgcolor: alpha(theme.palette.background.paper, 0.9),
-            backdropFilter: "blur(10px)",
-            mb: 3,
-            mt: 4,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-          }}
-        >
-          <Typography
-            variant="h6"
-            fontWeight="bold"
-            color="primary"
-            sx={{ mb: 2, display: 'flex', alignItems: 'center' }}
-          >
-            Selected Device
-            <Chip 
-              label="Required" 
-              color="error" 
-              size="small" 
-              sx={{ ml: 2, fontWeight: 'bold' }} 
-            />
-          </Typography>
-
-          <MotionCard
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, x: -100 }}
+      {Object.entries(selectedDevices).some(([_, quantity]) => quantity > 0) &&
+        devices.length > 0 && (
+          <Paper
+            elevation={0}
             sx={{
-              mb: 2,
-              borderRadius: 2,
-              overflow: "hidden",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-              border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
-              bgcolor: alpha(theme.palette.success.light, 0.05),
+              p: 3,
+              borderRadius: 3,
+              bgcolor: alpha(theme.palette.background.paper, 0.8),
+              backdropFilter: "blur(10px)",
+              mb: 3,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
             }}
           >
-            <Grid container alignItems="center">
-              <Grid item xs={12} sm={6}>
-                <Box sx={{ display: "flex", p: 2 }}>
-                  <Box
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: 1,
-                      overflow: "hidden",
-                      mr: 2,
-                    }}
-                  >
-                    <CardMedia
-                      component="img"
+            <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+              Selected Devices
+            </Typography>
+
+            {Object.entries(selectedDevices)
+              .filter(([_, quantity]) => quantity > 0)
+              .map(([deviceId, quantity]) => {
+                const device = devices.find((d) => d.id === deviceId);
+                return (
+                  device && (
+                    <MotionCard
+                      key={deviceId}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -100 }}
                       sx={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
+                        mb: 2,
+                        borderRadius: 2,
+                        overflow: "hidden",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
                       }}
-                      image={deviceData.attachment || "/placeholder-device.jpg"}
-                      alt={deviceData.name}
-                    />
-                  </Box>
-                  <Box>
-                    <Typography variant="h6" fontWeight="bold">
-                      {deviceData.name}
-                    </Typography>
-                    <Chip
-                      label={`${deviceData.price.toLocaleString()} VND`}
-                      size="small"
-                      color="primary"
-                      sx={{ mt: 1 }}
-                    />
-                  </Box>
-                </Box>
-              </Grid>
-              <Grid item xs={6} sm={2} sx={{ textAlign: "center" }}>
-                <Typography variant="body1" fontWeight="medium">
-                  Quantity: {deviceData.quantity}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} sm={4} sx={{ textAlign: "right", pr: 3 }}>
-                <Typography variant="h6" color="primary" fontWeight="bold">
-                  {(deviceData.price * deviceData.quantity).toLocaleString()} VND
-                </Typography>
-              </Grid>
-            </Grid>
-          </MotionCard>
-        </MotionPaper>
-      )}
+                    >
+                      <Grid container alignItems="center">
+                        <Grid item xs={12} sm={6}>
+                          <Box sx={{ display: "flex", p: 2 }}>
+                            <Box
+                              sx={{
+                                width: 80,
+                                height: 80,
+                                borderRadius: 1,
+                                overflow: "hidden",
+                                mr: 2,
+                              }}
+                            >
+                              <CardMedia
+                                component="img"
+                                sx={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
+                                image={
+                                  device.attachment || "/placeholder-device.jpg"
+                                }
+                                alt={device.name}
+                              />
+                            </Box>
+                            <Box>
+                              <Typography variant="h6" fontWeight="bold">
+                                {device.name}
+                              </Typography>
+                              <Chip
+                                label={`$${device.price.toLocaleString()}`}
+                                size="small"
+                                color="primary"
+                                sx={{ mt: 1 }}
+                              />
+                            </Box>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6} sm={2} sx={{ textAlign: "center" }}>
+                          <Typography variant="body1" fontWeight="medium">
+                            Quantity: {quantity}
+                          </Typography>
+                        </Grid>
+                        <Grid
+                          item
+                          xs={6}
+                          sm={4}
+                          sx={{ textAlign: "right", pr: 3 }}
+                        >
+                          <Typography
+                            variant="h6"
+                            color="primary"
+                            fontWeight="bold"
+                          >
+                            ${(device.price * quantity).toLocaleString()}
+                          </Typography>
+                          <Button
+                            color="error"
+                            size="small"
+                            onClick={() => {
+                              const newSelectedDevices = { ...selectedDevices };
+                              delete newSelectedDevices[deviceId];
+                              setSelectedDevices(newSelectedDevices);
+                              localStorage.setItem(
+                                "selectedDevices",
+                                JSON.stringify(newSelectedDevices)
+                              );
+                            }}
+                            startIcon={<Delete fontSize="small" />}
+                            sx={{ mt: 1 }}
+                          >
+                            Remove
+                          </Button>
+                        </Grid>
+                      </Grid>
+                    </MotionCard>
+                  )
+                );
+              })}
+          </Paper>
+        )}
     </MotionContainer>
   );
 };
