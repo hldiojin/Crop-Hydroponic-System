@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -12,7 +12,7 @@ import {
   useTheme,
   useMediaQuery,
   Button,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Person,
   Email,
@@ -22,9 +22,9 @@ import {
   HowToReg,
   Phone,
   Home,
-} from '@mui/icons-material';
-import { useAuth } from '../context/AuthContext';
-import { motion } from 'framer-motion';
+} from "@mui/icons-material";
+import { useAuth } from "../context/AuthContext";
+import { motion } from "framer-motion";
 import {
   MotionBox,
   MotionAvatar,
@@ -34,7 +34,7 @@ import {
   containerVariants,
   itemVariants,
   logoVariants,
-  buttonVariants
+  buttonVariants,
 } from "../utils/motion";
 
 const RegisterPage: React.FC = () => {
@@ -42,16 +42,16 @@ const RegisterPage: React.FC = () => {
   const { register, loading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    phone: '',
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
   });
   const [formErrors, setFormErrors] = useState({
-    name: '',
-    email: '',
-    password: '',
-    phone: '',
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
   });
 
   const [toast, setToast] = useState({
@@ -61,7 +61,7 @@ const RegisterPage: React.FC = () => {
   });
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // Show toast when error changes
   useEffect(() => {
@@ -69,7 +69,7 @@ const RegisterPage: React.FC = () => {
       setToast({
         open: true,
         message: error,
-        severity: "error"
+        severity: "error",
       });
       // Clear the error after showing it in toast
       clearError();
@@ -86,42 +86,42 @@ const RegisterPage: React.FC = () => {
   const validateForm = () => {
     let valid = true;
     const newErrors = {
-      name: '',
-      email: '',
-      password: '',
-      phone: '',
+      name: "",
+      email: "",
+      password: "",
+      phone: "",
     };
 
     // Validate name
     if (!formData.name) {
-      newErrors.name = 'Full name is required';
+      newErrors.name = "Tên đầy đủ là bắt buộc";
       valid = false;
     }
 
     // Validate email
     if (!formData.email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = "Email là bắt buộc";
       valid = false;
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
+      newErrors.email = "Email không hợp lệ";
       valid = false;
     }
 
     // Validate password
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = "Mật khẩu là bắt buộc";
       valid = false;
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = "Mật khẩu phải có ít nhất 6 ký tự";
       valid = false;
     }
 
     // Validate phone
     if (!formData.phone) {
-      newErrors.phone = 'Phone number is required';
+      newErrors.phone = "Số điện thoại là bắt buộc";
       valid = false;
     } else if (!/^\d{10,12}$/.test(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number';
+      newErrors.phone = "Vui lòng nhập số điện thoại hợp lệ";
       valid = false;
     }
 
@@ -148,19 +148,19 @@ const RegisterPage: React.FC = () => {
       // Show success toast
       setToast({
         open: true,
-        message: "Account created successfully! You can now log in.",
-        severity: "success"
+        message: "Tạo tài khoản thành công! Bạn có thể đăng nhập ngay bây giờ.",
+        severity: "success",
       });
 
       // Redirect to login page after a short delay
       setTimeout(() => {
-        navigate('/login');
+        navigate("/login");
       }, 2000);
     } catch (err: any) {
-      console.error('Registration error:', err);
+      console.error("Registration error:", err);
 
       // Extract error message
-      let errorMessage = "Registration failed. Please try again.";
+      let errorMessage = "Đăng ký thất bại. Vui lòng thử lại.";
       if (err?.message) {
         errorMessage = err.message;
       }
@@ -168,14 +168,17 @@ const RegisterPage: React.FC = () => {
       setToast({
         open: true,
         message: errorMessage,
-        severity: "error"
+        severity: "error",
       });
     }
   };
 
   // Enhanced toast close handler
-  const handleCloseToast = (event?: React.SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
+  const handleCloseToast = (
+    event?: React.SyntheticEvent | Event,
+    reason?: string
+  ) => {
+    if (reason === "clickaway") {
       return;
     }
     setToast({ ...toast, open: false });
@@ -184,14 +187,14 @@ const RegisterPage: React.FC = () => {
   return (
     <Box
       sx={{
-        width: '100vw',
-        height: '100vh',
-        display: 'flex',
-        overflow: 'hidden',
-        position: 'fixed',
+        width: "100vw",
+        height: "100vh",
+        display: "flex",
+        overflow: "hidden",
+        position: "fixed",
         top: 0,
         left: 0,
-        bgcolor: '#f5f5f5',
+        bgcolor: "#f5f5f5",
       }}
     >
       {/* Left Side - Registration Form */}
@@ -200,14 +203,14 @@ const RegisterPage: React.FC = () => {
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.7, ease: "easeOut" }}
         sx={{
-          flex: '1',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
+          flex: "1",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
           p: 3,
-          overflow: 'auto',
-          backgroundColor: 'white',
+          overflow: "auto",
+          backgroundColor: "white",
         }}
       >
         <MotionBox
@@ -215,20 +218,20 @@ const RegisterPage: React.FC = () => {
           initial="hidden"
           animate="visible"
           sx={{
-            width: '100%',
-            maxWidth: '450px',
+            width: "100%",
+            maxWidth: "450px",
             px: { xs: 2, sm: 4 },
             py: { xs: 3, sm: 5 },
           }}
         >
-          <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Box sx={{ textAlign: "center", mb: 4 }}>
             <MotionAvatar
               variants={logoVariants}
               sx={{
-                m: '0 auto',
-                bgcolor: 'primary.main',
+                m: "0 auto",
+                bgcolor: "primary.main",
                 width: 64,
-                height: 64
+                height: 64,
               }}
             >
               <HowToReg fontSize="large" />
@@ -236,10 +239,10 @@ const RegisterPage: React.FC = () => {
             <MotionTypography
               component="h1"
               variant="h4"
-              sx={{ mt: 2, fontWeight: 'bold' }}
+              sx={{ mt: 2, fontWeight: "bold" }}
               variants={itemVariants}
             >
-              Create Account
+              Tạo tài khoản
             </MotionTypography>
             <MotionTypography
               variant="body1"
@@ -247,7 +250,7 @@ const RegisterPage: React.FC = () => {
               sx={{ mt: 1 }}
               variants={itemVariants}
             >
-              Join our hydroponic community today
+              Tham gia cộng đồng thủy canh của chúng tôi
             </MotionTypography>
           </Box>
 
@@ -255,7 +258,7 @@ const RegisterPage: React.FC = () => {
             component="form"
             onSubmit={handleSubmit}
             noValidate
-            sx={{ width: '100%' }}
+            sx={{ width: "100%" }}
           >
             <MotionTextField
               variants={itemVariants}
@@ -263,7 +266,7 @@ const RegisterPage: React.FC = () => {
               required
               fullWidth
               id="name"
-              label="Full Name"
+              label="Tên đầy đủ"
               name="name"
               autoComplete="name"
               autoFocus
@@ -288,7 +291,7 @@ const RegisterPage: React.FC = () => {
               required
               fullWidth
               id="email"
-              label="Email Address"
+              label="Địa chỉ Email"
               name="email"
               autoComplete="email"
               value={formData.email}
@@ -312,8 +315,8 @@ const RegisterPage: React.FC = () => {
               required
               fullWidth
               name="password"
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
+              label="Mật khẩu"
+              type={showPassword ? "text" : "password"}
               id="password"
               autoComplete="new-password"
               value={formData.password}
@@ -348,7 +351,7 @@ const RegisterPage: React.FC = () => {
               required
               fullWidth
               name="phone"
-              label="Phone Number"
+              label="Số điện thoại"
               id="phone"
               autoComplete="tel"
               value={formData.phone}
@@ -379,38 +382,42 @@ const RegisterPage: React.FC = () => {
                 mb: 3,
                 py: 1.5,
                 borderRadius: 2,
-                fontWeight: 'bold',
-                fontSize: '1rem'
+                fontWeight: "bold",
+                fontSize: "1rem",
               }}
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : "Sign Up"}
+              {loading ? <CircularProgress size={24} /> : "Đăng ký"}
             </MotionButton>
 
             <MotionBox
               variants={itemVariants}
-              sx={{ textAlign: 'center', mt: 3 }}
+              sx={{ textAlign: "center", mt: 3 }}
             >
-              <Typography variant="body1" color="text.secondary" display="inline">
-                Already have an account?{' '}
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                display="inline"
+              >
+                Đã có tài khoản?{" "}
               </Typography>
               <motion.button
                 style={{
-                  background: 'none',
-                  border: 'none',
+                  background: "none",
+                  border: "none",
                   color: theme.palette.primary.main,
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  fontSize: '1rem',
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  fontSize: "1rem",
                   padding: 0,
-                  marginLeft: '8px',
-                  fontFamily: 'inherit'
+                  marginLeft: "8px",
+                  fontFamily: "inherit",
                 }}
                 onClick={() => navigate("/login")}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                Sign In
+                Đăng nhập
               </motion.button>
             </MotionBox>
           </Box>
@@ -424,30 +431,38 @@ const RegisterPage: React.FC = () => {
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.7, ease: "easeOut" }}
           sx={{
-            flex: '1',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
-            color: 'white',
+            flex: "1",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)",
+            color: "white",
             p: 4,
-            position: 'relative',
-            overflow: 'hidden',
+            position: "relative",
+            overflow: "hidden",
           }}
         >
-          <Box sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.1) 2px, transparent 2px)',
-            backgroundSize: '30px 30px',
-            opacity: 0.4,
-          }} />
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundImage:
+                "radial-gradient(circle, rgba(255,255,255,0.1) 2px, transparent 2px)",
+              backgroundSize: "30px 30px",
+              opacity: 0.4,
+            }}
+          />
 
           <MotionBox
-            sx={{ textAlign: 'center', maxWidth: '500px', position: 'relative', zIndex: 1 }}
+            sx={{
+              textAlign: "center",
+              maxWidth: "500px",
+              position: "relative",
+              zIndex: 1,
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.7 }}
@@ -471,7 +486,7 @@ const RegisterPage: React.FC = () => {
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.6, duration: 0.5 }}
             >
-              Join our community of hydroponic enthusiasts
+              Tham gia cộng đồng những người đam mê thủy canh của chúng tôi
             </MotionTypography>
 
             <motion.img
@@ -481,13 +496,13 @@ const RegisterPage: React.FC = () => {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               transition={{ delay: 0.7, duration: 0.6, type: "spring" }}
               style={{
-                width: '90%',
-                maxWidth: '450px',
-                display: 'block',
-                margin: '0 auto',
-                borderRadius: '12px',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-                border: '4px solid rgba(255,255,255,0.2)'
+                width: "90%",
+                maxWidth: "450px",
+                display: "block",
+                margin: "0 auto",
+                borderRadius: "12px",
+                boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
+                border: "4px solid rgba(255,255,255,0.2)",
               }}
             />
 
@@ -496,41 +511,53 @@ const RegisterPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1, duration: 0.5 }}
               style={{
-                marginTop: '40px',
-                display: 'flex',
-                justifyContent: 'space-around',
-                flexWrap: 'wrap'
+                marginTop: "40px",
+                display: "flex",
+                justifyContent: "space-around",
+                flexWrap: "wrap",
               }}
             >
-              <Box sx={{
-                m: 1,
-                p: 2,
-                bgcolor: 'rgba(255,255,255,0.15)',
-                borderRadius: '10px',
-                backdropFilter: 'blur(5px)',
-                width: '140px'
-              }}>
-                <Typography variant="subtitle2" fontWeight="bold">Sustainable</Typography>
+              <Box
+                sx={{
+                  m: 1,
+                  p: 2,
+                  bgcolor: "rgba(255,255,255,0.15)",
+                  borderRadius: "10px",
+                  backdropFilter: "blur(5px)",
+                  width: "140px",
+                }}
+              >
+                <Typography variant="subtitle2" fontWeight="bold">
+                  Sustainable
+                </Typography>
               </Box>
-              <Box sx={{
-                m: 1,
-                p: 2,
-                bgcolor: 'rgba(255,255,255,0.15)',
-                borderRadius: '10px',
-                backdropFilter: 'blur(5px)',
-                width: '140px'
-              }}>
-                <Typography variant="subtitle2" fontWeight="bold">IoT Enabled</Typography>
+              <Box
+                sx={{
+                  m: 1,
+                  p: 2,
+                  bgcolor: "rgba(255,255,255,0.15)",
+                  borderRadius: "10px",
+                  backdropFilter: "blur(5px)",
+                  width: "140px",
+                }}
+              >
+                <Typography variant="subtitle2" fontWeight="bold">
+                  IoT Enabled
+                </Typography>
               </Box>
-              <Box sx={{
-                m: 1,
-                p: 2,
-                bgcolor: 'rgba(255,255,255,0.15)',
-                borderRadius: '10px',
-                backdropFilter: 'blur(5px)',
-                width: '140px'
-              }}>
-                <Typography variant="subtitle2" fontWeight="bold">Community</Typography>
+              <Box
+                sx={{
+                  m: 1,
+                  p: 2,
+                  bgcolor: "rgba(255,255,255,0.15)",
+                  borderRadius: "10px",
+                  backdropFilter: "blur(5px)",
+                  width: "140px",
+                }}
+              >
+                <Typography variant="subtitle2" fontWeight="bold">
+                  Community
+                </Typography>
               </Box>
             </motion.div>
           </MotionBox>
@@ -542,12 +569,12 @@ const RegisterPage: React.FC = () => {
         open={toast.open}
         autoHideDuration={6000}
         onClose={handleCloseToast}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert
           onClose={handleCloseToast}
           severity={toast.severity}
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
         >
           {toast.message}
         </Alert>

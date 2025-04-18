@@ -1,22 +1,22 @@
-import React from 'react';
-import { Container, Typography, Box, Link } from '@mui/material';
+import React from "react";
+import { Container, Typography, Box, Link } from "@mui/material";
 
 const Footer: React.FC = () => {
   return (
-    <Box sx={{ backgroundColor: '#2e7d32', color: 'white', py: 4, mt: 'auto' }}>
+    <Box sx={{ backgroundColor: "#2e7d32", color: "white", py: 4, mt: "auto" }}>
       <Container>
         <Typography variant="body1" align="center">
-          &copy; {new Date().getFullYear()} HydroPonic Garden. All rights reserved.
+          &copy; {new Date().getFullYear()} HMES. Tất cả quyền được bảo lưu.
         </Typography>
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
           <Link href="#" color="inherit" sx={{ mx: 2 }}>
-            Privacy Policy
+            Chính sách bảo mật
           </Link>
           <Link href="#" color="inherit" sx={{ mx: 2 }}>
-            Terms of Service
+            Điều khoản dịch vụ
           </Link>
           <Link href="#" color="inherit" sx={{ mx: 2 }}>
-            Contact Us
+            Liên hệ chúng tôi
           </Link>
         </Box>
       </Container>

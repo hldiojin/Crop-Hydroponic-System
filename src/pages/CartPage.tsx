@@ -224,7 +224,6 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after any change
       const details = await cartService.getCartDetails();
       setCartDetails(details);
-
     } catch (error) {
       console.error("Failed to update cart item:", error);
     }
@@ -241,7 +240,6 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after removing
       const details = await cartService.getCartDetails();
       setCartDetails(details);
-
     } catch (error) {
       console.error("Failed to remove cart item:", error);
     }
@@ -312,7 +310,6 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after removing
       const details = await cartService.getCartDetails();
       setCartDetails(details);
-
     } catch (error) {
       console.error("Failed to remove cart item:", error);
     }
@@ -654,7 +651,7 @@ const CartPage: React.FC<CartPageProps> = ({
             letterSpacing: "0.5px",
           }}
         >
-          Your Shopping Cart
+          Giỏ hàng
         </Typography>
 
         <Badge
@@ -697,10 +694,10 @@ const CartPage: React.FC<CartPageProps> = ({
           }}
         >
           {[
-            { label: "Cart", icon: <ShoppingCart /> },
-            { label: "Shipping", icon: <LocalShipping /> },
-            { label: "Payment", icon: <CreditCard /> },
-            { label: "Confirmation", icon: <CheckCircleOutline /> },
+            { label: "Giỏ hàng", icon: <ShoppingCart /> },
+            { label: "Vận chuyển", icon: <LocalShipping /> },
+            { label: "Thanh toán", icon: <CreditCard /> },
+            { label: "Xác nhận", icon: <CheckCircleOutline /> },
           ].map((step, index) => (
             <Box
               key={step.label}
@@ -789,17 +786,17 @@ const CartPage: React.FC<CartPageProps> = ({
                 </Grid>
                 <Grid item xs={4} sm={5}>
                   <Typography variant="subtitle1" fontWeight="bold">
-                    Product
+                    Sản phẩm
                   </Typography>
                 </Grid>
                 <Grid item xs={3} sm={2} sx={{ textAlign: "center" }}>
                   <Typography variant="subtitle1" fontWeight="bold">
-                    Quantity
+                    Số lượng
                   </Typography>
                 </Grid>
                 <Grid item xs={4} sm={4} sx={{ textAlign: "right" }}>
                   <Typography variant="subtitle1" fontWeight="bold">
-                    Subtotal
+                    Tổng cộng
                   </Typography>
                 </Grid>
               </Grid>
@@ -1028,7 +1025,7 @@ const CartPage: React.FC<CartPageProps> = ({
                         },
                       }}
                     >
-                      Remove
+                      Xóa
                     </Button>
                   </Grid>
                 </Grid>
@@ -1053,7 +1050,7 @@ const CartPage: React.FC<CartPageProps> = ({
                 px: 3,
               }}
             >
-              Continue Shopping
+              Tiếp tục mua hàng
             </MotionButton>
 
             <MotionButton
@@ -1066,7 +1063,7 @@ const CartPage: React.FC<CartPageProps> = ({
               startIcon={<Delete />}
               sx={{ fontWeight: "medium" }}
             >
-              Clear Cart
+              Xóa giỏ hàng
             </MotionButton>
           </MotionBox>
         </Grid>
@@ -1112,15 +1109,15 @@ const CartPage: React.FC<CartPageProps> = ({
                 fontWeight="bold"
                 sx={{ position: "relative", zIndex: 1 }}
               >
-                Order Summary
+                Tóm tắt đơn hàng
               </Typography>
 
               <Typography
                 variant="body2"
                 sx={{ mt: 1, opacity: 0.8, position: "relative", zIndex: 1 }}
               >
-                {cartDetails.reduce((sum, item) => sum + item.quantity, 0)}{" "}
-                items in your cart
+                {cartDetails.reduce((sum, item) => sum + item.quantity, 0)} sản
+                phẩm trong giỏ hàng
               </Typography>
             </Box>
 
@@ -1134,7 +1131,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   }}
                 >
                   <Typography variant="body1" color="text.secondary">
-                    Subtotal ({selectedCount}{" "}
+                    Tổng sản Phẩm ({selectedCount}{" "}
                     {selectedCount > 1 ? "items" : "item"})
                   </Typography>
                   <Typography variant="body1" fontWeight="bold">
@@ -1152,7 +1149,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   }}
                 >
                   <Typography variant="h6" fontWeight="bold">
-                    Total
+                    Tổng cộng
                   </Typography>
                   <Typography
                     variant="h5"
@@ -1190,9 +1187,10 @@ const CartPage: React.FC<CartPageProps> = ({
                   }}
                 >
                   {selectedCount > 0
-                    ? `Checkout (${selectedCount} item${selectedCount > 1 ? "s" : ""
-                    })`
-                    : "Select items to checkout"}
+                    ? `Checkout (${selectedCount} sản phẩm${
+                        selectedCount > 1 ? "s" : ""
+                      })`
+                    : "Chọn sản phẩm để thanh toán"}
                 </MotionButton>
 
                 {/* Payment methods - Updated */}
@@ -1203,7 +1201,7 @@ const CartPage: React.FC<CartPageProps> = ({
                     gutterBottom
                     sx={{ fontWeight: "medium" }}
                   >
-                    We Accept:
+                    Chúng tôi chấp nhận:
                   </Typography>
                   <Box
                     sx={{
@@ -1273,7 +1271,7 @@ const CartPage: React.FC<CartPageProps> = ({
                         }}
                       />
                       <Typography variant="body2" fontWeight="medium">
-                        Cash on Delivery
+                        Thanh toán khi nhận hàng
                       </Typography>
                     </Box>
                   </Box>
@@ -1299,7 +1297,7 @@ const CartPage: React.FC<CartPageProps> = ({
             }}
           >
             <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-              Selected Devices
+              Thiết bị đã chọn
             </Typography>
 
             {Object.entries(selectedDevices)
@@ -1391,7 +1389,7 @@ const CartPage: React.FC<CartPageProps> = ({
                             startIcon={<Delete fontSize="small" />}
                             sx={{ mt: 1 }}
                           >
-                            Remove
+                            Xóa
                           </Button>
                         </Grid>
                       </Grid>

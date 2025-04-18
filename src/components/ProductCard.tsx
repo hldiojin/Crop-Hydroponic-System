@@ -261,41 +261,6 @@ const ProductCard: React.FC<Props> = ({
             pt: 0,
           }}
         >
-          <Box sx={{ display: "flex", width: "100%", gap: 1 }}>
-            <Button
-              variant="outlined"
-              startIcon={<Info />}
-              component={Link}
-              to={`/product/${product.id}`}
-              size="small"
-              sx={{
-                flex: 1,
-                height: 40,
-                borderRadius: 1,
-                "&:hover": {
-                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                },
-              }}
-            >
-              Details
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Edit />}
-              onClick={handleEditOpen}
-              size="small"
-              sx={{
-                flex: 1,
-                height: 40,
-                borderRadius: 1,
-                "&:hover": {
-                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                },
-              }}
-            >
-              Edit
-            </Button>
-          </Box>
           <Button
             variant="contained"
             onClick={() => onAddToCart(product)}
@@ -315,7 +280,7 @@ const ProductCard: React.FC<Props> = ({
               transition: "all 0.2s",
             }}
           >
-            Add to Cart
+            Thêm vào giỏ hàng
           </Button>
         </CardActions>
       </Card>

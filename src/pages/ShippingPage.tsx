@@ -121,7 +121,7 @@ const ShippingPage: React.FC = () => {
   const [wardList, setWardList] = useState<Ward[]>([]);
   const [selectedProvince, setSelectedProvince] = useState<Number>(0);
   const [selectedDistrict, setSelectedDistrict] = useState<Number>(0);
-  const [selectedWard, setSelectedWard] = useState<string>('0');
+  const [selectedWard, setSelectedWard] = useState<string>("0");
   const [addressLoading, setAddressLoading] = useState<boolean>(true);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [useExistingAddress, setUseExistingAddress] = useState<boolean>(true);
@@ -255,10 +255,16 @@ const ShippingPage: React.FC = () => {
         if (response.code !== 200) {
           throw new Error("Failed to fetch provinces");
         }
-        var provinces: Province[] = response.data.filter((x: Province) => !x.ProvinceName.toLowerCase().includes("test")).map((province: Province): Province => ({
-          ProvinceID: province.ProvinceID,
-          ProvinceName: province.ProvinceName,
-        }));
+        var provinces: Province[] = response.data
+          .filter(
+            (x: Province) => !x.ProvinceName.toLowerCase().includes("test")
+          )
+          .map(
+            (province: Province): Province => ({
+              ProvinceID: province.ProvinceID,
+              ProvinceName: province.ProvinceName,
+            })
+          );
         setProvinceList(provinces);
       } catch (error) {
         console.error("Failed to fetch provinces:", error);
@@ -268,7 +274,9 @@ const ShippingPage: React.FC = () => {
     const fetchDistricts = async () => {
       if (selectedProvince) {
         try {
-          const response = await ghnService.getDistricts(String(selectedProvince));
+          const response = await ghnService.getDistricts(
+            String(selectedProvince)
+          );
           if (response.code !== 200) {
             throw new Error("Failed to fetch districts");
           }
@@ -277,7 +285,7 @@ const ShippingPage: React.FC = () => {
           console.error("Failed to fetch districts:", error);
         }
       }
-    }
+    };
 
     const fetchWards = async () => {
       if (selectedDistrict) {
@@ -291,7 +299,7 @@ const ShippingPage: React.FC = () => {
           console.error("Failed to fetch wards:", error);
         }
       }
-    }
+    };
 
     fetchDistricts();
     fetchWards();
@@ -320,18 +328,24 @@ const ShippingPage: React.FC = () => {
       case "province":
         var province = provinceList.find((x) => x.ProvinceID == value);
         setSelectedProvince(Number(value));
-        setFormData((prev) => ({ ...prev, province: province?.ProvinceName || "" }));
+        setFormData((prev) => ({
+          ...prev,
+          province: province?.ProvinceName || "",
+        }));
         setSelectedDistrict(0); // Reset district and ward lists
-        setSelectedWard('0');
+        setSelectedWard("0");
         setDistrictList([]); // Reset district and ward lists
         setWardList([]);
         break;
       case "district":
         setSelectedDistrict(Number(value));
         var district = districtList.find((x) => x.DistrictID == value);
-        setFormData((prev) => ({ ...prev, district: district?.DistrictName || "" }));
+        setFormData((prev) => ({
+          ...prev,
+          district: district?.DistrictName || "",
+        }));
         setWardList([]); // Reset ward list
-        setSelectedWard('0');
+        setSelectedWard("0");
         break;
       case "ward":
         setSelectedWard(value.toString());
@@ -341,33 +355,33 @@ const ShippingPage: React.FC = () => {
       default:
         break;
     }
-  }
+  };
 
   const validateForm = (): boolean => {
     const errors: Partial<ShippingFormData> = {};
 
     if (!formData.name?.trim()) {
-      errors.name = "Name is required";
+      errors.name = "Cần nhập tên";
     }
 
     if (!formData.phone?.trim()) {
-      errors.phone = "Phone number is required";
+      errors.phone = "Cần nhập số điện thoại";
     }
 
     if (!formData.address?.trim()) {
-      errors.address = "Address is required";
+      errors.address = "Cần nhập địa chỉ";
     }
 
     if (!formData.ward?.trim()) {
-      errors.ward = "Ward is required";
+      errors.ward = "Cần nhập phường/xã";
     }
 
     if (!formData.district?.trim()) {
-      errors.district = "District is required";
+      errors.district = "Cần nhập quận/huyện";
     }
 
     if (!formData.province?.trim()) {
-      errors.province = "Province is required";
+      errors.province = "Cần nhập tỉnh/thành phố";
     }
 
     setFormErrors(errors);
@@ -551,7 +565,7 @@ const ShippingPage: React.FC = () => {
             if (backLocation) {
               navigate(backLocation);
             } else {
-              navigate("/cart")
+              navigate("/cart");
             }
           }}
           sx={{
@@ -579,7 +593,7 @@ const ShippingPage: React.FC = () => {
             letterSpacing: "0.5px",
           }}
         >
-          Shipping Information
+          Thông tin vận chuyển
         </Typography>
 
         <Badge
@@ -619,10 +633,10 @@ const ShippingPage: React.FC = () => {
           }}
         >
           {[
-            { label: "Cart", icon: <ShoppingCart /> },
-            { label: "Shipping", icon: <LocalShipping /> },
-            { label: "Payment", icon: <CreditCard /> },
-            { label: "Confirmation", icon: <CheckCircleOutline /> },
+            { label: "Giỏ hàng", icon: <ShoppingCart /> },
+            { label: "Vận chuyển", icon: <LocalShipping /> },
+            { label: "Thanh toán", icon: <CreditCard /> },
+            { label: "Xác nhận", icon: <CheckCircleOutline /> },
           ].map((step, index) => (
             <Box
               key={step.label}
@@ -733,8 +747,7 @@ const ShippingPage: React.FC = () => {
                     zIndex: 1,
                   }}
                 >
-                  <LocationOn fontSize="small" color="primary" /> Saved
-                  Addresses
+                  <LocationOn fontSize="small" color="primary" /> Địa chỉ đã lưu
                 </Typography>
 
                 <Stack spacing={2}>
@@ -763,9 +776,9 @@ const ShippingPage: React.FC = () => {
                           selectedAddress?.id === address.id
                             ? `2px solid ${theme.palette.primary.main}`
                             : `1px solid ${alpha(
-                              theme.palette.primary.main,
-                              0.2
-                            )}`,
+                                theme.palette.primary.main,
+                                0.2
+                              )}`,
                         cursor: "pointer",
                         position: "relative",
                         transition: "all 0.2s ease",
@@ -777,7 +790,7 @@ const ShippingPage: React.FC = () => {
                     >
                       {selectedAddress?.id === address.id && (
                         <Chip
-                          label="Selected"
+                          label="Đã chọn"
                           size="small"
                           color="primary"
                           sx={{
@@ -790,7 +803,7 @@ const ShippingPage: React.FC = () => {
                       )}
                       {address.isDefault && (
                         <Chip
-                          label="Default"
+                          label="Mặc định"
                           size="small"
                           color="success"
                           sx={{
@@ -839,7 +852,7 @@ const ShippingPage: React.FC = () => {
                   }
                   label={
                     <Typography variant="body1">
-                      Use a different address
+                      Sử dụng địa chỉ khác
                     </Typography>
                   }
                   sx={{ mt: 2 }}
@@ -884,7 +897,7 @@ const ShippingPage: React.FC = () => {
                     zIndex: 1,
                   }}
                 >
-                  <Home fontSize="small" color="primary" /> Shipping Address
+                  <Home fontSize="small" color="primary" /> Địa chỉ vận chuyển
                 </Typography>
 
                 <Grid container spacing={2}>
@@ -893,7 +906,7 @@ const ShippingPage: React.FC = () => {
                       fullWidth
                       id="name"
                       name="name"
-                      label="Full Name"
+                      label="Họ và tên"
                       value={formData.name}
                       onChange={handleFormChange}
                       error={!!formErrors.name}
@@ -906,7 +919,7 @@ const ShippingPage: React.FC = () => {
                       fullWidth
                       id="phone"
                       name="phone"
-                      label="Phone Number"
+                      label="Số điện thoại"
                       value={formData.phone}
                       onChange={handleFormChange}
                       error={!!formErrors.phone}
@@ -919,29 +932,37 @@ const ShippingPage: React.FC = () => {
                       fullWidth
                       id="address"
                       name="address"
-                      label="Street Address"
+                      label="Địa chỉ"
                       value={formData.address}
                       onChange={handleFormChange}
                       error={!!formErrors.address}
                       helperText={formErrors.address}
                       sx={{ mb: 2 }}
-                      placeholder="House number, Street name"
+                      placeholder="Số nhà, tên đường"
                     />
                   </Grid>
                   <Grid item xs={12} md={4}>
                     <FormControl fullWidth sx={{ mb: 2 }}>
-                      <InputLabel id="demo-simple-select-standard-label">Province</InputLabel>
+                      <InputLabel id="demo-simple-select-standard-label">
+                        Tỉnh/thành phố
+                      </InputLabel>
                       <Select
                         labelId="demo-simple-select-label"
                         id="demo-simple-select"
                         value={selectedProvince}
-                        label="Province"
+                        label="Tỉnh/thành phố"
                         onChange={(e) => {
-                          handleShippingChange("province", Number(e.target.value));
+                          handleShippingChange(
+                            "province",
+                            Number(e.target.value)
+                          );
                         }}
                       >
                         {provinceList.map((province) => (
-                          <MenuItem key={province.ProvinceID} value={province.ProvinceID}>
+                          <MenuItem
+                            key={province.ProvinceID}
+                            value={province.ProvinceID}
+                          >
                             {province.ProvinceName}
                           </MenuItem>
                         ))}
@@ -950,19 +971,27 @@ const ShippingPage: React.FC = () => {
                   </Grid>
                   <Grid item xs={12} md={4}>
                     <FormControl fullWidth sx={{ mb: 2 }}>
-                      <InputLabel id="demo-simple-select-standard-label">District</InputLabel>
+                      <InputLabel id="demo-simple-select-standard-label">
+                        Quận/huyện
+                      </InputLabel>
                       <Select
                         labelId="demo-simple-select-label"
                         id="demo-simple-select"
                         value={selectedDistrict}
-                        label="District"
+                        label="Quận/huyện"
                         onChange={(e) => {
-                          handleShippingChange("district", Number(e.target.value));
+                          handleShippingChange(
+                            "district",
+                            Number(e.target.value)
+                          );
                         }}
                         disabled={districtList.length === 0}
                       >
                         {districtList.map((district) => (
-                          <MenuItem key={district.DistrictID} value={district.DistrictID}>
+                          <MenuItem
+                            key={district.DistrictID}
+                            value={district.DistrictID}
+                          >
                             {district.DistrictName}
                           </MenuItem>
                         ))}
@@ -971,12 +1000,14 @@ const ShippingPage: React.FC = () => {
                   </Grid>
                   <Grid item xs={12} md={4}>
                     <FormControl fullWidth sx={{ mb: 2 }}>
-                      <InputLabel id="demo-simple-select-standard-label">Ward</InputLabel>
+                      <InputLabel id="demo-simple-select-standard-label">
+                        Ward
+                      </InputLabel>
                       <Select
                         labelId="demo-simple-select-label"
                         id="demo-simple-select"
                         value={selectedWard}
-                        label="Ward"
+                        label="Phường/xã"
                         onChange={(e) => {
                           handleShippingChange("ward", Number(e.target.value));
                         }}
@@ -1000,7 +1031,7 @@ const ShippingPage: React.FC = () => {
                           color="primary"
                         />
                       }
-                      label="Save this address for future orders"
+                      label="Lưu địa chỉ cho các đơn hàng tương lai"
                     />
                   </Grid>
                 </Grid>
@@ -1028,7 +1059,7 @@ const ShippingPage: React.FC = () => {
                   px: 3,
                 }}
               >
-                Back to Cart
+                Quay lại giỏ hàng
               </MotionButton>
 
               <MotionButton
@@ -1048,7 +1079,7 @@ const ShippingPage: React.FC = () => {
                   boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                 }}
               >
-                Continue to Payment
+                Tiếp tục thanh toán
               </MotionButton>
             </MotionBox>
           </Grid>

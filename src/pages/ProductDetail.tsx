@@ -179,7 +179,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ products, onAddToCart, on
                 navigate('/cart');
               }}
             >
-              Add to Cart
+              Thêm vào giỏ hàng
             </Button>
             <Button
               variant="outlined"

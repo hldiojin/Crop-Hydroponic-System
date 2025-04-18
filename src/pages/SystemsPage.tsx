@@ -56,15 +56,15 @@ const SystemsPage: React.FC<Props> = ({ onAddToCart, onEdit, onFavorite, favorit
       <Box sx={{ mb: 4, textAlign: 'center' }}>
         <Memory sx={{ fontSize: 40, color: 'primary.main', mb: 2 }} />
         <Typography variant="h3" component="h1" gutterBottom>
-          Hydroponic Systems
+          Hệ thống thủy canh
         </Typography>
         <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
-          Advanced systems for optimal plant growth
+          Hệ thống tối ưu cho sự phát triển của cây trồng
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-          <Chip label="Smart Control" color="primary" />
-          <Chip label="Energy Efficient" color="success" />
-          <Chip label="IoT Enabled" color="secondary" />
+          <Chip label="Kiểm soát thông minh" color="primary" />
+          <Chip label="Tiết kiệm năng lượng" color="success" />
+          <Chip label="Kết nối IoT" color="secondary" />
         </Box>
       </Box>
       

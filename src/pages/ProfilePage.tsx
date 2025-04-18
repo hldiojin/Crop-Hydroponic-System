@@ -281,7 +281,7 @@ const ProfilePage: React.FC = () => {
       await getUserInfo();
       setSnackbar({
         open: true,
-        message: "Profile refreshed successfully",
+        message: "Làm mới thông tin cá nhân thành công",
         severity: "success",
       });
     } catch (error) {
@@ -814,7 +814,7 @@ const ProfilePage: React.FC = () => {
                 textShadow: "0 2px 4px rgba(0,0,0,0.08)",
               }}
             >
-              My Profile
+              Thông tin của tôi
             </MotionTypography>
 
             {/* Just a dummy element to center the title */}
@@ -984,7 +984,7 @@ const ProfilePage: React.FC = () => {
                   variants={itemVariants}
                   sx={{ mb: 2 }}
                 >
-                  Quick Actions
+                  Hành động nhanh
                 </MotionTypography>
 
                 <Stack spacing={2} mt={2}>
@@ -1005,7 +1005,7 @@ const ProfilePage: React.FC = () => {
                       },
                     }}
                   >
-                    Change Password
+                    Đổi mật khẩu
                   </MotionButton>
 
                   <MotionButton
@@ -1025,7 +1025,7 @@ const ProfilePage: React.FC = () => {
                       },
                     }}
                   >
-                    View Orders
+                    Xem đơn hàng
                   </MotionButton>
 
                   <MotionButton
@@ -1049,7 +1049,7 @@ const ProfilePage: React.FC = () => {
                     {loadingProfile ? (
                       <CircularProgress size={24} />
                     ) : (
-                      "Refresh Profile"
+                      "Làm mới thông tin"
                     )}
                   </MotionButton>
                 </Stack>
@@ -1113,7 +1113,7 @@ const ProfilePage: React.FC = () => {
                       fontSize: { xs: "1.2rem", md: "1.4rem" },
                     }}
                   >
-                    Personal Information
+                    Thông tin cá nhân
                   </MotionTypography>
                 </Box>
 
@@ -1132,7 +1132,7 @@ const ProfilePage: React.FC = () => {
                     <MotionTextField
                       variants={itemVariants}
                       fullWidth
-                      label="Full Name"
+                      label="Họ và tên"
                       name="name"
                       value={isEditing ? editData.name : user?.name || ""}
                       onChange={handleChange}
@@ -1180,7 +1180,7 @@ const ProfilePage: React.FC = () => {
                     <MotionTextField
                       variants={itemVariants}
                       fullWidth
-                      label="Phone Number"
+                      label="Số điện thoại"
                       name="phone"
                       value={isEditing ? editData.phone : user?.phone || ""}
                       onChange={handleChange}
@@ -1253,7 +1253,7 @@ const ProfilePage: React.FC = () => {
                       fontSize: { xs: "1.2rem", md: "1.4rem" },
                     }}
                   >
-                    Support & Help
+                    Hỗ trợ và trợ giúp
                   </MotionTypography>
                 </Box>
 
@@ -1267,8 +1267,9 @@ const ProfilePage: React.FC = () => {
                       lineHeight: 1.6,
                     }}
                   >
-                    Need help with your account or have a question about our
-                    services? Our support team is ready to assist you.
+                    Cần trợ giúp với tài khoản của bạn hoặc có câu hỏi về dịch
+                    vụ của chúng tôi? Đội ngũ hỗ trợ của chúng tôi sẵn sàng giúp
+                    đỡ bạn.
                   </Typography>
 
                   <Stack
@@ -1291,7 +1292,7 @@ const ProfilePage: React.FC = () => {
                         boxShadow: "0 4px 12px rgba(33, 150, 243, 0.3)",
                       }}
                     >
-                      Submit Ticket
+                      Gửi yêu cầu
                     </MotionButton>
 
                     <MotionButton
@@ -1308,7 +1309,7 @@ const ProfilePage: React.FC = () => {
                         borderRadius: 3,
                       }}
                     >
-                      View All Tickets
+                      Xem tất cả yêu cầu
                     </MotionButton>
                   </Stack>
                 </Box>
@@ -1339,7 +1340,7 @@ const ProfilePage: React.FC = () => {
           }}
         >
           <Typography variant="h6" fontWeight="bold">
-            Your Support Tickets
+            Yêu cầu hỗ trợ của bạn
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ p: 0 }}>
@@ -1350,7 +1351,7 @@ const ProfilePage: React.FC = () => {
           ) : tickets.length === 0 ? (
             <Box p={4} textAlign="center">
               <Typography variant="body1" color="text.secondary">
-                You haven't submitted any tickets yet.
+                Bạn chưa gửi bất kỳ yêu cầu hỗ trợ nào.
               </Typography>
             </Box>
           ) : (
@@ -1358,15 +1359,13 @@ const ProfilePage: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                    <TableCell sx={{ fontWeight: "bold" }}>Mô tả</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Loại</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>
-                      Description
+                      Trạng thái
                     </TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Type</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>
-                      Created At
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Ngày tạo</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Hành động</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1414,7 +1413,7 @@ const ProfilePage: React.FC = () => {
                             },
                           }}
                         >
-                          View Details
+                          Xem chi tiết
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -1437,7 +1436,7 @@ const ProfilePage: React.FC = () => {
                 isLoadingTickets ? <CircularProgress size={16} /> : null
               }
             >
-              {isLoadingTickets ? "Loading..." : "Load More"}
+              {isLoadingTickets ? "Đang tải..." : "Tải thêm"}
             </Button>
           )}
           <Button
@@ -1445,7 +1444,7 @@ const ProfilePage: React.FC = () => {
             variant="contained"
             color="primary"
           >
-            Close
+            Đóng
           </Button>
         </DialogActions>
       </Dialog>
@@ -1475,10 +1474,10 @@ const ProfilePage: React.FC = () => {
           }}
         >
           <Typography variant="h6" fontWeight="bold">
-            Ticket Details
+            Chi tiết yêu cầu
           </Typography>
           <Chip
-            label={selectedTicketDetails?.status || "Loading"}
+            label={selectedTicketDetails?.status || "Đang tải..."}
             color={getStatusColor(selectedTicketDetails?.status || "Pending")}
             size="small"
             sx={{ fontWeight: "bold", px: 1 }}
@@ -1508,7 +1507,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Ticket ID
+                      Mã yêu cầu
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedTicketDetails.id}
@@ -1519,7 +1518,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Type
+                      Loại
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedTicketDetails.type}
@@ -1530,7 +1529,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Created At
+                      Ngày tạo
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {formatDate(selectedTicketDetails.createdAt)}
@@ -1545,7 +1544,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Status
+                      Trạng thái
                     </Typography>
                     <Box sx={{ mb: 2 }}>
                       <Chip
@@ -1562,7 +1561,7 @@ const ProfilePage: React.FC = () => {
                           color="text.secondary"
                           gutterBottom
                         >
-                          Status Updated
+                          Trạng thái đã cập nhật
                         </Typography>
                         <Typography
                           variant="body1"
@@ -1581,7 +1580,7 @@ const ProfilePage: React.FC = () => {
                           color="text.secondary"
                           gutterBottom
                         >
-                          Assigned To
+                          Được giao cho
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
                           {selectedTicketDetails.assignee}
@@ -1598,7 +1597,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Description
+                      Mô tả
                     </Typography>
                     <Typography
                       variant="body1"
@@ -1618,7 +1617,7 @@ const ProfilePage: React.FC = () => {
                         fontWeight="bold"
                         gutterBottom
                       >
-                        Attachments
+                        Tài liệu đính kèm
                       </Typography>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
                         {selectedTicketDetails.attachments.map(
@@ -1710,7 +1709,7 @@ const ProfilePage: React.FC = () => {
                         fontWeight="bold"
                         gutterBottom
                       >
-                        Responses
+                        Các phản hồi
                       </Typography>
                       <Stack spacing={2}>
                         {selectedTicketDetails.ticketResponses.map(
@@ -1812,8 +1811,9 @@ const ProfilePage: React.FC = () => {
                                               <Box
                                                 component="img"
                                                 src={attachment}
-                                                alt={`Response ${index + 1
-                                                  } Attachment ${attIndex + 1}`}
+                                                alt={`Response ${
+                                                  index + 1
+                                                } Attachment ${attIndex + 1}`}
                                                 sx={{
                                                   width: "100%",
                                                   height: "100%",
@@ -1864,7 +1864,7 @@ const ProfilePage: React.FC = () => {
             </Box>
           ) : (
             <Typography color="text.secondary">
-              No ticket details available
+              Không có chi tiết yêu cầu
             </Typography>
           )}
         </DialogContent>
@@ -1876,7 +1876,7 @@ const ProfilePage: React.FC = () => {
             variant="contained"
             color="primary"
           >
-            Close
+            Đóng
           </Button>
         </DialogActions>
       </Dialog>
@@ -1912,7 +1912,7 @@ const ProfilePage: React.FC = () => {
             fontWeight="bold"
             gutterBottom
           >
-            Change Password
+            Đổi mật khẩu
           </Typography>
 
           {error && (
@@ -1923,7 +1923,7 @@ const ProfilePage: React.FC = () => {
 
           <Box component="form" sx={{ mt: 2 }}>
             <FormControl fullWidth margin="normal" variant="outlined">
-              <InputLabel htmlFor="old-password">Current Password</InputLabel>
+              <InputLabel htmlFor="old-password">Mật khẩu hiện tại</InputLabel>
               <OutlinedInput
                 id="old-password"
                 name="oldPassword"
@@ -1945,7 +1945,7 @@ const ProfilePage: React.FC = () => {
                     </IconButton>
                   </InputAdornment>
                 }
-                label="Current Password"
+                label="Mật khẩu hiện tại"
               />
               {passwordErrors.oldPassword && (
                 <Typography
@@ -1959,7 +1959,7 @@ const ProfilePage: React.FC = () => {
             </FormControl>
 
             <FormControl fullWidth margin="normal" variant="outlined">
-              <InputLabel htmlFor="new-password">New Password</InputLabel>
+              <InputLabel htmlFor="new-password">Mật khẩu mới</InputLabel>
               <OutlinedInput
                 id="new-password"
                 name="newPassword"
@@ -1981,7 +1981,7 @@ const ProfilePage: React.FC = () => {
                     </IconButton>
                   </InputAdornment>
                 }
-                label="New Password"
+                label="Mật khẩu mới"
               />
               {passwordErrors.newPassword && (
                 <Typography
@@ -1996,7 +1996,7 @@ const ProfilePage: React.FC = () => {
 
             <FormControl fullWidth margin="normal" variant="outlined">
               <InputLabel htmlFor="confirm-password">
-                Confirm New Password
+                Xác nhận mật khẩu mới
               </InputLabel>
               <OutlinedInput
                 id="confirm-password"
@@ -2021,7 +2021,7 @@ const ProfilePage: React.FC = () => {
                     </IconButton>
                   </InputAdornment>
                 }
-                label="Confirm New Password"
+                label="Xác nhận mật khẩu mới"
               />
               {passwordErrors.confirmPassword && (
                 <Typography
@@ -2043,7 +2043,7 @@ const ProfilePage: React.FC = () => {
               }}
             >
               <Button variant="outlined" onClick={handlePasswordModalClose}>
-                Cancel
+                Hủy bỏ
               </Button>
               <motion.div
                 whileHover={{ scale: 1.03 }}
@@ -2055,7 +2055,7 @@ const ProfilePage: React.FC = () => {
                   onClick={handleSubmitPasswordChange}
                   disabled={loading}
                 >
-                  {loading ? <CircularProgress size={24} /> : "Change Password"}
+                  {loading ? <CircularProgress size={24} /> : "Đổi mật khẩu"}
                 </Button>
               </motion.div>
             </Box>
@@ -2080,6 +2080,12 @@ const ProfilePage: React.FC = () => {
             boxShadow: 24,
             p: 4,
             borderRadius: 2,
+            maxHeight: "90vh",
+            overflowY: "auto",
+            margin: "0 auto",
+            "&:focus": {
+              outline: "none",
+            },
           }}
           component={motion.div}
           initial={{ opacity: 0, y: 20 }}
@@ -2094,7 +2100,7 @@ const ProfilePage: React.FC = () => {
             fontWeight="bold"
             gutterBottom
           >
-            Submit Support Ticket
+            Gửi yêu cầu hỗ trợ
           </Typography>
 
           {ticketError && (
@@ -2109,15 +2115,15 @@ const ProfilePage: React.FC = () => {
 
           <Box component="form" sx={{ mt: 2 }}>
             <FormControl fullWidth margin="normal">
-              <InputLabel htmlFor="ticket-type">Ticket Type</InputLabel>
+              <InputLabel htmlFor="ticket-type">Loại yêu cầu</InputLabel>
               <Select
                 id="ticket-type"
                 value={ticketData.Type}
                 onChange={handleTicketTypeChange}
-                label="Ticket Type"
+                label="Loại yêu cầu"
               >
-                <MenuItem value="Shopping">Shopping</MenuItem>
-                <MenuItem value="Technical">Technical</MenuItem>
+                <MenuItem value="Shopping">Mua hàng</MenuItem>
+                <MenuItem value="Technical">Kỹ thuật</MenuItem>
               </Select>
             </FormControl>
 
@@ -2126,14 +2132,14 @@ const ProfilePage: React.FC = () => {
               multiline
               rows={4}
               margin="normal"
-              label="Description"
+              label="Mô tả"
               value={ticketData.Description}
               onChange={handleTicketDescriptionChange}
               error={!!ticketError}
               helperText={
                 ticketError
                   ? ticketError
-                  : "Please describe your issue in detail"
+                  : "Vui lòng mô tả vấn đề của bạn chi tiết"
               }
               sx={{
                 "& .MuiOutlinedInput-root": {
@@ -2162,7 +2168,7 @@ const ProfilePage: React.FC = () => {
                     component="span"
                     startIcon={<AddPhotoIcon />}
                   >
-                    Add Attachments
+                    Thêm tài liệu đính kèm
                   </Button>
                 </motion.div>
               </label>
@@ -2171,7 +2177,7 @@ const ProfilePage: React.FC = () => {
                   variant="body2"
                   sx={{ mt: 1, color: "success.main" }}
                 >
-                  {ticketAttachments.length} file(s) selected
+                  {ticketAttachments.length} tài liệu đã chọn
                 </Typography>
               )}
             </Box>
@@ -2185,7 +2191,7 @@ const ProfilePage: React.FC = () => {
               }}
             >
               <Button variant="outlined" onClick={handleTicketModalClose}>
-                Cancel
+                Hủy bỏ
               </Button>
               <motion.div
                 whileHover={{ scale: 1.03 }}
@@ -2200,7 +2206,7 @@ const ProfilePage: React.FC = () => {
                   {ticketLoading ? (
                     <CircularProgress size={24} />
                   ) : (
-                    "Submit Ticket"
+                    "Gửi yêu cầu"
                   )}
                 </Button>
               </motion.div>
@@ -2230,7 +2236,7 @@ const ProfilePage: React.FC = () => {
           }}
         >
           <Typography variant="h6" fontWeight="bold">
-            Your Orders
+            Đơn hàng của bạn
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ p: 0 }}>
@@ -2241,7 +2247,7 @@ const ProfilePage: React.FC = () => {
           ) : orders.length === 0 ? (
             <Box p={4} textAlign="center">
               <Typography variant="body1" color="text.secondary">
-                You haven't placed any orders yet.
+                Bạn chưa đặt hàng nào.
               </Typography>
             </Box>
           ) : (
@@ -2249,11 +2255,17 @@ const ProfilePage: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                    <TableCell sx={{ fontWeight: "bold" }}>Order ID</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Date</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Total</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Mã đơn hàng
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Ngày đặt hàng
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Tổng cộng</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Trạng thái
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Hành động</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -2302,7 +2314,7 @@ const ProfilePage: React.FC = () => {
                             },
                           }}
                         >
-                          View Details
+                          Xem chi tiết
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -2325,7 +2337,7 @@ const ProfilePage: React.FC = () => {
                 isLoadingOrders ? <CircularProgress size={16} /> : null
               }
             >
-              {isLoadingOrders ? "Loading..." : "Load More"}
+              {isLoadingOrders ? "Đang tải..." : "Tải thêm"}
             </Button>
           )}
           <Button
@@ -2333,7 +2345,7 @@ const ProfilePage: React.FC = () => {
             variant="contained"
             color="primary"
           >
-            Close
+            Đóng
           </Button>
         </DialogActions>
       </Dialog>
@@ -2363,7 +2375,7 @@ const ProfilePage: React.FC = () => {
           }}
         >
           <Typography variant="h6" fontWeight="bold">
-            Order Details
+            Chi tiết đơn hàng
           </Typography>
           {selectedOrderDetails && (
             <Chip
@@ -2399,7 +2411,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Order ID
+                      Mã đơn hàng
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.orderId}
@@ -2410,14 +2422,14 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Date Placed
+                      Ngày đặt hàng
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
-                        selectedOrderDetails.transactions.length > 0
+                      selectedOrderDetails.transactions.length > 0
                         ? formatDate(
-                          selectedOrderDetails.transactions[0].createdAt
-                        )
+                            selectedOrderDetails.transactions[0].createdAt
+                          )
                         : "N/A"}
                     </Typography>
 
@@ -2426,7 +2438,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Status
+                      Trạng thái
                     </Typography>
                     <Box sx={{ mb: 2 }}>
                       <Chip
@@ -2446,11 +2458,11 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Payment Method
+                      Phương thức thanh toán
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
-                        selectedOrderDetails.transactions.length > 0
+                      selectedOrderDetails.transactions.length > 0
                         ? selectedOrderDetails.transactions[0].paymentMethod ===
                           "BANK"
                           ? "Online Payment (PayOS)"
@@ -2463,12 +2475,31 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Payment Status
+                      Trạng thái thanh toán
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
-                        selectedOrderDetails.transactions.length > 0
-                        ? selectedOrderDetails.transactions[0].paymentStatus == "PAID" ? "Đã thanh toán" : selectedOrderDetails.transactions[0].paymentStatus == "PENDING" ? "Chờ thanh toán" : selectedOrderDetails.transactions[0].paymentStatus == "FAILED" ? "Thanh toán thất bại" : selectedOrderDetails.transactions[0].paymentStatus == "REFUNDED" ? "Đã hoàn tiền" : selectedOrderDetails.transactions[0].paymentStatus == "CANCELED" ? "Đã hủy" : selectedOrderDetails.transactions[0].paymentStatus == "PROCESSING" ? "Đang xử lý" : selectedOrderDetails.transactions[0].paymentStatus : "N/A"}
+                      selectedOrderDetails.transactions.length > 0
+                        ? selectedOrderDetails.transactions[0].paymentStatus ==
+                          "PAID"
+                          ? "Đã thanh toán"
+                          : selectedOrderDetails.transactions[0]
+                              .paymentStatus == "PENDING"
+                          ? "Chờ thanh toán"
+                          : selectedOrderDetails.transactions[0]
+                              .paymentStatus == "FAILED"
+                          ? "Thanh toán thất bại"
+                          : selectedOrderDetails.transactions[0]
+                              .paymentStatus == "REFUNDED"
+                          ? "Đã hoàn tiền"
+                          : selectedOrderDetails.transactions[0]
+                              .paymentStatus == "CANCELED"
+                          ? "Đã hủy"
+                          : selectedOrderDetails.transactions[0]
+                              .paymentStatus == "PROCESSING"
+                          ? "Đang xử lý"
+                          : selectedOrderDetails.transactions[0].paymentStatus
+                        : "N/A"}
                     </Typography>
 
                     <Typography
@@ -2476,7 +2507,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Total Amount
+                      Tổng số tiền
                     </Typography>
                     <Typography
                       variant="h6"
@@ -2496,7 +2527,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Shipping Address
+                      Địa chỉ giao hàng
                     </Typography>
 
                     {selectedOrderDetails.userAddress ? (
@@ -2513,7 +2544,7 @@ const ProfilePage: React.FC = () => {
                       </Box>
                     ) : (
                       <Typography variant="body2" color="text.secondary">
-                        No shipping address information available.
+                        Không có thông tin địa chỉ giao hàng.
                       </Typography>
                     )}
                   </Card>
@@ -2526,11 +2557,11 @@ const ProfilePage: React.FC = () => {
                     fontWeight="bold"
                     gutterBottom
                   >
-                    Order Items
+                    Sản phẩm đơn hàng
                   </Typography>
 
                   {selectedOrderDetails.orderDetailsItems &&
-                    selectedOrderDetails.orderDetailsItems.length > 0 ? (
+                  selectedOrderDetails.orderDetailsItems.length > 0 ? (
                     <Card
                       variant="outlined"
                       sx={{ borderRadius: 2, overflow: "hidden" }}
@@ -2586,7 +2617,7 @@ const ProfilePage: React.FC = () => {
                               </ListItem>
                               {index <
                                 selectedOrderDetails.orderDetailsItems.length -
-                                1 && <Divider />}
+                                  1 && <Divider />}
                             </React.Fragment>
                           )
                         )}
@@ -2603,14 +2634,14 @@ const ProfilePage: React.FC = () => {
                       >
                         <Box>
                           <Typography variant="body2" color="text.secondary">
-                            Subtotal:
+                            Tổng cộng:
                           </Typography>
                           <Typography
                             variant="body2"
                             color="text.secondary"
                             sx={{ mt: 1 }}
                           >
-                            Shipping:
+                            Phí giao hàng:
                           </Typography>
                         </Box>
                         <Box sx={{ textAlign: "right" }}>
@@ -2638,7 +2669,7 @@ const ProfilePage: React.FC = () => {
                         }}
                       >
                         <Typography variant="subtitle1" fontWeight="bold">
-                          Total:
+                          Tổng cộng:
                         </Typography>
                         <Typography
                           variant="h6"
@@ -2651,7 +2682,7 @@ const ProfilePage: React.FC = () => {
                     </Card>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No items in this order.
+                      Không có sản phẩm trong đơn hàng này.
                     </Typography>
                   )}
                 </Grid>
@@ -2659,7 +2690,7 @@ const ProfilePage: React.FC = () => {
             </Box>
           ) : (
             <Typography color="text.secondary">
-              No order details available
+              Không có chi tiết đơn hàng.
             </Typography>
           )}
         </DialogContent>
@@ -2671,7 +2702,7 @@ const ProfilePage: React.FC = () => {
             variant="contained"
             color="primary"
           >
-            Close
+            Đóng
           </Button>
         </DialogActions>
       </Dialog>
