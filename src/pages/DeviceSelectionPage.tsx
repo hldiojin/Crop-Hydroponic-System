@@ -401,7 +401,7 @@ const DeviceSelectionPage: React.FC = () => {
                         WebkitTextFillColor: "transparent",
                       }}
                     >
-                      ${device.price?.toLocaleString() || "0"}
+                      {device.price?.toLocaleString() || "0"}VND
                     </Typography>
 
                     <Chip
@@ -804,7 +804,7 @@ const DeviceSelectionPage: React.FC = () => {
                                       color="primary"
                                       fontWeight="bold"
                                     >
-                                      ${product.price || 0}
+                                      {product.price || 0} VND
                                     </Typography>
 
                                     <Chip
