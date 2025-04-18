@@ -28,8 +28,10 @@ import {
 import { motion } from "framer-motion";
 import {
   checkTransactionStatus,
+  getCODBilling,
   getOrderById,
   OrderDetail,
+  OrderDetailPayment,
 } from "../services/orderSevice";
 import { useAuth } from "../context/AuthContext";
 
@@ -52,7 +54,7 @@ const OrderConfirmation: React.FC = () => {
   const [shippingAddress, setShippingAddress] = useState<any>(null);
   const [shippingMethod, setShippingMethod] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
-  const [orderDetails, setOrderDetails] = useState<OrderDetail | null>(null);
+  const [orderDetails, setOrderDetails] = useState<OrderDetailPayment | null>(null);
 
   // Animation variants
   const containerVariants = {
@@ -132,7 +134,7 @@ const OrderConfirmation: React.FC = () => {
         localStorage.getItem("orderTotal");
       const storedPaymentMethod = localStorage.getItem("paymentMethod");
       const transactionId =
-        transactionIdFromUrl || localStorage.getItem("transactionId");
+        transactionIdFromUrl;
 
       console.log("OrderConfirmation - Retrieved data:", {
         paymentStatus: storedPaymentStatus,
@@ -206,60 +208,118 @@ const OrderConfirmation: React.FC = () => {
       // For successful payments, fetch the order details from API
       const fetchOrderDetails = async () => {
 
-        if (orderId && finalStatus === "success") {
-          try {
-            console.log("Fetching order details from API for order:", orderId);
-            const response = await getOrderById(orderId);
+        // if (orderId && finalStatus === "success") {
+        //   try {
+        //     console.log("Fetching order details from API for order:", orderId);
+        //     var response = await getOrderById(orderId);
 
-            if (
-              response &&
-              response.statusCodes === 200 &&
-              response.response?.data
-            ) {
-              const orderData = response.response.data;
-              console.log("Order details fetched successfully:", orderData);
+        //     if (
+        //       response &&
+        //       response.statusCodes === 200 &&
+        //       response.response?.data
+        //     ) {
+        //       const orderData = response.response.data;
+        //       console.log("Order details fetched successfully:", orderData);
 
-              setOrderDetails(orderData);
+        //       setOrderDetails(orderData);
 
-              // Update UI with order data
-              if (orderData.totalPrice) {
-                setOrderTotal(orderData.totalPrice.toString());
-              }
+        //       // Update UI with order data
+        //       if (orderData.totalPrice) {
+        //         setOrderTotal(orderData.totalPrice.toString());
+        //       }
 
-              if (orderData.userAddress) {
-                setShippingAddress({
-                  name: orderData.userAddress.name,
-                  phone: orderData.userAddress.phone,
-                  address: orderData.userAddress.address,
-                });
-              }
+        //       if (orderData.userAddress) {
+        //         setShippingAddress({
+        //           name: orderData.userAddress.name,
+        //           phone: orderData.userAddress.phone,
+        //           address: orderData.userAddress.address,
+        //         });
+        //       }
 
-              // Set shipping method from localStorage - API doesn't provide this
-              const storedShippingMethod =
-                localStorage.getItem("shippingMethod");
-              if (storedShippingMethod) {
-                setShippingMethod(storedShippingMethod);
-              }
+        //       // Set shipping method from localStorage - API doesn't provide this
+        //       const storedShippingMethod =
+        //         localStorage.getItem("shippingMethod");
+        //       if (storedShippingMethod) {
+        //         setShippingMethod(storedShippingMethod);
+        //       }
 
-              // Keep the payment method from localStorage for proper display
-              // We don't use the transaction paymentMethod as it may be coded differently
-              const storedMethod = localStorage.getItem("paymentMethod");
-              if (storedMethod) {
-                setPaymentMethod(storedMethod);
-              }
-            } else {
-              console.warn(
-                "Could not get order details or invalid format",
-                response
-              );
+        //       // Keep the payment method from localStorage for proper display
+        //       // We don't use the transaction paymentMethod as it may be coded differently
+        //       const storedMethod = localStorage.getItem("paymentMethod");
+        //       if (storedMethod) {
+        //         setPaymentMethod(storedMethod);
+        //       }
+        //     } else {
+        //       console.warn(
+        //         "Could not get order details or invalid format",
+        //         response
+        //       );
+        //     }
+        //   } catch (error) {
+        //     console.error("Error fetching order details:", error);
+        //   } finally {
+        //     setLoading(false);
+        //   }
+        // } else {
+        //   setLoading(false);
+        // }
+
+        if (orderId && storedPaymentMethod == "cashOnDelivery") {
+          var response = await getCODBilling(orderId);
+          if (response && response.statusCodes === 200) {
+            const orderData = response.response.data;
+            console.log("COD billing details fetched successfully:", response);
+            setOrderDetails(orderData);
+            if (orderData.totalPrice) {
+              setOrderTotal(orderData.totalPrice.toString());
             }
-          } catch (error) {
-            console.error("Error fetching order details:", error);
-          } finally {
+            if (orderData.userAddress) {
+              setShippingAddress({
+                name: orderData.userAddress.name,
+                phone: orderData.userAddress.phone,
+                address: orderData.userAddress.address,
+              });
+            }
+            const storedMethod = localStorage.getItem("paymentMethod");
+            if (storedMethod) {
+              setPaymentMethod(storedMethod);
+            }
+            setLoading(false);
+          } else {
+            console.warn(
+              "Could not get COD billing details or invalid format",
+              response
+            );
             setLoading(false);
           }
-        } else {
-          setLoading(false);
+        } else if (orderId && transactionId) {
+          var response = await checkTransactionStatus(transactionId)
+          if (response && response.statusCodes === 200) {
+            const orderData = response.response.data;
+            console.log("COD billing details fetched successfully:", response);
+            setOrderDetails(orderData);
+            if (orderData.totalPrice) {
+              setOrderTotal(orderData.totalPrice.toString());
+            }
+            if (orderData.userAddress) {
+              setShippingAddress({
+                name: orderData.userAddress.name,
+                phone: orderData.userAddress.phone,
+                address: orderData.userAddress.address,
+              });
+            }
+            const storedMethod = localStorage.getItem("paymentMethod");
+            if (storedMethod) {
+              setPaymentMethod(storedMethod);
+            }
+            setLoading(false);
+          } else {
+            console.warn(
+              "Could not get COD billing details or invalid format",
+              response
+            );
+            setLoading(false);
+          }
         }
       };
 
@@ -267,41 +327,61 @@ const OrderConfirmation: React.FC = () => {
 
       // Only check transaction status if we don't already have a definitive success/failure status
       // and we have a transaction ID
-      if (transactionId) {
-        console.log("Checking transaction status for:", transactionId);
-        checkTransactionStatus(transactionId)
-          .then(
-            (result: {
-              statusCodes: number;
-              response: { success: boolean };
-            }) => {
-              console.log("Transaction status check result:", result);
-              if (
-                result &&
-                result.statusCodes === 200 &&
-                result.response.success
-              ) {
-                setPaymentStatus("success");
-                localStorage.setItem("paymentStatus", "success");
+      // if (transactionId) {
+      //   console.log("Checking transaction status for:", transactionId);
+      //   var response = await checkTransactionStatus(transactionId)
+      //     .then(
+      //       (result: {
+      //         statusCodes: number;
+      //         response: { success: boolean };
+      //       }) => {
+      //         console.log("Transaction status check result:", result);
+      //         if (
+      //           result &&
+      //           result.statusCodes === 200 &&
+      //           result.response.success
+      //         ) {
+      //           setPaymentStatus("success");
+      //           localStorage.setItem("paymentStatus", "success");
 
-                // Fetch order details after confirming successful payment
-                fetchOrderDetails();
-              } else {
-                // Only set failed if we don't have a success status from other methods
-                setPaymentStatus("failed");
-                localStorage.setItem("paymentStatus", "failed");
-                setLoading(false);
-              }
-            }
-          )
-          .catch((error: Error) => {
-            console.error("Error checking transaction status:", error);
-            // Only set failed if we don't have a success status from other methods
-            setPaymentStatus("failed");
-            localStorage.setItem("paymentStatus", "failed");
-            setLoading(false);
-          });
-      }
+      //           // Fetch order details after confirming successful payment
+      //           // fetchOrderDetails();
+      //           const orderData = result.response.data;
+      //           console.log("COD billing details fetched successfully:", response);
+      //           setOrderDetails(orderData);
+      //           if (orderData.totalPrice) {
+      //             setOrderTotal(orderData.totalPrice.toString());
+      //           }
+      //           if (orderData.userAddress) {
+      //             setShippingAddress({
+      //               name: orderData.userAddress.name,
+      //               phone: orderData.userAddress.phone,
+      //               address: orderData.userAddress.address,
+      //             });
+      //           }
+      //           const storedMethod = localStorage.getItem("paymentMethod");
+      //           if (storedMethod) {
+      //             setPaymentMethod(storedMethod);
+      //           }
+      //           setLoading(false);
+      //         } else {
+      //           // Only set failed if we don't have a success status from other methods
+      //           setPaymentStatus("failed");
+      //           localStorage.setItem("paymentStatus", "failed");
+      //           setLoading(false);
+      //         }
+      //       }
+      //     )
+      //     .catch((error: Error) => {
+      //       console.error("Error checking transaction status:", error);
+      //       // Only set failed if we don't have a success status from other methods
+      //       setPaymentStatus("failed");
+      //       localStorage.setItem("paymentStatus", "failed");
+      //       setLoading(false);
+      //     });
+      // } else {
+
+      // }
 
       if (address) {
         setShippingAddress(JSON.parse(address));
@@ -561,11 +641,12 @@ const OrderConfirmation: React.FC = () => {
                         Phương thức vận chuyển:
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {shippingMethod === "standard"
+                        {/* {shippingMethod === "standard"
                           ? "Giao hàng tiêu chuẩn (2-5 ngày)"
                           : shippingMethod === "express"
                             ? "Giao hàng nhanh (1-2 ngày)"
-                            : "Giao hàng hỏa tốc (24 giờ)"}
+                            : "Giao hàng hỏa tốc (24 giờ)"} */}
+                        GHN
                       </Typography>
                     </>
                   ) : (
@@ -619,6 +700,40 @@ const OrderConfirmation: React.FC = () => {
                     fontWeight="bold"
                     gutterBottom
                   >
+                    Tạm tính:
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="primary.main"
+                  >
+                    {orderDetails?.orderPrice ? `₫${formatPrice(Number(orderDetails?.orderPrice))}` : "₫0"}
+                  </Typography>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Typography
+                    variant="subtitle2"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
+                    Phí vận chuyển:
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="primary.main"
+                  >
+                    {orderDetails?.shippingPrice ? `₫${formatPrice(Number(orderDetails?.shippingPrice))}` : "₫0"}
+                  </Typography>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Typography
+                    variant="subtitle2"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
                     Tổng thanh toán:
                   </Typography>
                   <Typography
@@ -626,7 +741,7 @@ const OrderConfirmation: React.FC = () => {
                     fontWeight="bold"
                     color="primary.main"
                   >
-                    {orderTotal ? `₫${formatPrice(Number(orderTotal))}` : "₫0"}
+                    {orderDetails?.totalPrice ? `₫${formatPrice(Number(orderDetails?.totalPrice))}` : "₫0"}
                   </Typography>
 
                   <Divider sx={{ my: 2 }} />
@@ -640,9 +755,7 @@ const OrderConfirmation: React.FC = () => {
                   </Typography>
                   <Chip
                     label={
-                      paymentStatus === "success"
-                        ? "Đã thanh toán"
-                        : "Chưa thanh toán"
+                      orderDetails?.statusPayment && orderDetails?.statusPayment == "Delivering" && paymentMethod == "cashOnDelivery" ? "Đang xử lý" : "Đã thanh toán"
                     }
                     color={paymentStatus === "success" ? "success" : "error"}
                     size="small"
@@ -653,8 +766,8 @@ const OrderConfirmation: React.FC = () => {
 
             {/* Hiển thị các mặt hàng đã đặt */}
             {orderDetails &&
-              orderDetails.orderDetailsItems &&
-              orderDetails.orderDetailsItems.length > 0 && (
+              orderDetails.orderProductItem &&
+              orderDetails.orderProductItem.length > 0 && (
                 <Box sx={{ mt: 8 }}>
                   <Typography
                     variant="h6"
@@ -678,8 +791,8 @@ const OrderConfirmation: React.FC = () => {
                     }}
                   >
                     <List disablePadding>
-                      {orderDetails.orderDetailsItems.map((item, index) => (
-                        <React.Fragment key={item.orderDetailsId}>
+                      {orderDetails.orderProductItem.map((item, index) => (
+                        <React.Fragment key={item.id}>
                           <ListItem
                             sx={{
                               py: 2,
@@ -697,7 +810,7 @@ const OrderConfirmation: React.FC = () => {
                           >
                             <Box
                               component="img"
-                              src={item.productImage}
+                              src={item.attachment}
                               alt={item.productName}
                               sx={{
                                 width: 60,
@@ -719,15 +832,15 @@ const OrderConfirmation: React.FC = () => {
                                 variant="body2"
                                 color="text.secondary"
                               >
-                                ₫{formatPrice(item.price)} x {item.quantity}
+                                ₫{formatPrice(item.unitPrice)} x {item.quantity}
                               </Typography>
                             </Box>
                             <Typography variant="subtitle2" fontWeight="bold">
-                              ₫{formatPrice(item.totalPrice)}
+                              ₫{formatPrice(item.unitPrice)} x {item.quantity}
                             </Typography>
                           </ListItem>
                           {index <
-                            orderDetails.orderDetailsItems.length - 1 && (
+                            orderDetails.orderProductItem.length - 1 && (
                               <Divider />
                             )}
                         </React.Fragment>
@@ -744,14 +857,14 @@ const OrderConfirmation: React.FC = () => {
                       }}
                     >
                       <Typography variant="subtitle1" fontWeight="bold">
-                        Tổng ({orderDetails.orderDetailsItems.length} sản phẩm):
+                        Tổng ({orderDetails.orderProductItem.length} sản phẩm):
                       </Typography>
                       <Typography
                         variant="subtitle1"
                         fontWeight="bold"
                         color="primary.main"
                       >
-                        ₫{formatPrice(orderDetails.price)}
+                        ₫{formatPrice(orderDetails.orderPrice)}
                       </Typography>
                     </Box>
                   </Paper>

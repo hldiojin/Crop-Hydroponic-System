@@ -45,13 +45,33 @@ export interface Transaction {
 
 export interface OrderDetail {
   orderId: string;
-  price: number;
+  orderPrice: number;
   shippingFee: number;
-  totalPrice: number;
+  price: number;
   status: string;
   orderDetailsItems: OrderDetailItem[];
   userAddress: UserAddress;
   transactions: Transaction[];
+}
+
+export interface OrderDetailPayment {
+  orderId: string;
+  orderPrice: number;
+  shippingPrice: number;
+  totalPrice: number;
+  statusPayment: string;
+  orderProductItem: OrderDetailItemPayment[];
+  userAddress: UserAddress;
+  transactions: Transaction[];
+}
+
+export interface OrderDetailItemPayment {
+  id: string;
+  attachment: string;
+  productName: string;
+  productItemName: number;
+  quantity: number;
+  unitPrice: number;
 }
 
 export interface OrderSummary {
@@ -96,6 +116,16 @@ export const getOrderById = async (orderId: string): Promise<any> => {
     throw error;
   }
 };
+
+export const getCODBilling = async (orderId: string): Promise<any> => {
+  try {
+    const response = await api.get(`/transaction/cod/${orderId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching COD billing for order ${orderId}:`, error);
+    throw error;
+  }
+}
 
 export const getAllOrders = async (
   pageIndex: number = 1,

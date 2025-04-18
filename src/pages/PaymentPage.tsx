@@ -114,11 +114,8 @@ const PaymentPage: React.FC = () => {
   const [subtotal, setSubtotal] = useState<number>(0);
   const [shipping, setShipping] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
-  const handleCloseToast = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === "clickaway") {
+  const handleCloseToast = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') {
       return;
     }
     setToast({ ...toast, open: false });
@@ -217,15 +214,20 @@ const PaymentPage: React.FC = () => {
                 setShipping(orderData.shippingFee);
               if (orderData.totalPrice !== undefined)
                 setTotal(orderData.totalPrice);
-            } else if (
-              orderResponse.statusCodes == 400 &&
-              orderResponse.message ==
-                "Không tìm thấy địa chỉ mặc định cho người dùng."
-            ) {
+              if (orderData.status == "Cancelled") {
+                setToast({
+                  open: true,
+                  message: "Đơn hàng đã bị hủy",
+                  severity: "error",
+                });
+                navigate("/cart");
+                return;
+              }
+            } else if (orderResponse.statusCodes == 400 && orderResponse.message == "Không tìm thấy địa chỉ mặc định cho người dùng.") {
               setToast({
                 open: true,
                 message: `${orderResponse.message}`,
-                severity: "error",
+                severity: "error"
               });
               navigate("/checkout/shipping");
               return;
@@ -634,8 +636,8 @@ const PaymentPage: React.FC = () => {
                 index === 0
                   ? () => navigate("/cart")
                   : index === 1
-                  ? () => navigate("/checkout/shipping")
-                  : undefined
+                    ? () => navigate("/checkout/shipping")
+                    : undefined
               }
             >
               <Box
@@ -768,9 +770,9 @@ const PaymentPage: React.FC = () => {
                         boxShadow:
                           formData.paymentMethod === method.id
                             ? `0 4px 12px ${alpha(
-                                theme.palette.primary.main,
-                                0.2
-                              )}`
+                              theme.palette.primary.main,
+                              0.2
+                            )}`
                             : "0 2px 8px rgba(0,0,0,0.05)",
                         transition: "all 0.2s ease",
                       }}
@@ -1144,7 +1146,7 @@ const PaymentPage: React.FC = () => {
                             </Typography>
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
-                            {item.unitPrice.toLocaleString()} VND
+                            ${item.unitPrice.toLocaleString()}
                           </Typography>
                         </Box>
                       ))}
@@ -1164,55 +1166,55 @@ const PaymentPage: React.FC = () => {
                   {Object.entries(selectedDevices).some(
                     ([_, quantity]) => quantity > 0
                   ) && (
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        bgcolor: alpha(theme.palette.background.default, 0.5),
-                      }}
-                    >
-                      <Typography
-                        variant="subtitle2"
-                        fontWeight="bold"
-                        sx={{ mb: 2 }}
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: alpha(theme.palette.background.default, 0.5),
+                        }}
                       >
-                        Selected Devices
-                      </Typography>
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight="bold"
+                          sx={{ mb: 2 }}
+                        >
+                          Selected Devices
+                        </Typography>
 
-                      <Stack spacing={2}>
-                        {Object.entries(selectedDevices)
-                          .filter(([_, quantity]) => quantity > 0)
-                          .map(([deviceId, quantity]) => {
-                            const device = devices.find(
-                              (d) => d.id === deviceId
-                            );
-                            return (
-                              <Box
-                                key={deviceId}
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                }}
-                              >
-                                <Typography variant="body2">
-                                  {device?.name}{" "}
-                                  <Typography
-                                    component="span"
-                                    color="text.secondary"
-                                  >
-                                    x{quantity}
+                        <Stack spacing={2}>
+                          {Object.entries(selectedDevices)
+                            .filter(([_, quantity]) => quantity > 0)
+                            .map(([deviceId, quantity]) => {
+                              const device = devices.find(
+                                (d) => d.id === deviceId
+                              );
+                              return (
+                                <Box
+                                  key={deviceId}
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                  }}
+                                >
+                                  <Typography variant="body2">
+                                    {device?.name}{" "}
+                                    <Typography
+                                      component="span"
+                                      color="text.secondary"
+                                    >
+                                      x{quantity}
+                                    </Typography>
                                   </Typography>
-                                </Typography>
-                                <Typography variant="body2" fontWeight="medium">
-                                  {(device?.price || 0) * quantity} VND
-                                </Typography>
-                              </Box>
-                            );
-                          })}
-                      </Stack>
-                    </Paper>
-                  )}
+                                  <Typography variant="body2" fontWeight="medium">
+                                    ${(device?.price || 0) * quantity}
+                                  </Typography>
+                                </Box>
+                              );
+                            })}
+                        </Stack>
+                      </Paper>
+                    )}
 
                   <Divider />
 
@@ -1290,12 +1292,12 @@ const PaymentPage: React.FC = () => {
         open={toast.open}
         autoHideDuration={6000}
         onClose={handleCloseToast}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Alert
           onClose={handleCloseToast}
           severity={toast.severity}
-          sx={{ width: "100%" }}
+          sx={{ width: '100%' }}
         >
           {toast.message}
         </Alert>

@@ -48,6 +48,7 @@ import {
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { ghnService } from "../services/ghnService";
+import { n } from "framer-motion/dist/types.d-B50aGbjN";
 
 // Create properly typed motion components
 const MotionContainer = motion(Container);
@@ -254,7 +255,7 @@ const ShippingPage: React.FC = () => {
         if (response.code !== 200) {
           throw new Error("Failed to fetch provinces");
         }
-        var provinces: Province[] = response.data.filter((x: Province) => x.ProvinceName != "Test").map((province: Province): Province => ({
+        var provinces: Province[] = response.data.filter((x: Province) => !x.ProvinceName.toLowerCase().includes("test")).map((province: Province): Province => ({
           ProvinceID: province.ProvinceID,
           ProvinceName: province.ProvinceName,
         }));
@@ -545,7 +546,14 @@ const ShippingPage: React.FC = () => {
         }}
       >
         <IconButton
-          onClick={() => navigate("/cart")}
+          onClick={() => {
+            var backLocation = localStorage.getItem("backLocation");
+            if (backLocation) {
+              navigate(backLocation);
+            } else {
+              navigate("/cart")
+            }
+          }}
           sx={{
             mr: 2,
             bgcolor: alpha(theme.palette.primary.main, 0.1),
@@ -951,6 +959,7 @@ const ShippingPage: React.FC = () => {
                         onChange={(e) => {
                           handleShippingChange("district", Number(e.target.value));
                         }}
+                        disabled={districtList.length === 0}
                       >
                         {districtList.map((district) => (
                           <MenuItem key={district.DistrictID} value={district.DistrictID}>
@@ -971,6 +980,7 @@ const ShippingPage: React.FC = () => {
                         onChange={(e) => {
                           handleShippingChange("ward", Number(e.target.value));
                         }}
+                        disabled={wardList.length === 0}
                       >
                         {wardList.map((ward) => (
                           <MenuItem key={ward.WardCode} value={ward.WardCode}>
