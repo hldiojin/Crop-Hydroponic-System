@@ -1812,9 +1812,8 @@ const ProfilePage: React.FC = () => {
                                               <Box
                                                 component="img"
                                                 src={attachment}
-                                                alt={`Response ${
-                                                  index + 1
-                                                } Attachment ${attIndex + 1}`}
+                                                alt={`Response ${index + 1
+                                                  } Attachment ${attIndex + 1}`}
                                                 sx={{
                                                   width: "100%",
                                                   height: "100%",
@@ -2415,10 +2414,10 @@ const ProfilePage: React.FC = () => {
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
-                      selectedOrderDetails.transactions.length > 0
+                        selectedOrderDetails.transactions.length > 0
                         ? formatDate(
-                            selectedOrderDetails.transactions[0].createdAt
-                          )
+                          selectedOrderDetails.transactions[0].createdAt
+                        )
                         : "N/A"}
                     </Typography>
 
@@ -2451,7 +2450,7 @@ const ProfilePage: React.FC = () => {
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
-                      selectedOrderDetails.transactions.length > 0
+                        selectedOrderDetails.transactions.length > 0
                         ? selectedOrderDetails.transactions[0].paymentMethod ===
                           "BANK"
                           ? "Online Payment (PayOS)"
@@ -2468,9 +2467,8 @@ const ProfilePage: React.FC = () => {
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
-                      selectedOrderDetails.transactions.length > 0
-                        ? selectedOrderDetails.transactions[0].paymentStatus
-                        : "N/A"}
+                        selectedOrderDetails.transactions.length > 0
+                        ? selectedOrderDetails.transactions[0].paymentStatus == "PAID" ? "Đã thanh toán" : selectedOrderDetails.transactions[0].paymentStatus == "PENDING" ? "Chờ thanh toán" : selectedOrderDetails.transactions[0].paymentStatus == "FAILED" ? "Thanh toán thất bại" : selectedOrderDetails.transactions[0].paymentStatus == "REFUNDED" ? "Đã hoàn tiền" : selectedOrderDetails.transactions[0].paymentStatus == "CANCELED" ? "Đã hủy" : selectedOrderDetails.transactions[0].paymentStatus == "PROCESSING" ? "Đang xử lý" : selectedOrderDetails.transactions[0].paymentStatus : "N/A"}
                     </Typography>
 
                     <Typography
@@ -2485,7 +2483,7 @@ const ProfilePage: React.FC = () => {
                       fontWeight="bold"
                       color="primary.main"
                     >
-                      {formatCurrency(selectedOrderDetails.totalPrice)}
+                      {formatCurrency(selectedOrderDetails.price)}
                     </Typography>
                   </Card>
                 </Grid>
@@ -2532,7 +2530,7 @@ const ProfilePage: React.FC = () => {
                   </Typography>
 
                   {selectedOrderDetails.orderDetailsItems &&
-                  selectedOrderDetails.orderDetailsItems.length > 0 ? (
+                    selectedOrderDetails.orderDetailsItems.length > 0 ? (
                     <Card
                       variant="outlined"
                       sx={{ borderRadius: 2, overflow: "hidden" }}
@@ -2588,7 +2586,7 @@ const ProfilePage: React.FC = () => {
                               </ListItem>
                               {index <
                                 selectedOrderDetails.orderDetailsItems.length -
-                                  1 && <Divider />}
+                                1 && <Divider />}
                             </React.Fragment>
                           )
                         )}
@@ -2647,7 +2645,7 @@ const ProfilePage: React.FC = () => {
                           fontWeight="bold"
                           color="primary.main"
                         >
-                          {formatCurrency(selectedOrderDetails.totalPrice)}
+                          {formatCurrency(selectedOrderDetails.price)}
                         </Typography>
                       </Box>
                     </Card>

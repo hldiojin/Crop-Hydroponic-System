@@ -214,6 +214,15 @@ const PaymentPage: React.FC = () => {
                 setShipping(orderData.shippingFee);
               if (orderData.totalPrice !== undefined)
                 setTotal(orderData.totalPrice);
+              if (orderData.status == "Cancelled") {
+                setToast({
+                  open: true,
+                  message: "Đơn hàng đã bị hủy",
+                  severity: "error",
+                });
+                navigate("/cart");
+                return;
+              }
             } else if (orderResponse.statusCodes == 400 && orderResponse.message == "Không tìm thấy địa chỉ mặc định cho người dùng.") {
               setToast({
                 open: true,

@@ -7,6 +7,7 @@ export interface BaseProduct {
   categoryId: string;
   categoryName: string;
   status: string;
+  amount: number;
   // Trường type sẽ được thêm vào từ frontend dựa trên categoryName
   type?: "plant" | "system" | "nutrient";
 }
