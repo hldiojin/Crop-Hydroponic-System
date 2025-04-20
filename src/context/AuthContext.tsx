@@ -296,7 +296,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Unexpected login response structure:", response.data);
         throw new Error("Invalid response format from server");
       } else if (response.data?.statusCodes !== 200) {
-        const errorMessage =
+        let errorMessage =
           response.data?.response?.message ||
           response.data?.message ||
           "Login failed. Please check your credentials.";
@@ -309,12 +309,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error("Login error:", err);
 
       if (axios.isAxiosError(err)) {
-        const errorMessage =
+        let errorMessage =
           err.response?.data?.response?.message ||
           err.response?.data?.message ||
           "Failed to login. Please try again.";
-
-        setError(errorMessage);
 
         if (err.response?.status === 401) {
           setError("Invalid email or password. Please try again.");
@@ -323,6 +321,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         } else if (err.response?.status === 404) {
           setError("Account not found. Please check your email or register.");
         }
+
+        switch (errorMessage) {
+          case "User not found": {
+            errorMessage = "Tài khoản không tồn tại. Vui lòng kiểm tra địa chỉ email hoặc đăng ký.";
+            break;
+          }
+          case "Password is incorrect": {
+            errorMessage = "Mật khẩu không hợp lệ. Vui lòng thử lại.";
+            break;
+          }
+        }
+
+        setError(errorMessage);
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -508,7 +519,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       };
 
       const response = await api.post(
-        "/api/auth/me/change-password",
+        "/auth/me/change-password",
         requestData
       );
 

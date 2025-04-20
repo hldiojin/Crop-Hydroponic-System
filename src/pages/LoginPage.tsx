@@ -83,6 +83,14 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!email || !password) {
+      setToast({
+        open: true,
+        message: "Vui lòng nhập địa chỉ email và mật khẩu.",
+        severity: "error",
+      });
+      return;
+    }
     try {
       await login({ email, password });
     } catch (err: any) {
@@ -132,9 +140,9 @@ const LoginPage: React.FC = () => {
 
   const handleInputChange =
     (setter: React.Dispatch<React.SetStateAction<string>>) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setter(e.target.value);
-    };
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        setter(e.target.value);
+      };
 
   return (
     <Box
