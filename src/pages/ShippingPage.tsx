@@ -88,18 +88,19 @@ interface UserAddressResponse {
 }
 
 interface Province {
-  ProvinceID: number;
-  ProvinceName: string;
+  provinceId: number;
+  provinceName: string;
 }
 
 interface District {
-  DistrictID: number;
-  DistrictName: string;
+  provinceId: number;
+  districtId: number;
+  districtName: string;
 }
 
 interface Ward {
-  WardCode: string;
-  WardName: string;
+  wardCode: string;
+  wardName: string;
 }
 
 const ShippingPage: React.FC = () => {
@@ -252,17 +253,17 @@ const ShippingPage: React.FC = () => {
     const fetchProvinces = async () => {
       try {
         const response = await ghnService.getProvinces();
-        if (response.code !== 200) {
+        if (response.statusCodes !== 200) {
           throw new Error("Failed to fetch provinces");
         }
-        var provinces: Province[] = response.data
+        var provinces: Province[] = response.response
           .filter(
-            (x: Province) => !x.ProvinceName.toLowerCase().includes("test")
+            (x: Province) => !x.provinceName.toLowerCase().includes("test")
           )
           .map(
             (province: Province): Province => ({
-              ProvinceID: province.ProvinceID,
-              ProvinceName: province.ProvinceName,
+              provinceId: province.provinceId,
+              provinceName: province.provinceName,
             })
           );
         setProvinceList(provinces);
@@ -277,10 +278,10 @@ const ShippingPage: React.FC = () => {
           const response = await ghnService.getDistricts(
             String(selectedProvince)
           );
-          if (response.code !== 200) {
+          if (response.statusCodes !== 200) {
             throw new Error("Failed to fetch districts");
           }
-          setDistrictList(response.data);
+          setDistrictList(response.response);
         } catch (error) {
           console.error("Failed to fetch districts:", error);
         }
@@ -291,10 +292,10 @@ const ShippingPage: React.FC = () => {
       if (selectedDistrict) {
         try {
           const response = await ghnService.getWards(String(selectedDistrict));
-          if (response.code !== 200) {
+          if (response.statusCodes !== 200) {
             throw new Error("Failed to fetch wards");
           }
-          setWardList(response.data);
+          setWardList(response.response);
         } catch (error) {
           console.error("Failed to fetch wards:", error);
         }
@@ -326,11 +327,11 @@ const ShippingPage: React.FC = () => {
   const handleShippingChange = async (key: string, value: string | number) => {
     switch (key) {
       case "province":
-        var province = provinceList.find((x) => x.ProvinceID == value);
+        var province = provinceList.find((x) => x.provinceId == value);
         setSelectedProvince(Number(value));
         setFormData((prev) => ({
           ...prev,
-          province: province?.ProvinceName || "",
+          province: province?.provinceName || "",
         }));
         setSelectedDistrict(0); // Reset district and ward lists
         setSelectedWard("0");
@@ -339,18 +340,18 @@ const ShippingPage: React.FC = () => {
         break;
       case "district":
         setSelectedDistrict(Number(value));
-        var district = districtList.find((x) => x.DistrictID == value);
+        var district = districtList.find((x) => x.districtId == value);
         setFormData((prev) => ({
           ...prev,
-          district: district?.DistrictName || "",
+          district: district?.districtName || "",
         }));
         setWardList([]); // Reset ward list
         setSelectedWard("0");
         break;
       case "ward":
         setSelectedWard(value.toString());
-        var ward = wardList.find((x) => x.WardCode == value);
-        setFormData((prev) => ({ ...prev, ward: ward?.WardName || "" }));
+        var ward = wardList.find((x) => x.wardCode == value);
+        setFormData((prev) => ({ ...prev, ward: ward?.wardName || "" }));
         break;
       default:
         break;
@@ -776,9 +777,9 @@ const ShippingPage: React.FC = () => {
                           selectedAddress?.id === address.id
                             ? `2px solid ${theme.palette.primary.main}`
                             : `1px solid ${alpha(
-                                theme.palette.primary.main,
-                                0.2
-                              )}`,
+                              theme.palette.primary.main,
+                              0.2
+                            )}`,
                         cursor: "pointer",
                         position: "relative",
                         transition: "all 0.2s ease",
@@ -960,10 +961,10 @@ const ShippingPage: React.FC = () => {
                       >
                         {provinceList.map((province) => (
                           <MenuItem
-                            key={province.ProvinceID}
-                            value={province.ProvinceID}
+                            key={province.provinceId}
+                            value={province.provinceId}
                           >
-                            {province.ProvinceName}
+                            {province.provinceName}
                           </MenuItem>
                         ))}
                       </Select>
@@ -989,10 +990,10 @@ const ShippingPage: React.FC = () => {
                       >
                         {districtList.map((district) => (
                           <MenuItem
-                            key={district.DistrictID}
-                            value={district.DistrictID}
+                            key={district.districtId}
+                            value={district.districtId}
                           >
-                            {district.DistrictName}
+                            {district.districtName}
                           </MenuItem>
                         ))}
                       </Select>
@@ -1001,7 +1002,7 @@ const ShippingPage: React.FC = () => {
                   <Grid item xs={12} md={4}>
                     <FormControl fullWidth sx={{ mb: 2 }}>
                       <InputLabel id="demo-simple-select-standard-label">
-                        Ward
+                        Phường/xã
                       </InputLabel>
                       <Select
                         labelId="demo-simple-select-label"
@@ -1014,8 +1015,8 @@ const ShippingPage: React.FC = () => {
                         disabled={wardList.length === 0}
                       >
                         {wardList.map((ward) => (
-                          <MenuItem key={ward.WardCode} value={ward.WardCode}>
-                            {ward.WardName}
+                          <MenuItem key={ward.wardCode} value={ward.wardCode}>
+                            {ward.wardName}
                           </MenuItem>
                         ))}
                       </Select>

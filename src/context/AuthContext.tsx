@@ -810,6 +810,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     localStorage.removeItem("user");
     localStorage.removeItem("cart");
+    localStorage.clear();
 
     if (user?.email) {
       api

@@ -100,6 +100,11 @@ export interface OrdersResponse {
 export const submitOrder = async (orderData: OrderData): Promise<any> => {
   try {
     const response = await api.post("/order", orderData);
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      const newToken = response.headers["new-access-token"];
+      localStorage.setItem("authToken", newToken);
+    }
     return response.data;
   } catch (error) {
     console.error("Error submitting order:", error);
@@ -110,6 +115,11 @@ export const submitOrder = async (orderData: OrderData): Promise<any> => {
 export const getOrderById = async (orderId: string): Promise<any> => {
   try {
     const response = await api.get(`/order/${orderId}`);
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      const newToken = response.headers["new-access-token"];
+      localStorage.setItem("authToken", newToken);
+    }
     return response.data;
   } catch (error) {
     console.error(`Error fetching order ${orderId}:`, error);
@@ -120,6 +130,11 @@ export const getOrderById = async (orderId: string): Promise<any> => {
 export const getCODBilling = async (orderId: string): Promise<any> => {
   try {
     const response = await api.get(`/transaction/cod/${orderId}`);
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      const newToken = response.headers["new-access-token"];
+      localStorage.setItem("authToken", newToken);
+    }
     return response.data;
   } catch (error) {
     console.error(`Error fetching COD billing for order ${orderId}:`, error);
@@ -133,11 +148,16 @@ export const getAllOrders = async (
 ): Promise<OrdersResponse> => {
   try {
     const response = await api.get(
-      `/order?pageIndex=${pageIndex}&pageSize=${pageSize}`,
+      `/order/me?pageIndex=${pageIndex}&pageSize=${pageSize}`,
       {
         withCredentials: true,
       }
     );
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      const newToken = response.headers["new-access-token"];
+      localStorage.setItem("authToken", newToken);
+    }
     return response.data;
   } catch (error) {
     console.error("Error fetching orders:", error);
@@ -148,6 +168,11 @@ export const getAllOrders = async (
 export const processTransaction = async (orderId: string): Promise<any> => {
   try {
     const response = await api.post("/transaction", orderId);
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      const newToken = response.headers["new-access-token"];
+      localStorage.setItem("authToken", newToken);
+    }
     return response.data;
   } catch (error) {
     console.error("Error processing transaction:", error);
@@ -158,6 +183,11 @@ export const processTransaction = async (orderId: string): Promise<any> => {
 export const processCodTransaction = async (orderId: string): Promise<any> => {
   try {
     const response = await api.post("/transaction/cod", orderId);
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      const newToken = response.headers["new-access-token"];
+      localStorage.setItem("authToken", newToken);
+    }
     return response.data;
   } catch (error) {
     console.error("Error processing COD transaction:", error);
@@ -185,6 +215,11 @@ export const checkTransactionStatus = async (orderId: string): Promise<any> => {
 
     console.log(`Checking transaction status for transaction ${transactionId}`);
     const response = await api.post(`/transaction/check`, transactionId);
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      const newToken = response.headers["new-access-token"];
+      localStorage.setItem("authToken", newToken);
+    }
     return response.data;
   } catch (error) {
     console.error("Error checking transaction status:", error);

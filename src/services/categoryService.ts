@@ -50,15 +50,15 @@ export const categoryService = {
 // Helper function to flatten nested categories
 const flattenCategories = (categories: Category[]): Category[] => {
   let result: Category[] = [];
-  
+
   for (const category of categories) {
     result.push(category);
-    
+
     if (category.children && category.children.length > 0) {
       result = [...result, ...flattenCategories(category.children)];
     }
   }
-  
+
   return result;
 };
 

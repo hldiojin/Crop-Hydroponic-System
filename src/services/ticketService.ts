@@ -28,6 +28,11 @@ export const ticketService = {
       const response = await api.post<TicketResponse>("/ticket", formData, {
         withCredentials: true,
       });
+      var newToken = response.headers["new-access-token"];
+      if (newToken != null) {
+        const newToken = response.headers["new-access-token"];
+        localStorage.setItem("authToken", newToken);
+      }
 
       return response.data;
     } catch (error) {
@@ -41,6 +46,11 @@ export const ticketService = {
       const response = await api.get<TicketResponse>(`/ticket?status&pageIndex=${pageIndex}&pageSize=${pageSize}`, {
         withCredentials: true,
       });
+      var newToken = response.headers["new-access-token"];
+      if (newToken != null) {
+        const newToken = response.headers["new-access-token"];
+        localStorage.setItem("authToken", newToken);
+      }
       return response.data;
     } catch (error) {
       console.error("Error fetching tickets:", error);
@@ -53,6 +63,11 @@ export const ticketService = {
       const response = await api.get(`/ticket/${ticketId}`, {
         withCredentials: true,
       });
+      var newToken = response.headers["new-access-token"];
+      if (newToken != null) {
+        const newToken = response.headers["new-access-token"];
+        localStorage.setItem("authToken", newToken);
+      }
       return response.data;
     } catch (error) {
       console.error(`Error fetching ticket details for ID ${ticketId}:`, error);
