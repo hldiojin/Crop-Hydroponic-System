@@ -1007,7 +1007,7 @@ const CartPage: React.FC<CartPageProps> = ({
                         WebkitTextFillColor: "transparent",
                       }}
                     >
-                      ${(item.unitPrice * item.quantity).toLocaleString()}
+                      {(item.unitPrice * item.quantity).toLocaleString()} VND
                     </Typography>
 
                     <Button
@@ -1135,7 +1135,7 @@ const CartPage: React.FC<CartPageProps> = ({
                     {selectedCount > 1 ? "items" : "item"})
                   </Typography>
                   <Typography variant="body1" fontWeight="bold">
-                    ${selectedSubtotal.toLocaleString()}
+                    {selectedSubtotal.toLocaleString()} VND
                   </Typography>
                 </Box>
 
@@ -1161,7 +1161,7 @@ const CartPage: React.FC<CartPageProps> = ({
                       WebkitTextFillColor: "transparent",
                     }}
                   >
-                    ${selectedTotal.toLocaleString()}
+                    {selectedTotal.toLocaleString()} VND
                   </Typography>
                 </Box>
 
@@ -1172,7 +1172,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   size="large"
                   startIcon={<Payment />}
                   onClick={handleProceedToCheckout}
-                  disabled={selectedCount === 0} // Vô hiệu hóa nút nếu không có sản phẩm nào được chọn
+                  disabled={selectedCount === 0} 
                   whileHover={{
                     scale: 1.02,
                     boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
@@ -1187,9 +1187,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   }}
                 >
                   {selectedCount > 0
-                    ? `Checkout (${selectedCount} sản phẩm${
-                        selectedCount > 1 ? "s" : ""
-                      })`
+                    ? `Checkout (${selectedCount} sản phẩm)`
                     : "Chọn sản phẩm để thanh toán"}
                 </MotionButton>
 
@@ -1372,7 +1370,7 @@ const CartPage: React.FC<CartPageProps> = ({
                             color="primary"
                             fontWeight="bold"
                           >
-                            ${(device.price * quantity).toLocaleString()}
+                            {(device.price * quantity).toLocaleString()} VND
                           </Typography>
                           <Button
                             color="error"

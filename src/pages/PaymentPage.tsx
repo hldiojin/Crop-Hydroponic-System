@@ -977,7 +977,7 @@ const PaymentPage: React.FC = () => {
                             sx={{ mr: 1, fontSize: 20 }}
                           />
                           <Typography variant="body1" fontWeight="medium">
-                            GHN Shipping
+                            Giao Hàng Nhanh
                           </Typography>
                         </Box>
                         {/* <Typography
@@ -993,7 +993,7 @@ const PaymentPage: React.FC = () => {
                         </Typography> */}
                         <Chip
                           label={
-                            shipping === 0 ? "FREE" : `$${shipping.toFixed(2)}`
+                            shipping === 0 ? "Miễn Phí" : `$${shipping.toFixed(2)}`
                           }
                           size="small"
                           color={shipping === 0 ? "success" : "default"}
@@ -1155,7 +1155,7 @@ const PaymentPage: React.FC = () => {
                             </Typography>
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
-                            ${item.unitPrice.toLocaleString()}
+                            {item.unitPrice.toLocaleString()}VND
                           </Typography>
                         </Box>
                       ))}
@@ -1216,7 +1216,7 @@ const PaymentPage: React.FC = () => {
                                   </Typography>
                                 </Typography>
                                 <Typography variant="body2" fontWeight="medium">
-                                  ${(device?.price || 0) * quantity}
+                                  {(device?.price || 0) * quantity} VND
                                 </Typography>
                               </Box>
                             );
@@ -1238,7 +1238,7 @@ const PaymentPage: React.FC = () => {
                       Tổng cộng
                     </Typography>
                     <Typography variant="body1" fontWeight="bold">
-                      ${subtotal.toLocaleString()}
+                      {subtotal.toLocaleString()} VND
                     </Typography>
                   </Box>
 
@@ -1255,7 +1255,7 @@ const PaymentPage: React.FC = () => {
                     <Typography variant="body1" fontWeight="medium">
                       {shipping === 0 ? (
                         <Chip
-                          label="FREE"
+                          label="Miễn Phí"
                           color="success"
                           size="small"
                           sx={{ fontWeight: "bold" }}
@@ -1288,7 +1288,7 @@ const PaymentPage: React.FC = () => {
                         WebkitTextFillColor: "transparent",
                       }}
                     >
-                      ${total.toLocaleString()}
+                      {total.toLocaleString()} VND
                     </Typography>
                   </Box>
                 </Stack>
