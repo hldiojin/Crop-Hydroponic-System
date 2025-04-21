@@ -36,7 +36,7 @@ import {
   NavigateNext,
 } from "@mui/icons-material";
 import { CartDetailItem } from "../services/cartService";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   MotionBox,
@@ -108,6 +108,7 @@ const ShippingPage: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { isAuthenticated, token } = useAuth();
+  const { orderId } = useParams();
 
   const [cartDetails, setCartDetails] = useState<CartDetailItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -439,7 +440,7 @@ const ShippingPage: React.FC = () => {
           err.response?.status === 401 ||
           err.response?.data?.message?.includes("RefreshToken")
         ) {
-          navigate("/login", { state: { from: "/checkout/shipping" } });
+          navigate("/login", { state: { from: `/checkout/${orderId}/shipping` } });
           return;
         }
       }
@@ -459,14 +460,13 @@ const ShippingPage: React.FC = () => {
     );
 
     // Make sure we have the current order ID (created in CartPage)
-    const orderId = localStorage.getItem("currentOrderId");
     if (!orderId) {
-      navigate("/cart");
+      navigate("/*");
       return;
     }
 
     // Navigate to payment page
-    navigate("/checkout/payment");
+    navigate(`/checkout/${orderId}/payment`);
   };
 
   // Loading state

@@ -292,7 +292,7 @@ const CartPage: React.FC<CartPageProps> = ({
         localStorage.setItem("currentOrderId", orderId);
 
         // Chuyển đến trang shipping
-        navigate("/checkout/shipping");
+        navigate(`/checkout/${orderId}/shipping`);
       } else {
         throw new Error("Failed to create order");
       }
@@ -1172,7 +1172,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   size="large"
                   startIcon={<Payment />}
                   onClick={handleProceedToCheckout}
-                  disabled={selectedCount === 0} 
+                  disabled={selectedCount === 0}
                   whileHover={{
                     scale: 1.02,
                     boxShadow: "0 8px 20px rgba(0,0,0,0.2)",

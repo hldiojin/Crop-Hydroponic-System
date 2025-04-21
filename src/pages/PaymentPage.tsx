@@ -44,7 +44,7 @@ import {
   LocalAtm,
 } from "@mui/icons-material";
 import { CartDetailItem } from "../services/cartService";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   MotionBox,
@@ -64,6 +64,7 @@ import {
 } from "../services/orderSevice";
 import { deviceService, Device } from "../services/deviceService";
 import { response } from "express";
+import NotFoundPage from "./NotFoundPage";
 
 // Create properly typed motion components to fix TypeScript errors
 const MotionCard = motion(Card);
@@ -84,7 +85,7 @@ const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { isAuthenticated, token } = useAuth();
-
+  const { orderId } = useParams();
   const [loading, setLoading] = useState<boolean>(false);
   const [processingPayment, setProcessingPayment] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<Partial<PaymentFormData>>({});
@@ -129,7 +130,7 @@ const PaymentPage: React.FC = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate("/login", { state: { from: "/checkout/payment" } });
+      navigate("/login", { state: { from: "/checkout/:orderId/payment" } });
     }
   }, [isAuthenticated, navigate]);
 
@@ -229,15 +230,17 @@ const PaymentPage: React.FC = () => {
             } else if (
               orderResponse.statusCodes == 400 &&
               orderResponse.message ==
-                "Không tìm thấy địa chỉ mặc định cho người dùng."
+              "Không tìm thấy địa chỉ mặc định cho người dùng."
             ) {
               setToast({
                 open: true,
                 message: `${orderResponse.message}`,
                 severity: "error",
               });
-              navigate("/checkout/shipping");
+              navigate(`/checkout/${orderId}/shipping`);
               return;
+            } else if (orderResponse.statusCodes == 404) {
+              navigate("/*");
             } else {
               console.error("Invalid order data format");
               // Continue with fallback data
@@ -271,6 +274,10 @@ const PaymentPage: React.FC = () => {
         setCartDetails(JSON.parse(cartData));
       }
     };
+
+    if (!orderId) {
+      navigate("/*");
+    }
 
     // Lấy dữ liệu giỏ hàng khi trang được tải
     syncCartDetails();
@@ -390,10 +397,9 @@ const PaymentPage: React.FC = () => {
       setProcessingPayment(true);
 
       // Get the current order ID - first from orderDetails, then from localStorage
-      const orderId =
-        orderDetails?.orderId || localStorage.getItem("currentOrderId");
 
       if (!orderId) {
+        navigate("/*");
         setFormErrors({
           paymentMethod:
             "Thông tin đơn hàng không được tìm thấy. Vui lòng thử lại hoặc tạo đơn hàng mới.",
@@ -562,7 +568,7 @@ const PaymentPage: React.FC = () => {
         }}
       >
         <IconButton
-          onClick={() => navigate("/checkout/shipping")}
+          onClick={() => navigate(`/checkout${orderId}/shipping`)}
           sx={{
             mr: 2,
             bgcolor: alpha(theme.palette.primary.main, 0.1),
@@ -643,8 +649,8 @@ const PaymentPage: React.FC = () => {
                 index === 0
                   ? () => navigate("/cart")
                   : index === 1
-                  ? () => navigate("/checkout/shipping")
-                  : undefined
+                    ? () => navigate(`/checkout/${orderId}/shipping`)
+                    : undefined
               }
             >
               <Box
@@ -778,9 +784,9 @@ const PaymentPage: React.FC = () => {
                         boxShadow:
                           formData.paymentMethod === method.id
                             ? `0 4px 12px ${alpha(
-                                theme.palette.primary.main,
-                                0.2
-                              )}`
+                              theme.palette.primary.main,
+                              0.2
+                            )}`
                             : "0 2px 8px rgba(0,0,0,0.05)",
                         transition: "all 0.2s ease",
                       }}
@@ -1006,7 +1012,7 @@ const PaymentPage: React.FC = () => {
                   <Box sx={{ mt: 2, textAlign: "right" }}>
                     <Button
                       size="small"
-                      onClick={() => navigate("/checkout/shipping")}
+                      onClick={() => navigate(`/checkout/${orderId}/shipping`)}
                       startIcon={<ArrowBack fontSize="small" />}
                     >
                       Chỉnh sửa thông tin vận chuyển
@@ -1030,7 +1036,7 @@ const PaymentPage: React.FC = () => {
                 whileTap="tap"
                 startIcon={<ArrowBack />}
                 variant="outlined"
-                onClick={() => navigate("/checkout/shipping")}
+                onClick={() => navigate(`/checkout/${orderId}/shipping`)}
                 sx={{
                   fontWeight: "medium",
                   borderRadius: 2,
@@ -1175,55 +1181,55 @@ const PaymentPage: React.FC = () => {
                   {Object.entries(selectedDevices).some(
                     ([_, quantity]) => quantity > 0
                   ) && (
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        bgcolor: alpha(theme.palette.background.default, 0.5),
-                      }}
-                    >
-                      <Typography
-                        variant="subtitle2"
-                        fontWeight="bold"
-                        sx={{ mb: 2 }}
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: alpha(theme.palette.background.default, 0.5),
+                        }}
                       >
-                        Thiết bị đã chọn
-                      </Typography>
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight="bold"
+                          sx={{ mb: 2 }}
+                        >
+                          Thiết bị đã chọn
+                        </Typography>
 
-                      <Stack spacing={2}>
-                        {Object.entries(selectedDevices)
-                          .filter(([_, quantity]) => quantity > 0)
-                          .map(([deviceId, quantity]) => {
-                            const device = devices.find(
-                              (d) => d.id === deviceId
-                            );
-                            return (
-                              <Box
-                                key={deviceId}
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                }}
-                              >
-                                <Typography variant="body2">
-                                  {device?.name}{" "}
-                                  <Typography
-                                    component="span"
-                                    color="text.secondary"
-                                  >
-                                    x{quantity}
+                        <Stack spacing={2}>
+                          {Object.entries(selectedDevices)
+                            .filter(([_, quantity]) => quantity > 0)
+                            .map(([deviceId, quantity]) => {
+                              const device = devices.find(
+                                (d) => d.id === deviceId
+                              );
+                              return (
+                                <Box
+                                  key={deviceId}
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                  }}
+                                >
+                                  <Typography variant="body2">
+                                    {device?.name}{" "}
+                                    <Typography
+                                      component="span"
+                                      color="text.secondary"
+                                    >
+                                      x{quantity}
+                                    </Typography>
                                   </Typography>
-                                </Typography>
-                                <Typography variant="body2" fontWeight="medium">
-                                  {(device?.price || 0) * quantity} VND
-                                </Typography>
-                              </Box>
-                            );
-                          })}
-                      </Stack>
-                    </Paper>
-                  )}
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {(device?.price || 0) * quantity} VND
+                                  </Typography>
+                                </Box>
+                              );
+                            })}
+                        </Stack>
+                      </Paper>
+                    )}
 
                   <Divider />
 
