@@ -63,6 +63,7 @@ import {
   getOrderById,
   OrderDetail,
   OrderSummary,
+  cancelOrder
 } from "../services/orderSevice";
 import { Ticket, TicketRequest } from "../types/types";
 import { motion } from "framer-motion";
@@ -165,6 +166,8 @@ const ProfilePage: React.FC = () => {
   const [orderDetailsError, setOrderDetailsError] = useState<string | null>(
     null
   );
+
+  const [loadingCancelOrder, setLoadingCancelOrder] = useState(false);
 
   const checkedCookiesRef = useRef(false);
 
@@ -665,6 +668,30 @@ const ProfilePage: React.FC = () => {
     setSelectedOrderDetails(null);
     setSelectedOrderId(null);
   };
+
+  const handleCancelOrder = async (orderId: string) => {
+    setLoadingCancelOrder(true);
+    try {
+      // Call the cancel order API here
+      await cancelOrder(orderId);
+      setSnackbar({
+        open: true,
+        message: "Order cancelled successfully",
+        severity: "success",
+      });
+      await handleViewAllOrders(); // Refresh the orders list
+      await handleViewOrderDetails(orderId);
+    } catch (error) {
+      console.error("Error cancelling order:", error);
+      setSnackbar({
+        open: true,
+        message: "Failed to cancel order",
+        severity: "error",
+      });
+    } finally {
+      setLoadingCancelOrder(false);
+    }
+  }
 
   // Helper function to get status color for orders
   const getOrderStatusColor = (
@@ -2697,6 +2724,18 @@ const ProfilePage: React.FC = () => {
         <DialogActions
           sx={{ p: 2, borderTop: "1px solid rgba(0, 0, 0, 0.08)" }}
         >
+          {selectedOrderDetails && selectedOrderDetails.transactions && selectedOrderDetails.transactions.length > 0 ? selectedOrderDetails.transactions[0].paymentMethod ===
+            "COD"
+            ? <Button
+              onClick={() => handleCancelOrder(selectedOrderDetails.orderId)}
+              variant="contained"
+              color="error"
+              disabled={selectedOrderDetails.transactions[0].paymentMethod !==
+                "COD" || loadingCancelOrder || selectedOrderDetails.status === "Cancelled"}
+            >
+              Hủy đơn hàng
+            </Button>
+            : null : null}
           <Button
             onClick={handleCloseOrderDetailsDialog}
             variant="contained"

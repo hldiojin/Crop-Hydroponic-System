@@ -905,7 +905,7 @@ const OrderConfirmation: React.FC = () => {
             Về trang chủ
           </MotionButton>
 
-          {paymentStatus === "success" && (
+          {/* {paymentStatus === "success" && (
             <MotionButton
               variant="outlined"
               size="large"
@@ -928,7 +928,7 @@ const OrderConfirmation: React.FC = () => {
             >
               Xem đơn hàng
             </MotionButton>
-          )}
+          )} */}
 
           {paymentStatus !== "success" && (
             <MotionButton
@@ -961,11 +961,11 @@ const OrderConfirmation: React.FC = () => {
             variants={itemVariants}
             sx={{ textAlign: "center", mt: 3 }}
           >
-            <Typography variant="body2" color="text.secondary">
+            {/* <Typography variant="body2" color="text.secondary">
               Email xác nhận đã được gửi đến địa chỉ email của bạn.
-            </Typography>
+            </Typography> */}
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Bạn cũng có thể theo dõi trạng thái đơn hàng trong mục "Đơn hàng
+              Bạn có thể theo dõi trạng thái đơn hàng trong mục "Đơn hàng
               của tôi" trên trang cá nhân.
             </Typography>
           </MotionBox>

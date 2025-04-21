@@ -587,7 +587,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log("Requesting OTP for password reset for email:", email);
 
       const response = await api.post(
-        "/api/otp/send",
+        "/otp/send",
         JSON.stringify(email),
         {
           headers: {
