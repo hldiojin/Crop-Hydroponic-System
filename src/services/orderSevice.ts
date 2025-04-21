@@ -142,6 +142,22 @@ export const getCODBilling = async (orderId: string): Promise<any> => {
   }
 }
 
+export const cancelOrder = async (orderId: string): Promise<any> => {
+  try {
+    const response = await api.post(`/order/cancel`, orderId);
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      const newToken = response.headers["new-access-token"];
+      localStorage.setItem("authToken", newToken);
+    }
+    return response.data;
+  }
+  catch (error) {
+    console.error(`Error cancelling order ${orderId}:`, error);
+    throw error;
+  }
+};
+
 export const getAllOrders = async (
   pageIndex: number = 1,
   pageSize: number = 10

@@ -166,6 +166,12 @@ const ShippingPage: React.FC = () => {
           }
         );
 
+        var newToken = response.headers["new-access-token"];
+        if (newToken != null) {
+          const newToken = response.headers["new-access-token"];
+          localStorage.setItem("authToken", newToken);
+        }
+
         // Check if the response has the correct structure with nested data
         if (
           response.data &&
