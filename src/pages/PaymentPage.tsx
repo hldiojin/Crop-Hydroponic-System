@@ -568,7 +568,7 @@ const PaymentPage: React.FC = () => {
         }}
       >
         <IconButton
-          onClick={() => navigate(`/checkout${orderId}/shipping`)}
+          onClick={() => navigate(`/checkout/${orderId}/shipping`)}
           sx={{
             mr: 2,
             bgcolor: alpha(theme.palette.primary.main, 0.1),
