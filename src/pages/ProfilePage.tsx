@@ -78,6 +78,7 @@ import {
   logoVariants,
   buttonVariants,
 } from "../utils/motion";
+import { set } from "date-fns";
 
 const ProfilePage: React.FC = () => {
   const theme = useTheme();
@@ -613,6 +614,10 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleOpenConfirmCancelOrderDialog = () => {
+    setConfirmCancelOrderDialogOpen(true);
+  }
+
   const handleLoadMoreOrders = async () => {
     if (orderPage < totalOrderPages) {
       setIsLoadingOrders(true);
@@ -669,6 +674,11 @@ const ProfilePage: React.FC = () => {
     setSelectedOrderId(null);
   };
 
+  const handleCloseConfirmCancelOrderDialog = () => {
+    setConfirmCancelOrderDialogOpen(false);
+  }
+
+
   const handleCancelOrder = async (orderId: string) => {
     setLoadingCancelOrder(true);
     try {
@@ -689,6 +699,7 @@ const ProfilePage: React.FC = () => {
         severity: "error",
       });
     } finally {
+      setConfirmCancelOrderDialogOpen(false);
       setLoadingCancelOrder(false);
     }
   }
@@ -2727,7 +2738,7 @@ const ProfilePage: React.FC = () => {
           {selectedOrderDetails && selectedOrderDetails.transactions && selectedOrderDetails.transactions.length > 0 ? selectedOrderDetails.transactions[0].paymentMethod ===
             "COD"
             ? <Button
-              onClick={() => handleCancelOrder(selectedOrderDetails.orderId)}
+              onClick={handleOpenConfirmCancelOrderDialog}
               variant="contained"
               color="error"
               disabled={selectedOrderDetails.transactions[0].paymentMethod !==
@@ -2742,6 +2753,61 @@ const ProfilePage: React.FC = () => {
             color="primary"
           >
             Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={confirmCancelOrderDialogOpen}
+        onClose={handleCloseConfirmCancelOrderDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: "hidden",
+            maxHeight: "90vh",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(120deg, #2e7d32, #4caf50)",
+            color: "white",
+            p: 3,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold">
+            Xác nhận hủy đơn hàng
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3, mt: 3 }}>
+          <Typography variant="body1" color="text.secondary">
+            Bạn có chắc chắn muốn hủy đơn hàng này? Hành động này không thể hoàn tác.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseConfirmCancelOrderDialog}
+            variant="outlined"
+            color="primary"
+          >
+            Đóng
+          </Button>
+          <Button
+            onClick={() => selectedOrderDetails && handleCancelOrder(selectedOrderDetails.orderId)}
+            variant="contained"
+            color="error"
+            disabled={loadingCancelOrder}
+          >
+            {loadingCancelOrder ? (
+              <CircularProgress size={24} />
+            ) : (
+              "Xác nhận"
+            )}
           </Button>
         </DialogActions>
       </Dialog>
