@@ -949,7 +949,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Authentication required. Please log in again.");
       }
 
-      const response = await api.put("/api/user/me", {
+      const response = await api.put("/user/me", {
         name: data.name,
         phone: data.phone,
       });

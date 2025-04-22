@@ -678,7 +678,6 @@ const ProfilePage: React.FC = () => {
     setConfirmCancelOrderDialogOpen(false);
   }
 
-
   const handleCancelOrder = async (orderId: string) => {
     setLoadingCancelOrder(true);
     try {
@@ -734,6 +733,29 @@ const ProfilePage: React.FC = () => {
         .replace("₫", "") + " ₫"
     );
   };
+
+  const handleUpdateProfile = async () => {
+    var useUpdate = {
+      name: editData.name,
+      phone: editData.phone,
+    };
+
+    try {
+      await updateProfile(useUpdate);
+      setSnackbar({
+        open: true,
+        message: "Cập nhật thông tin thành công",
+        severity: "success",
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      setSnackbar({
+        open: true,
+        message: "Cập nhật thông tin thất bại",
+        severity: "error",
+      });
+    }
+  }
 
   return (
     <motion.div
@@ -1241,6 +1263,30 @@ const ProfilePage: React.FC = () => {
                         },
                       }}
                     />
+                    <MotionButton
+                      variants={buttonVariants}
+                      whileHover="hover"
+                      whileTap="tap"
+                      variant="outlined"
+                      startIcon={isEditing ? <SaveIcon /> : <EditIcon />}
+                      onClick={() => {
+                        setIsEditing((prev) => !prev);
+                        if (isEditing) {
+                          handleUpdateProfile();
+                        }
+                      }}
+                      fullWidth
+                      sx={{
+                        py: 1.5,
+                        borderRadius: 3,
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+                        "&:hover": {
+                          boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+                        },
+                      }}
+                    >
+                      {isEditing ? "Lưu thay đổi" : "Chỉnh sửa thông tin"}
+                    </MotionButton>
                   </Stack>
                 </Box>
               </Card>

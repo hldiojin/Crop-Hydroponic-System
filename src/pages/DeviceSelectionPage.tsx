@@ -224,7 +224,7 @@ const DeviceSelectionPage: React.FC = () => {
     localStorage.setItem("backLocation", "/devices");
     localStorage.setItem("currentOrderId", orderResponse.response.data);
     // Redirect to cart page after successful order submission
-    navigate("/checkout/shipping");
+    navigate(`/checkout/${orderResponse.response.data}/shipping`);
   };
 
   // Loading state
@@ -689,9 +689,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   : "1px solid rgba(0,0,0,0.05)",
                                 boxShadow: selectedProducts[product.id]
                                   ? `0 6px 16px ${alpha(
-                                      theme.palette.primary.main,
-                                      0.25
-                                    )}`
+                                    theme.palette.primary.main,
+                                    0.25
+                                  )}`
                                   : "0 3px 10px rgba(0,0,0,0.08)",
                                 transition: "all 0.2s ease",
                                 height: "100%",
@@ -702,9 +702,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   : "none",
                                 background: selectedProducts[product.id]
                                   ? `linear-gradient(to bottom, ${alpha(
-                                      theme.palette.primary.light,
-                                      0.1
-                                    )}, transparent)`
+                                    theme.palette.primary.light,
+                                    0.1
+                                  )}, transparent)`
                                   : theme.palette.background.paper,
                               }}
                             >
@@ -745,8 +745,8 @@ const DeviceSelectionPage: React.FC = () => {
                                 }}
                               />
 
-                              <CardContent sx={{ 
-                                flexGrow: 1, 
+                              <CardContent sx={{
+                                flexGrow: 1,
                                 p: 2,
                                 display: 'flex',
                                 flexDirection: 'column',
@@ -783,9 +783,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   {product.description
                                     ? product.description.length > 60
                                       ? `${product.description.substring(
-                                          0,
-                                          60
-                                        )}...`
+                                        0,
+                                        60
+                                      )}...`
                                       : product.description
                                     : "Compatible accessory for your hydroponic system."}
                                 </Typography>
@@ -822,11 +822,11 @@ const DeviceSelectionPage: React.FC = () => {
                                       sx={{ fontWeight: "medium" }}
                                     />
                                   </Box>
-                                  
+
                                   <Box
                                     sx={{
                                       display: "flex",
-                                      alignItems: "center", 
+                                      alignItems: "center",
                                       justifyContent: "space-between",
                                       gap: 1
                                     }}
@@ -860,8 +860,8 @@ const DeviceSelectionPage: React.FC = () => {
                                       {product.amount <= 0
                                         ? "Hết hàng"
                                         : selectedProducts[product.id]
-                                        ? "Đã chọn"
-                                        : "Thêm vào"}
+                                          ? "Đã chọn"
+                                          : "Thêm vào"}
                                     </MotionButton>
 
                                     {selectedProducts[product.id] && (
