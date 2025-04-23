@@ -1195,6 +1195,7 @@ const ProfilePage: React.FC = () => {
                       fullWidth
                       label="Họ và tên"
                       name="name"
+                      required
                       value={isEditing ? editData.name : user?.name || ""}
                       onChange={handleChange}
                       disabled={!isEditing || loading}
@@ -1222,6 +1223,7 @@ const ProfilePage: React.FC = () => {
                       label="Email"
                       name="email"
                       type="email"
+                      required
                       value={isEditing ? editData.email : user?.email || ""}
                       onChange={handleChange}
                       disabled={true} // Email cannot be changed
@@ -1243,6 +1245,7 @@ const ProfilePage: React.FC = () => {
                       fullWidth
                       label="Số điện thoại"
                       name="phone"
+                      required
                       value={isEditing ? editData.phone : user?.phone || ""}
                       onChange={handleChange}
                       disabled={!isEditing || loading}
