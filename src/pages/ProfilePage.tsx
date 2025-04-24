@@ -65,7 +65,7 @@ import {
   OrderSummary,
   cancelOrder
 } from "../services/orderSevice";
-import { Ticket, TicketRequest } from "../types/types";
+import { Ticket, TicketRequest, TicketResponseData } from "../types/types";
 import { motion } from "framer-motion";
 import {
   MotionBox,
@@ -79,6 +79,7 @@ import {
   buttonVariants,
 } from "../utils/motion";
 import { set } from "date-fns";
+import { DeviceItem, deviceService } from "../services/deviceService";
 
 const ProfilePage: React.FC = () => {
   const theme = useTheme();
@@ -131,7 +132,16 @@ const ProfilePage: React.FC = () => {
     Type: "Shopping",
     Description: "",
   });
+
+  const [ticketResponseData, setTicketResponseData] = useState<TicketResponseData>({
+    TicketId: "",
+    Message: "",
+    Attachments: [],
+  });
+  const [deviceItem, setDeviceItem] = useState<DeviceItem[] | null>(null);
+  const [selectedDeviceItemId, setSelectedDeviceItemId] = useState<string>("");
   const [ticketAttachments, setTicketAttachments] = useState<File[]>([]);
+  const [ticketResponseAttachments, setTicketResponseAttachments] = useState<File[]>([]);
   const [ticketLoading, setTicketLoading] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
 
@@ -156,6 +166,7 @@ const ProfilePage: React.FC = () => {
   const [orderPage, setOrderPage] = useState(1);
   const [totalOrderPages, setTotalOrderPages] = useState(1);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [responseMessage, setResponseMessage] = useState<string>("");
 
   // Order detail state
   const [orderDetailsDialogOpen, setOrderDetailsDialogOpen] = useState(false);
@@ -347,6 +358,14 @@ const ProfilePage: React.FC = () => {
     }));
   };
 
+  const handleMessageChange = (message: string) => {
+    setResponseMessage(message);
+    setTicketResponseData((prev) => ({
+      ...prev,
+      Message: message,
+    }));
+  };
+
   const validatePasswordForm = () => {
     const errors = {
       oldPassword: "",
@@ -412,6 +431,35 @@ const ProfilePage: React.FC = () => {
     setTicketModalOpen(true);
   };
 
+  const handleResponseMessage = async () => {
+    if (selectedTicketId === null) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng chọn một yêu cầu để phản hồi",
+        severity: "error",
+      });
+      return;
+    }
+    const response = await ticketService.responseTicket(ticketResponseData, ticketResponseAttachments);
+    if (response && response.statusCodes === 200) {
+      setSnackbar({
+        open: true,
+        message: "Đã gửi phản hồi thành công",
+        severity: "success",
+      });
+      handleViewTicketDetails(selectedTicketId);
+      setTicketResponseAttachments([]);
+      setResponseMessage("");
+    } else {
+      console.error("Failed to send ticket response");
+      setSnackbar({
+        open: true,
+        message: "Gui phản hồi thất bại",
+        severity: "success",
+      });
+    }
+  }
+
   const handleTicketModalClose = () => {
     setTicketModalOpen(false);
     setTicketData({
@@ -420,15 +468,42 @@ const ProfilePage: React.FC = () => {
     });
     setTicketAttachments([]);
     setTicketError(null);
+    setSelectedDeviceItemId("");
+    setDeviceItem(null);
+  };
+
+  const handleLoadDeviceItem = async () => {
+    const response = await deviceService.getMyDevices();
+    if (response && response.statusCodes === 200) {
+      setDeviceItem(response.response.data);
+    } else {
+      console.error("Failed to fetch device items");
+    }
+  }
+
+  const handleDeviceItemChange = (e: SelectChangeEvent<string>) => {
+    setSelectedDeviceItemId(e.target.value);
+    setTicketData((prev: any) => ({
+      ...prev,
+      DeviceItemId: e.target.value,
+    }));
   };
 
   const handleTicketTypeChange = (
     e: SelectChangeEvent<"Shopping" | "Technical">
   ) => {
-    setTicketData((prev: any) => ({
-      ...prev,
-      Type: e.target.value as "Shopping" | "Technical",
-    }));
+    if (e.target.value === "Technical") {
+      handleLoadDeviceItem();
+      setTicketData((prev: any) => ({
+        ...prev,
+        Type: e.target.value as "Technical",
+      }));
+    } else {
+      setTicketData((prev: any) => ({
+        ...prev,
+        Type: e.target.value as "Shopping",
+      }));
+    }
   };
 
   const handleTicketDescriptionChange = (
@@ -447,6 +522,16 @@ const ProfilePage: React.FC = () => {
       setTicketAttachments(Array.from(e.target.files));
     }
   };
+
+  const handleTicketResponseAttachmentsChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (e.target.files) {
+      setTicketResponseAttachments(Array.from(e.target.files));
+    }
+  };
+
+
 
   const handleSubmitTicket = async () => {
     if (!ticketData.Description.trim()) {
@@ -527,6 +612,10 @@ const ProfilePage: React.FC = () => {
     setSelectedTicketId(ticketId);
     setLoadingTicketDetails(true);
     setTicketDetailsError(null);
+    setTicketResponseData((prev: any) => ({
+      ...prev,
+      TicketId: ticketId,
+    }));
 
     try {
       const response = await ticketService.getTicketById(ticketId);
@@ -735,13 +824,30 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleUpdateProfile = async () => {
-    var useUpdate = {
+    var userUpdate = {
       name: editData.name,
       phone: editData.phone,
     };
+    if (editData.name === "") {
+      setSnackbar({
+        open: true,
+        message: "Tên không được để trống",
+        severity: "error",
+      });
+      return;
+    }
+
+    if (editData.phone === "") {
+      setSnackbar({
+        open: true,
+        message: "Số điện thoại không được để trống",
+        severity: "error",
+      });
+      return;
+    }
 
     try {
-      await updateProfile(useUpdate);
+      await updateProfile(userUpdate);
       setSnackbar({
         open: true,
         message: "Cập nhật thông tin thành công",
@@ -1833,7 +1939,7 @@ const ProfilePage: React.FC = () => {
                                   >
                                     {isStaff
                                       ? response.userFullName || "Support Staff"
-                                      : "You"}
+                                      : "Bạn"}
                                   </Typography>
                                   <Typography
                                     variant="caption"
@@ -1947,6 +2053,83 @@ const ProfilePage: React.FC = () => {
                       </Stack>
                     </Grid>
                   )}
+                <Grid item xs={12}>
+                  <Stack spacing={2}>
+                    <MotionTextField
+                      variants={itemVariants}
+                      fullWidth
+                      label="Phản hồi..."
+                      name="responseMessage"
+                      multiline
+                      rows={2}
+                      value={responseMessage}
+                      disabled={selectedTicketDetails.status === "Pending"}
+                      onChange={(e) =>
+                        handleMessageChange((e.target as HTMLInputElement).value)
+                      }
+                      variant="outlined"
+                      sx={{ mt: 2 }}
+                      InputProps={{
+                        sx: {
+                          borderRadius: 2,
+                          "&:hover": {
+                            boxShadow:
+                              "0 2px 8px rgba(0,0,0,0.08)",
+                          },
+                        },
+                      }}
+                    />
+                    <Stack
+                      direction="row"
+                      spacing={2}
+                      justifyContent="flex-end"
+                      sx={{ mt: 2 }}
+                    >
+                      <Box sx={{ mt: 2 }}>
+                        <input
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          id="ticket-attachments"
+                          multiple
+                          type="file"
+                          disabled={selectedTicketDetails.status === "Pending"}
+                          onChange={handleTicketResponseAttachmentsChange}
+                        />
+                        <label htmlFor="ticket-attachments">
+                          <motion.div
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                          >
+                            <Button
+                              variant="outlined"
+                              component="span"
+                              startIcon={<AddPhotoIcon />}
+                              disabled={selectedTicketDetails.status === "Pending"}
+                            >
+                              Thêm tài liệu đính kèm
+                            </Button>
+                          </motion.div>
+                        </label>
+                        {ticketResponseAttachments.length > 0 && (
+                          <Typography
+                            variant="body2"
+                            sx={{ mt: 1, color: "success.main" }}
+                          >
+                            {ticketResponseAttachments.length} tài liệu đã chọn
+                          </Typography>
+                        )}
+                      </Box>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => handleResponseMessage()}
+                        disabled={selectedTicketDetails.status === "Pending"}
+                      >
+                        Gửi phản hồi
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </Grid>
               </Grid>
             </Box>
           ) : (
@@ -2159,7 +2342,7 @@ const ProfilePage: React.FC = () => {
         <Box
           sx={{
             position: "absolute",
-            top: "50%",
+            top: ticketData.Type == "Technical" ? "30%" : "40%",
             left: "50%",
             transform: "translate(-50%, -50%)",
             width: { xs: "90%", sm: 500 },
@@ -2200,7 +2383,7 @@ const ProfilePage: React.FC = () => {
             </Alert>
           )}
 
-          <Box component="form" sx={{ mt: 2 }}>
+          <Box component="form" sx={{ mb: 2 }}>
             <FormControl fullWidth margin="normal">
               <InputLabel htmlFor="ticket-type">Loại yêu cầu</InputLabel>
               <Select
@@ -2213,6 +2396,30 @@ const ProfilePage: React.FC = () => {
                 <MenuItem value="Technical">Kỹ thuật</MenuItem>
               </Select>
             </FormControl>
+
+            {ticketData.Type === "Technical" && (
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel htmlFor="device-item">Chọn thiết bị</InputLabel>
+                <Select
+                  id="device-item"
+                  value={selectedDeviceItemId}
+                  onChange={handleDeviceItemChange}
+                  label="Chọn thiết bị"
+                >
+                  {deviceItem && deviceItem.length > 0 ? (
+                    deviceItem.map((item) => (
+                      <MenuItem key={item.id} value={item.id}>
+                        {item.id} - {item.name} - {item.isActive ? "Đã kích hoạt" : "Chưa kích hoạt"}
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem value="" disabled>
+                      Không có thiết bị nào
+                    </MenuItem>
+                  )}
+                </Select>
+              </FormControl>
+            )}
 
             <TextField
               fullWidth

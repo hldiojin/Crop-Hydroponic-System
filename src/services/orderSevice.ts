@@ -70,6 +70,7 @@ export interface OrderDetailItemPayment {
   attachment: string;
   productName: string;
   productItemName: number;
+  serial?: string | null;
   quantity: number;
   unitPrice: number;
 }
@@ -195,6 +196,24 @@ export const processTransaction = async (orderId: string): Promise<any> => {
     throw error;
   }
 };
+
+export const updateOrderAddress = async (
+  orderId: string,
+  userAddressId: string
+): Promise<any> => {
+  try {
+    const response = await api.put(`/order/change-address`, { orderId, userAddressId });
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      const newToken = response.headers["new-access-token"];
+      localStorage.setItem("authToken", newToken);
+    }
+    return response.data;
+  } catch (error) {
+    console.error("Error updating order address:", error);
+    throw error;
+  }
+}
 
 export const processCodTransaction = async (orderId: string): Promise<any> => {
   try {

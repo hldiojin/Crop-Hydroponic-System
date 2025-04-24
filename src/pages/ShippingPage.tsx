@@ -49,6 +49,7 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { ghnService } from "../services/ghnService";
 import { n } from "framer-motion/dist/types.d-B50aGbjN";
+import { getOrderById, updateOrderAddress } from "../services/orderSevice";
 
 // Create properly typed motion components
 const MotionContainer = motion(Container);
@@ -63,6 +64,7 @@ interface UserAddress {
   district: string;
   province: string;
   isDefault: boolean;
+  status: string;
 }
 
 interface ShippingFormData {
@@ -72,7 +74,8 @@ interface ShippingFormData {
   ward: string;
   district: string;
   province: string;
-  saveAddress: boolean;
+  isDefault: boolean;
+  orderId?: string | null;
 }
 
 interface UserAddressResponse {
@@ -114,7 +117,7 @@ const ShippingPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [formErrors, setFormErrors] = useState<Partial<ShippingFormData>>({});
   const [userAddresses, setUserAddresses] = useState<UserAddress[]>([]);
-  const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(
+  const [selectedAddress, setSelectedAddress] = useState<string | null>(
     null
   );
 
@@ -134,7 +137,7 @@ const ShippingPage: React.FC = () => {
     ward: "",
     district: "",
     province: "",
-    saveAddress: true,
+    isDefault: false,
   });
 
   // Redirect to login if not authenticated
@@ -167,10 +170,9 @@ const ShippingPage: React.FC = () => {
           }
         );
 
-        var newToken = response.headers["new-access-token"];
-        if (newToken != null) {
-          const newToken = response.headers["new-access-token"];
-          localStorage.setItem("authToken", newToken);
+        var newAccessToken = response.headers["new-access-token"];
+        if (newAccessToken != null) {
+          localStorage.setItem("authToken", newAccessToken);
         }
 
         // Check if the response has the correct structure with nested data
@@ -182,12 +184,13 @@ const ShippingPage: React.FC = () => {
         ) {
           setUserAddresses(response.data.response.data);
 
+          fetchOrder();
+
           // Set default address if available
           const defaultAddress = response.data.response.data.find(
             (addr) => addr.isDefault
           );
           if (defaultAddress) {
-            setSelectedAddress(defaultAddress);
             setFormData((prev) => ({
               ...prev,
               name: defaultAddress.name,
@@ -222,6 +225,26 @@ const ShippingPage: React.FC = () => {
         setLoading(false);
       }
     };
+
+    const fetchOrder = async () => {
+      try {
+        if (!orderId) {
+          navigate("/*");
+          return;
+        }
+
+        const response = await getOrderById(orderId);
+        if (response.statusCodes !== 200) {
+          throw new Error("Failed to fetch order");
+        }
+
+        const getAddress = response.response.data.userAddress;
+
+        setSelectedAddress(getAddress.addressId);
+      } catch (err) {
+        console.error("Failed to fetch order:", err);
+      }
+    }
 
     if (isAuthenticated) {
       fetchUserAddress();
@@ -403,43 +426,52 @@ const ShippingPage: React.FC = () => {
       return;
     }
 
+    // Make sure we have the current order ID (created in CartPage)
+    if (!orderId) {
+      navigate("/*");
+      return;
+    }
+
     // If user wants to save the address and it's different from existing one,
     // or if they're creating a new address
-    if (
-      formData.saveAddress &&
-      (!selectedAddress ||
-        formData.name !== selectedAddress.name ||
-        formData.phone !== selectedAddress.phone ||
-        formData.address !== selectedAddress.address ||
-        formData.ward !== selectedAddress.ward ||
-        formData.district !== selectedAddress.district ||
-        formData.province !== selectedAddress.province)
-    ) {
+    if (!useExistingAddress) {
       try {
         const authToken = token || localStorage.getItem("accessToken");
-
         if (!authToken) {
           throw new Error("No authentication token found");
         }
-
-        await axios.post(
-          "https://api.hmes.site/api/useraddress",
-          {
-            name: formData.name,
-            phone: formData.phone,
-            address: formData.address,
-            ward: formData.ward,
-            district: formData.district,
-            province: formData.province,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-              "Content-Type": "application/json",
+        if (!useExistingAddress) {
+          const response = await axios.post(
+            "https://api.hmes.site/api/useraddress",
+            {
+              name: formData.name,
+              phone: formData.phone,
+              address: formData.address,
+              ward: formData.ward,
+              district: formData.district,
+              province: formData.province,
+              isDefault: formData.isDefault,
+              orderId: orderId,
             },
-            withCredentials: true,
+            {
+              headers: {
+                Authorization: `Bearer ${authToken}`,
+                "Content-Type": "application/json",
+              },
+              withCredentials: true,
+            }
+          );
+
+          var newToken = response.headers["new-access-token"];
+          if (newToken != null) {
+            localStorage.setItem("authToken", newToken);
           }
-        );
+
+          if (response.status === 200) {
+            // Navigate to payment page
+            navigate(`/checkout/${orderId}/payment`);
+          }
+        }
       } catch (err: any) {
         console.error("Failed to save address:", err);
         if (
@@ -450,29 +482,31 @@ const ShippingPage: React.FC = () => {
           return;
         }
       }
+    } else if (selectedAddress) {
+      if (selectedAddress) {
+        const response = await updateOrderAddress(orderId, selectedAddress);
+        if (response.statusCodes === 200) {
+          // Navigate to payment page
+          navigate(`/checkout/${orderId}/payment`);
+        } else {
+          setAddressError("Failed to update address. Please try again.");
+        }
+      }
     }
 
     // Save address to local storage for later use
-    localStorage.setItem(
-      "shippingAddress",
-      JSON.stringify({
-        name: formData.name,
-        phone: formData.phone,
-        address: formData.address,
-        ward: formData.ward,
-        district: formData.district,
-        province: formData.province,
-      })
-    );
+    // localStorage.setItem(
+    //   "shippingAddress",
+    //   JSON.stringify({
+    //     name: formData.name,
+    //     phone: formData.phone,
+    //     address: formData.address,
+    //     ward: formData.ward,
+    //     district: formData.district,
+    //     province: formData.province,
+    //   })
+    // );
 
-    // Make sure we have the current order ID (created in CartPage)
-    if (!orderId) {
-      navigate("/*");
-      return;
-    }
-
-    // Navigate to payment page
-    navigate(`/checkout/${orderId}/payment`);
   };
 
   // Loading state
@@ -763,7 +797,7 @@ const ShippingPage: React.FC = () => {
                       key={address.id}
                       elevation={0}
                       onClick={() => {
-                        setSelectedAddress(address);
+                        setSelectedAddress(address.id);
                         setUseExistingAddress(true);
                         setFormData((prev) => ({
                           ...prev,
@@ -780,7 +814,7 @@ const ShippingPage: React.FC = () => {
                         borderRadius: 2,
                         bgcolor: alpha(theme.palette.background.default, 0.7),
                         border:
-                          selectedAddress?.id === address.id
+                          selectedAddress === address.id
                             ? `2px solid ${theme.palette.primary.main}`
                             : `1px solid ${alpha(
                               theme.palette.primary.main,
@@ -795,7 +829,7 @@ const ShippingPage: React.FC = () => {
                         },
                       }}
                     >
-                      {selectedAddress?.id === address.id && (
+                      {selectedAddress === address.id && (
                         <Chip
                           label="Đã chọn"
                           size="small"
@@ -817,7 +851,7 @@ const ShippingPage: React.FC = () => {
                             position: "absolute",
                             top: 10,
                             right:
-                              selectedAddress?.id === address.id ? 100 : 10,
+                              selectedAddress === address.id ? 100 : 10,
                             fontWeight: "medium",
                           }}
                         />
@@ -1032,9 +1066,9 @@ const ShippingPage: React.FC = () => {
                     <FormControlLabel
                       control={
                         <Checkbox
-                          checked={formData.saveAddress}
+                          checked={formData.isDefault}
                           onChange={handleFormChange}
-                          name="saveAddress"
+                          name="isDefault"
                           color="primary"
                         />
                       }
@@ -1077,6 +1111,7 @@ const ShippingPage: React.FC = () => {
                 variant="contained"
                 color="primary"
                 endIcon={<NavigateNext />}
+                disabled={!selectedAddress}
                 sx={{
                   fontWeight: "bold",
                   borderRadius: 2,

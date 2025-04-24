@@ -292,7 +292,7 @@ const OrderConfirmation: React.FC = () => {
             );
             setLoading(false);
           }
-        } else if (orderId && transactionId) {
+        } else if (transactionId) {
           var response = await checkTransactionStatus(transactionId)
           if (response && response.statusCodes === 200) {
             const orderData = response.response.data;
@@ -792,7 +792,7 @@ const OrderConfirmation: React.FC = () => {
                   >
                     <List disablePadding>
                       {orderDetails.orderProductItem.map((item, index) => (
-                        <React.Fragment key={item.id}>
+                        <React.Fragment key={index}>
                           <ListItem
                             sx={{
                               py: 2,
@@ -834,6 +834,14 @@ const OrderConfirmation: React.FC = () => {
                               >
                                 ₫{formatPrice(item.unitPrice)} x {item.quantity}
                               </Typography>
+                              {item.serial && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  Serial: {item.serial}
+                                </Typography>
+                              )}
                             </Box>
                             <Typography variant="subtitle2" fontWeight="bold">
                               ₫{formatPrice(item.unitPrice)} x {item.quantity}

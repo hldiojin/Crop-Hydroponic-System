@@ -168,7 +168,7 @@ const PaymentPage: React.FC = () => {
 
         // const address = localStorage.getItem("shippingAddress");
         // const method = localStorage.getItem("shippingMethod");
-        const orderId = localStorage.getItem("currentOrderId");
+        // const orderId = localStorage.getItem("currentOrderId");
 
         // If we have an order ID, try to fetch order details
         if (orderId) {
@@ -181,7 +181,9 @@ const PaymentPage: React.FC = () => {
               orderResponse.response?.data
             ) {
               const orderData = orderResponse.response.data;
-
+              if (orderData.status != "Pending") {
+                navigate("/*");
+              }
               // Store the entire order data for easy access
               setOrderDetails(orderData);
 
