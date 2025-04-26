@@ -1,4 +1,5 @@
 import api from "../context/AuthContext";
+import { EditShippingFormData } from "../pages/ShippingPage";
 
 export interface OrderProduct {
   id: string;
@@ -215,6 +216,50 @@ export const updateOrderAddress = async (
   }
 }
 
+export const changeDefaultAddress = async (userAddressId: string): Promise<any> => {
+  try {
+    const response = await api.put(`/useraddress/address/default/${userAddressId}`);
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      localStorage.setItem("authToken", newToken);
+    }
+    return response.data;
+  } catch (error) {
+
+    console.error("Error changing default address:", error);
+    throw error;
+  }
+}
+
+export const deleteAddress = async (id: string): Promise<any> => {
+  try {
+    const response = await api.put(`/useraddress/soft-delete/${id}`);
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      localStorage.setItem("authToken", newToken);
+    }
+    return response.data;
+  } catch (error) {
+
+    console.error("Error changing default address:", error);
+    throw error;
+  }
+}
+
+export const editAddress = async (userAddressId: string, addressData: EditShippingFormData): Promise<any> => {
+  try {
+    const response = await api.put(`/useraddress/${userAddressId}`, addressData);
+    var newToken = response.headers["new-access-token"];
+    if (newToken != null) {
+      localStorage.setItem("authToken", newToken);
+    }
+    return response.data;
+  } catch (error) {
+    console.error("Error editing address:", error);
+    throw error;
+  }
+}
+
 export const processCodTransaction = async (orderId: string): Promise<any> => {
   try {
     const response = await api.post("/transaction/cod", orderId);
@@ -252,7 +297,6 @@ export const checkTransactionStatus = async (orderId: string): Promise<any> => {
     const response = await api.post(`/transaction/check`, transactionId);
     var newToken = response.headers["new-access-token"];
     if (newToken != null) {
-      const newToken = response.headers["new-access-token"];
       localStorage.setItem("authToken", newToken);
     }
     return response.data;

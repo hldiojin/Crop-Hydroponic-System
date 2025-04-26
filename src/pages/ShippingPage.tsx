@@ -23,6 +23,10 @@ import {
   MenuItem,
   InputLabel,
   FormControl,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   ShoppingCart,
@@ -34,6 +38,7 @@ import {
   Home,
   LocationOn,
   NavigateNext,
+  Delete,
 } from "@mui/icons-material";
 import { CartDetailItem } from "../services/cartService";
 import { useNavigate, useParams } from "react-router-dom";
@@ -49,7 +54,7 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { ghnService } from "../services/ghnService";
 import { n } from "framer-motion/dist/types.d-B50aGbjN";
-import { getOrderById, updateOrderAddress } from "../services/orderSevice";
+import { changeDefaultAddress, deleteAddress, editAddress, getOrderById, updateOrderAddress } from "../services/orderSevice";
 
 // Create properly typed motion components
 const MotionContainer = motion(Container);
@@ -65,6 +70,15 @@ interface UserAddress {
   province: string;
   isDefault: boolean;
   status: string;
+}
+
+export interface EditShippingFormData {
+  name: string;
+  phone: string;
+  address: string;
+  ward: string;
+  district: string;
+  province: string;
 }
 
 interface ShippingFormData {
@@ -110,7 +124,7 @@ const ShippingPage: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { isAuthenticated, token } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { orderId } = useParams();
 
   const [cartDetails, setCartDetails] = useState<CartDetailItem[]>([]);
@@ -130,6 +144,7 @@ const ShippingPage: React.FC = () => {
   const [addressLoading, setAddressLoading] = useState<boolean>(true);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [useExistingAddress, setUseExistingAddress] = useState<boolean>(true);
+  const [openEditDialog, setOpenEditDialog] = useState<boolean>(false);
   const [formData, setFormData] = useState<ShippingFormData>({
     name: "",
     phone: "",
@@ -139,6 +154,15 @@ const ShippingPage: React.FC = () => {
     province: "",
     isDefault: false,
   });
+  const [editFormData, setEditFormData] = useState<EditShippingFormData>({
+    name: "",
+    phone: "",
+    address: "",
+    ward: "",
+    district: "",
+    province: "",
+  })
+  const [loadingEdit, setLoadingEdit] = useState<boolean>(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -147,111 +171,111 @@ const ShippingPage: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Fetch user address from API
-  useEffect(() => {
-    const fetchUserAddress = async () => {
-      try {
-        setAddressLoading(true);
+  const fetchUserAddress = async () => {
+    try {
+      setAddressLoading(true);
 
-        // Get auth token from localStorage or context
-        const authToken = token || localStorage.getItem("accessToken");
+      // Get auth token from localStorage or context
+      const authToken = localStorage.getItem("authToken");
 
-        if (!authToken) {
-          throw new Error("No authentication token found");
+      if (!authToken) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await axios.get<UserAddressResponse>(
+        "https://api.hmes.site/api/useraddress",
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+          withCredentials: true,
         }
+      );
 
-        const response = await axios.get<UserAddressResponse>(
-          "https://api.hmes.site/api/useraddress",
-          {
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-            },
-            withCredentials: true,
-          }
+      var newauthToken = response.headers["new-access-token"];
+      if (newauthToken != null) {
+        localStorage.setItem("authToken", newauthToken);
+      }
+
+      // Check if the response has the correct structure with nested data
+      if (
+        response.data &&
+        response.data.response &&
+        response.data.response.data &&
+        response.data.response.data.length > 0
+      ) {
+        setUserAddresses(response.data.response.data);
+
+        fetchOrder();
+
+        // Set default address if available
+        const defaultAddress = response.data.response.data.find(
+          (addr) => addr.isDefault
         );
-
-        var newAccessToken = response.headers["new-access-token"];
-        if (newAccessToken != null) {
-          localStorage.setItem("authToken", newAccessToken);
+        if (defaultAddress) {
+          setFormData((prev) => ({
+            ...prev,
+            name: defaultAddress.name,
+            phone: defaultAddress.phone,
+            address: defaultAddress.address,
+            ward: defaultAddress.ward || "",
+            district: defaultAddress.district || "",
+            province: defaultAddress.province || "",
+          }));
         }
+      } else {
+        setAddressError("No addresses found. Please add a new address.");
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch user address:", err);
 
-        // Check if the response has the correct structure with nested data
-        if (
-          response.data &&
-          response.data.response &&
-          response.data.response.data &&
-          response.data.response.data.length > 0
-        ) {
-          setUserAddresses(response.data.response.data);
-
-          fetchOrder();
-
-          // Set default address if available
-          const defaultAddress = response.data.response.data.find(
-            (addr) => addr.isDefault
-          );
-          if (defaultAddress) {
-            setFormData((prev) => ({
-              ...prev,
-              name: defaultAddress.name,
-              phone: defaultAddress.phone,
-              address: defaultAddress.address,
-              ward: defaultAddress.ward || "",
-              district: defaultAddress.district || "",
-              province: defaultAddress.province || "",
-            }));
-          }
-        } else {
-          setAddressError("No addresses found. Please add a new address.");
-        }
-      } catch (err: any) {
-        console.error("Failed to fetch user address:", err);
-
-        if (
-          err.response?.status === 401 ||
-          err.response?.data?.message?.includes("RefreshToken")
-        ) {
-          // Auth issue - redirect to login
-          navigate("/login", { state: { from: "/checkout/shipping" } });
-        } else {
-          // Other error - continue with form
-          setAddressError(
-            "Failed to load saved addresses. You can enter a new one."
-          );
-          setLoading(false);
-        }
-      } finally {
-        setAddressLoading(false);
+      if (
+        err.response?.status === 401 ||
+        err.response?.data?.message?.includes("RefreshToken")
+      ) {
+        // Auth issue - redirect to login
+        navigate("/login", { state: { from: "/checkout/shipping" } });
+      } else {
+        // Other error - continue with form
+        setAddressError(
+          "Failed to load saved addresses. You can enter a new one."
+        );
         setLoading(false);
       }
-    };
-
-    const fetchOrder = async () => {
-      try {
-        if (!orderId) {
-          navigate("/*");
-          return;
-        }
-
-        const response = await getOrderById(orderId);
-        if (response.statusCodes !== 200) {
-          throw new Error("Failed to fetch order");
-        }
-
-        const getAddress = response.response.data.userAddress;
-
-        setSelectedAddress(getAddress.addressId);
-      } catch (err) {
-        console.error("Failed to fetch order:", err);
-      }
-    }
-
-    if (isAuthenticated) {
-      fetchUserAddress();
-    } else {
+    } finally {
+      setAddressLoading(false);
       setLoading(false);
     }
-  }, [isAuthenticated, token, navigate]);
+  };
+
+  const fetchOrder = async () => {
+    try {
+      if (!orderId) {
+        navigate("/*");
+        return;
+      }
+
+      const response = await getOrderById(orderId);
+      if (response.statusCodes !== 200) {
+        throw new Error("Failed to fetch order");
+      }
+
+      const getAddress = response.response.data.userAddress;
+
+      setSelectedAddress(getAddress.addressId);
+    } catch (err) {
+      console.error("Failed to fetch order:", err);
+    }
+  }
+
+  const handleCloseOpenEdit = () => {
+    setOpenEditDialog(false)
+  }
+
+  // Fetch user address from API
+  useEffect(() => {
+    fetchUserAddress();
+  }, [isAuthenticated, navigate, orderId]);
 
   useEffect(() => {
     const syncCartDetails = () => {
@@ -354,12 +378,33 @@ const ShippingPage: React.FC = () => {
     }
   };
 
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+
+    setEditFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+
+    // Clear validation error when field is changed
+    if (formErrors[name as keyof ShippingFormData]) {
+      setFormErrors((prev) => ({
+        ...prev,
+        [name]: undefined,
+      }));
+    }
+  };
+
   const handleShippingChange = async (key: string, value: string | number) => {
     switch (key) {
       case "province":
         var province = provinceList.find((x) => x.provinceId == value);
         setSelectedProvince(Number(value));
         setFormData((prev) => ({
+          ...prev,
+          province: province?.provinceName || "",
+        }));
+        setEditFormData((prev) => ({
           ...prev,
           province: province?.provinceName || "",
         }));
@@ -375,6 +420,10 @@ const ShippingPage: React.FC = () => {
           ...prev,
           district: district?.districtName || "",
         }));
+        setEditFormData((prev) => ({
+          ...prev,
+          district: district?.districtName || "",
+        }));
         setWardList([]); // Reset ward list
         setSelectedWard("0");
         break;
@@ -382,6 +431,7 @@ const ShippingPage: React.FC = () => {
         setSelectedWard(value.toString());
         var ward = wardList.find((x) => x.wardCode == value);
         setFormData((prev) => ({ ...prev, ward: ward?.wardName || "" }));
+        setEditFormData((prev) => ({ ...prev, ward: ward?.wardName || "" }));
         break;
       default:
         break;
@@ -419,6 +469,101 @@ const ShippingPage: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
+  const handleOpenEdit = async () => {
+    const selected = userAddresses.find(x => x.id === selectedAddress);
+    if (!selected) return;
+
+    try {
+      // 1. Tìm ProvinceId
+      setEditFormData((prev) => ({
+        ...prev,
+        name: selected.name,
+        phone: selected.phone,
+        address: selected.address,
+        ward: selected.ward,
+        district: selected.district,
+        province: selected.province,
+      }));
+      const province = provinceList.find(p => p.provinceName === selected.province);
+      if (province) {
+        await handleShippingChange("province", province.provinceId); // trigger load District
+
+        // 2. Load districtList xong mới tìm DistrictId
+        const districtRes = await ghnService.getDistricts(String(province.provinceId));
+        if (districtRes.statusCodes === 200) {
+          setDistrictList(districtRes.response);
+
+          const district: District | undefined = districtRes.response.find((d: District) => d.districtName === selected.district);
+          if (district) {
+            await handleShippingChange("district", district.districtId); // trigger load Ward
+
+            // 3. Load wardList xong mới tìm WardCode
+            const wardRes = await ghnService.getWards(String(district.districtId));
+            if (wardRes.statusCodes === 200) {
+              setWardList(wardRes.response);
+
+              const ward: Ward | undefined = wardRes.response.find((w: Ward) => w.wardName === selected.ward);
+              if (ward) {
+                handleShippingChange("ward", ward.wardCode);
+              }
+            }
+          }
+        }
+      }
+
+      setOpenEditDialog(true);
+    } catch (error) {
+      console.error("Failed to open edit dialog:", error);
+    }
+  };
+
+
+  const handleSetDefault = async () => {
+    if (selectedAddress) {
+      try {
+        const response = await changeDefaultAddress(selectedAddress);
+        if (response.statusCodes === 200) {
+          setLoading(true);
+          fetchUserAddress();
+        }
+      } catch (e) {
+        console.log("Không thể đặt địa chỉ mặc định!");
+      }
+    }
+  }
+
+  const handleDeleteAddress = async () => {
+    if (selectedAddress) {
+      try {
+        const response = await deleteAddress(selectedAddress);
+        if (response.statusCodes === 200) {
+          setLoading(true);
+          fetchUserAddress();
+        }
+      } catch (e) {
+        console.log("Không thể đặt địa chỉ mặc định!");
+      }
+    }
+  }
+
+  const handleEditAddress = async () => {
+    if (selectedAddress) {
+      setLoadingEdit(true)
+      try {
+        const response = await editAddress(selectedAddress, editFormData)
+        if (response.statusCodes === 200) {
+          setLoading(true);
+          fetchUserAddress();
+        }
+      } catch (e) {
+        console.log("Không thể cập nhật địa chỉ")
+      } finally {
+        setLoadingEdit(false);
+        setOpenEditDialog(false);
+      }
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -436,7 +581,7 @@ const ShippingPage: React.FC = () => {
     // or if they're creating a new address
     if (!useExistingAddress) {
       try {
-        const authToken = token || localStorage.getItem("accessToken");
+        const authToken = localStorage.getItem("authToken");
         if (!authToken) {
           throw new Error("No authentication token found");
         }
@@ -882,24 +1027,252 @@ const ShippingPage: React.FC = () => {
                   ))}
                 </Stack>
 
-                <FormControlLabel
-                  control={
-                    <Radio
-                      checked={!useExistingAddress}
-                      onChange={() => setUseExistingAddress(false)}
-                      name="useNewAddress"
-                      color="primary"
+                <Grid container spacing={2} alignItems="center">
+                  {/* Bên trái */}
+                  <Grid item xs={12} md={4}>
+                    <FormControlLabel
+                      control={
+                        <Radio
+                          checked={!useExistingAddress}
+                          onChange={() => setUseExistingAddress(false)}
+                          name="useNewAddress"
+                          color="primary"
+                        />
+                      }
+                      label={
+                        <Typography variant="body1">
+                          Sử dụng địa chỉ khác
+                        </Typography>
+                      }
+                      sx={{ mt: 2 }}
                     />
-                  }
-                  label={
-                    <Typography variant="body1">
-                      Sử dụng địa chỉ khác
-                    </Typography>
-                  }
-                  sx={{ mt: 2 }}
-                />
+                  </Grid>
+
+                  {/* Bên phải: các nút */}
+                  <Grid item xs={12} md={8}>
+                    <Grid container spacing={2} justifyContent="flex-end">
+                      <Grid item>
+                        <MotionButton
+                          variants={buttonVariants}
+                          whileHover="hover"
+                          whileTap="tap"
+                          variant="outlined"
+                          color="warning"
+                          onClick={handleOpenEdit}
+                          disabled={!selectedAddress}
+                          sx={{ fontWeight: "medium", borderRadius: 2, px: 3 }}
+                        >
+                          Sửa
+                        </MotionButton>
+                      </Grid>
+                      <Grid item>
+                        <MotionButton
+                          variants={buttonVariants}
+                          whileHover="hover"
+                          whileTap="tap"
+                          color="error"
+                          variant="outlined"
+                          onClick={handleDeleteAddress}
+                          disabled={userAddresses.find(x => x.id === selectedAddress)?.isDefault || !selectedAddress}
+                          sx={{ fontWeight: "medium", borderRadius: 2, px: 3 }}
+                        >
+                          Xóa
+                        </MotionButton>
+                      </Grid>
+                      <Grid item>
+                        <MotionButton
+                          variants={buttonVariants}
+                          whileHover="hover"
+                          whileTap="tap"
+                          variant="outlined"
+                          onClick={handleSetDefault}
+                          disabled={userAddresses.find(x => x.id === selectedAddress)?.isDefault || !selectedAddress}
+                          sx={{ fontWeight: "medium", borderRadius: 2, px: 3 }}
+                        >
+                          Đặt làm địa chỉ mặc định
+                        </MotionButton>
+                      </Grid>
+                    </Grid>
+                  </Grid>
+                </Grid>
+
+
               </MotionPaper>
             )}
+
+            <Dialog
+              open={openEditDialog}
+              onClose={handleCloseOpenEdit}
+              maxWidth="md"
+              fullWidth
+              PaperProps={{
+                sx: {
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  maxHeight: "110vh",
+                },
+              }}
+            >
+              <DialogTitle
+                sx={{
+                  background: "linear-gradient(120deg, #2e7d32, #4caf50)",
+                  color: "white",
+                  p: 3,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Typography variant="h6" fontWeight="bold">
+                  Chỉnh sửa địa chỉ
+                </Typography>
+              </DialogTitle>
+              <DialogContent sx={{ p: 3, mt: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      id="name"
+                      name="name"
+                      label="Họ và tên"
+                      value={editFormData.name}
+                      onChange={handleEditFormChange}
+                      error={!!formErrors.name}
+                      helperText={formErrors.name}
+                      sx={{ mb: 2, mt: 3 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      id="phone"
+                      name="phone"
+                      label="Số điện thoại"
+                      value={editFormData.phone}
+                      onChange={handleEditFormChange}
+                      error={!!formErrors.phone}
+                      helperText={formErrors.phone}
+                      sx={{ mb: 2, mt: 3 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      id="address"
+                      name="address"
+                      label="Địa chỉ"
+                      value={editFormData.address}
+                      onChange={handleEditFormChange}
+                      error={!!formErrors.address}
+                      helperText={formErrors.address}
+                      sx={{ mb: 2 }}
+                      placeholder="Số nhà, tên đường"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel id="demo-simple-select-standard-label">
+                        Tỉnh/thành phố
+                      </InputLabel>
+                      <Select
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        value={selectedProvince}
+                        label="Tỉnh/thành phố"
+                        onChange={(e) => {
+                          handleShippingChange(
+                            "province",
+                            Number(e.target.value)
+                          );
+                        }}
+                      >
+                        {provinceList.map((province) => (
+                          <MenuItem
+                            key={province.provinceId}
+                            value={province.provinceId}
+                          >
+                            {province.provinceName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel id="demo-simple-select-standard-label">
+                        Quận/huyện
+                      </InputLabel>
+                      <Select
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        value={selectedDistrict}
+                        label="Quận/huyện"
+                        onChange={(e) => {
+                          handleShippingChange(
+                            "district",
+                            Number(e.target.value)
+                          );
+                        }}
+                        disabled={districtList.length === 0}
+                      >
+                        {districtList.map((district) => (
+                          <MenuItem
+                            key={district.districtId}
+                            value={district.districtId}
+                          >
+                            {district.districtName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel id="demo-simple-select-standard-label">
+                        Phường/xã
+                      </InputLabel>
+                      <Select
+                        labelId="demo-simple-select-label"
+                        id="demo-simple-select"
+                        value={selectedWard}
+                        label="Phường/xã"
+                        onChange={(e) => {
+                          handleShippingChange("ward", Number(e.target.value));
+                        }}
+                        disabled={wardList.length === 0}
+                      >
+                        {wardList.map((ward) => (
+                          <MenuItem key={ward.wardCode} value={ward.wardCode}>
+                            {ward.wardName}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </Grid>
+              </DialogContent>
+              <DialogActions>
+                <Button
+                  onClick={handleCloseOpenEdit}
+                  variant="outlined"
+                  color="primary"
+                >
+                  Đóng
+                </Button>
+                <Button
+                  onClick={() => editFormData && handleEditAddress()}
+                  variant="contained"
+                  color="warning"
+                  disabled={loadingEdit}
+                >
+                  {loadingEdit ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    "Xác nhận"
+                  )}
+                </Button>
+              </DialogActions>
+            </Dialog>
 
             {(!userAddresses.length || !useExistingAddress) && (
               <MotionPaper
@@ -1121,7 +1494,11 @@ const ShippingPage: React.FC = () => {
                   boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                 }}
               >
-                Tiếp tục thanh toán
+                {!selectedAddress ? (
+                  <CircularProgress size={24} />
+                ) : (
+                  "Tiếp tục thanh toán"
+                )}
               </MotionButton>
             </MotionBox>
           </Grid>
