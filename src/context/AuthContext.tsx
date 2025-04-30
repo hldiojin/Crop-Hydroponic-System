@@ -704,7 +704,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("Verifying OTP to get reset token");
 
-      const verifyResponse = await api.post("/api/otp/verify", {
+      const verifyResponse = await api.post("/otp/verify", {
         email: data.email,
         otpCode: data.otp,
       });
@@ -788,7 +788,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log("Resetting password with token");
 
       const resetResponse = await api.post(
-        "/api/auth/me/reset-password",
+        "/auth/me/reset-password",
         {
           newPassword: data.newPassword,
           confirmPassword: data.confirmPassword,
@@ -882,7 +882,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
 
     try {
-      const response = await api.post("/api/tickets", ticketData);
+      const response = await api.post("/tickets", ticketData);
 
       if (response.data && response.data.data) {
         const newTicket = response.data.data;
@@ -932,7 +932,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
 
     try {
-      const response = await api.patch(`/api/tickets/${ticketId}`, { status });
+      const response = await api.patch(`/tickets/${ticketId}`, { status });
 
       if (response.data && response.data.success) {
         const updatedTickets = tickets.map((ticket) => {
