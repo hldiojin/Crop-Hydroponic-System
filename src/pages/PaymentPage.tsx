@@ -1001,7 +1001,7 @@ const PaymentPage: React.FC = () => {
                         </Typography> */}
                         <Chip
                           label={
-                            shipping === 0 ? "Miễn Phí" : `$${shipping.toFixed(2)}`
+                            shipping === 0 ? "Miễn Phí" : `${shipping.toLocaleString()}VNĐ`
                           }
                           size="small"
                           color={shipping === 0 ? "success" : "default"}
@@ -1269,7 +1269,7 @@ const PaymentPage: React.FC = () => {
                           sx={{ fontWeight: "bold" }}
                         />
                       ) : (
-                        `$${shipping.toLocaleString()}`
+                        `${shipping.toLocaleString()}VNĐ`
                       )}
                     </Typography>
                   </Box>

@@ -55,6 +55,7 @@ import { useAuth } from "../context/AuthContext";
 import { ghnService } from "../services/ghnService";
 import { n } from "framer-motion/dist/types.d-B50aGbjN";
 import { changeDefaultAddress, deleteAddress, editAddress, getOrderById, updateOrderAddress } from "../services/orderSevice";
+import { set } from "date-fns";
 
 // Create properly typed motion components
 const MotionContainer = motion(Container);
@@ -145,6 +146,7 @@ const ShippingPage: React.FC = () => {
   const [addressError, setAddressError] = useState<string | null>(null);
   const [useExistingAddress, setUseExistingAddress] = useState<boolean>(true);
   const [openEditDialog, setOpenEditDialog] = useState<boolean>(false);
+  const [isFillAddress, setIsFillAddress] = useState<boolean>(false);
   const [formData, setFormData] = useState<ShippingFormData>({
     name: "",
     phone: "",
@@ -240,13 +242,45 @@ const ShippingPage: React.FC = () => {
         setAddressError(
           "Failed to load saved addresses. You can enter a new one."
         );
-        setLoading(false);
       }
+      setUseExistingAddress(false);
+      setSelectedAddress(null);
     } finally {
       setAddressLoading(false);
       setLoading(false);
     }
   };
+
+  const notUseExistingAddress = () => {
+    setUseExistingAddress(false);
+    setSelectedAddress(null);
+    setFormData((prev) => ({
+      ...prev,
+      name: "",
+      phone: "",
+      address: "",
+      ward: "",
+      district: "",
+      province: "",
+    }));
+    setEditFormData((prev) => ({
+      ...prev,
+      name: "",
+      phone: "",
+      address: "",
+      ward: "",
+      district: "",
+      province: "",
+    }));
+    setIsFillAddress(false);
+    setProvinceList([]);
+    setDistrictList([]);
+    setWardList([]);
+    setSelectedProvince(0);
+    setSelectedDistrict(0);
+    setSelectedWard("0");
+    setFormErrors({});
+  }
 
   const fetchOrder = async () => {
     try {
@@ -394,6 +428,12 @@ const ShippingPage: React.FC = () => {
       }));
     }
   };
+
+  useEffect(() => {
+    if (formData.name && formData.phone && formData.address && formData.ward && formData.district && formData.province) {
+      setIsFillAddress(true);
+    }
+  }, [formData]);
 
   const handleShippingChange = async (key: string, value: string | number) => {
     switch (key) {
@@ -1034,9 +1074,10 @@ const ShippingPage: React.FC = () => {
                       control={
                         <Radio
                           checked={!useExistingAddress}
-                          onChange={() => setUseExistingAddress(false)}
+                          onChange={() => notUseExistingAddress()}
                           name="useNewAddress"
                           color="primary"
+                          disabled={addressLoading || loading}
                         />
                       }
                       label={
@@ -1237,7 +1278,7 @@ const ShippingPage: React.FC = () => {
                         value={selectedWard}
                         label="Phường/xã"
                         onChange={(e) => {
-                          handleShippingChange("ward", Number(e.target.value));
+                          handleShippingChange("ward", e.target.value);
                         }}
                         disabled={wardList.length === 0}
                       >
@@ -1484,7 +1525,11 @@ const ShippingPage: React.FC = () => {
                 variant="contained"
                 color="primary"
                 endIcon={<NavigateNext />}
-                disabled={!selectedAddress}
+                disabled={
+                  selectedAddress
+                    ? (addressLoading || loading)
+                    : (!isFillAddress && !useExistingAddress)
+                }
                 sx={{
                   fontWeight: "bold",
                   borderRadius: 2,
@@ -1494,7 +1539,7 @@ const ShippingPage: React.FC = () => {
                   boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                 }}
               >
-                {!selectedAddress ? (
+                {!selectedAddress && (addressLoading && loading) ? (
                   <CircularProgress size={24} />
                 ) : (
                   "Tiếp tục thanh toán"
