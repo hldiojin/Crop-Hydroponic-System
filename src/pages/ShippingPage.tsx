@@ -273,9 +273,6 @@ const ShippingPage: React.FC = () => {
       province: "",
     }));
     setIsFillAddress(false);
-    setProvinceList([]);
-    setDistrictList([]);
-    setWardList([]);
     setSelectedProvince(0);
     setSelectedDistrict(0);
     setSelectedWard("0");
