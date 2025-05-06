@@ -39,6 +39,7 @@ export interface UserAddress {
 
 export interface Transaction {
   transactionId: string;
+  paymentLinkId: string;
   paymentMethod: string;
   paymentStatus: string;
   createdAt: string;

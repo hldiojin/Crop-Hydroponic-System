@@ -53,8 +53,10 @@ import {
   Dashboard as DashboardIcon,
   ShoppingBasket as OrdersIcon,
   RemoveRedEye as ViewIcon,
+  NavigateNext,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import ticketService from "../services/ticketService";
@@ -63,7 +65,8 @@ import {
   getOrderById,
   OrderDetail,
   OrderSummary,
-  cancelOrder
+  cancelOrder,
+  processTransaction
 } from "../services/orderSevice";
 import { Ticket, TicketRequest, TicketResponseData } from "../types/types";
 import { motion } from "framer-motion";
@@ -822,6 +825,37 @@ const ProfilePage: React.FC = () => {
         .replace("₫", "") + " ₫"
     );
   };
+
+  const handleGoToPaymentPage = (paymentLinkId: string) => {
+    window.location.href = `https://pay.payos.vn/web/${paymentLinkId}`;
+  }
+
+  const [processingPayment, setProcessingPayment] = useState<boolean>(false);
+
+  const handleRepayment = async (orderId: string) => {
+    try {
+      setProcessingPayment(true);
+      // Process PayOS transaction
+      const paymentUrl = await processTransaction(orderId);
+
+      if (paymentUrl && typeof paymentUrl === "string") {
+
+        // Redirect to PayOS payment page
+        window.location.href = paymentUrl;
+      } else {
+        throw new Error("Failed to get payment URL");
+      }
+    } catch (transactionError) {
+      console.error("PayOS transaction error:", transactionError);
+      setSnackbar({
+        open: true,
+        message: "Không thể tạo giao dịch",
+        severity: "error",
+      });
+    } finally {
+      setProcessingPayment(false);
+    }
+  }
 
   const handleUpdateProfile = async () => {
     var userUpdate = {
@@ -2587,7 +2621,7 @@ const ProfilePage: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={order.status}
+                          label={order.status === "PendingPayment" ? "Chờ thanh toán" : order.status === "AllowRepayment" ? "Cho phép thanh toán lại" : order.status === "Success" ? "Hoàn tất" : order.status === "Delivering" ? "Đang vận chuyển" : order.status === "Cancelled" ? "Đã hủy" : order.status}
                           color={getOrderStatusColor(order.status)}
                           size="small"
                           sx={{ fontWeight: "medium" }}
@@ -2736,11 +2770,63 @@ const ProfilePage: React.FC = () => {
                     </Typography>
                     <Box sx={{ mb: 2 }}>
                       <Chip
-                        label={selectedOrderDetails.status}
+                        label={selectedOrderDetails.status === "PendingPayment" ? "Chờ thanh toán" : selectedOrderDetails.status === "AllowRepayment" ? "Cho phép thanh toán lại" : selectedOrderDetails.status === "Success" ? "Hoàn tất" : selectedOrderDetails.status === "Delivering" ? "Đang vận chuyển" : selectedOrderDetails.status === "Cancelled" ? "Đã hủy" : selectedOrderDetails.status}
                         color={getOrderStatusColor(selectedOrderDetails.status)}
                         sx={{ fontWeight: "medium" }}
                       />
                     </Box>
+                    {selectedOrderDetails.status === "PendingPayment" ? (
+                      <MotionButton
+                        variants={buttonVariants}
+                        whileHover="hover"
+                        whileTap="tap"
+                        type="submit"
+                        variant="contained"
+                        color="primary"
+                        endIcon={
+                          <NavigateNext />
+                        }
+                        onClick={() => handleGoToPaymentPage(selectedOrderDetails.transactions[0].paymentLinkId)}
+                        sx={{
+                          fontWeight: "bold",
+                          borderRadius: 2,
+                          px: 4,
+                          py: 1.5,
+                          background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        }}
+                      >
+                        Đi đến trang thanh toán
+                      </MotionButton>
+                    ) : selectedOrderDetails.status === "AllowRepayment" ? (
+                      <MotionButton
+                        variants={buttonVariants}
+                        whileHover="hover"
+                        whileTap="tap"
+                        onClick={() => handleRepayment(selectedOrderDetails.orderId)}
+                        variant="contained"
+                        color="primary"
+                        disabled={processingPayment}
+                        endIcon={
+                          processingPayment ? (
+                            <CircularProgress size={20} color="inherit" />
+                          ) : (
+                            <NavigateNext />
+                          )
+                        }
+                        sx={{
+                          fontWeight: "bold",
+                          borderRadius: 2,
+                          px: 4,
+                          py: 1.5,
+                          background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        }}
+                      >
+                        {processingPayment ? "Đang xử lý..." : "Thanh toán lại"}
+                      </MotionButton>
+                    ) : null}
+
                   </Card>
                 </Grid>
 
@@ -2787,12 +2873,15 @@ const ProfilePage: React.FC = () => {
                                 .paymentStatus == "REFUNDED"
                                 ? "Đã hoàn tiền"
                                 : selectedOrderDetails.transactions[0]
-                                  .paymentStatus == "CANCELED"
+                                  .paymentStatus == "CANCELLED"
                                   ? "Đã hủy"
                                   : selectedOrderDetails.transactions[0]
                                     .paymentStatus == "PROCESSING"
                                     ? "Đang xử lý"
-                                    : selectedOrderDetails.transactions[0].paymentStatus
+                                    : selectedOrderDetails.transactions[0]
+                                      .paymentStatus == "EXPIRED"
+                                      ? "Thanh toán hết hạn"
+                                      : selectedOrderDetails.transactions[0].paymentStatus
                         : "N/A"}
                     </Typography>
 
