@@ -400,11 +400,10 @@ const CartPage: React.FC<CartPageProps> = ({
             {error}
           </Alert>
           <Typography variant="h5" gutterBottom fontWeight="bold">
-            We couldn't load your cart
+            Không thể tải giỏ hàng
           </Typography>
           <Typography color="textSecondary" paragraph>
-            There was a problem connecting to our services. Please try again
-            later.
+            Có vẻ như có sự cố khi tải giỏ hàng của bạn. Vui lòng thử lại sau.
           </Typography>
           <MotionButton
             variant="contained"
@@ -415,7 +414,7 @@ const CartPage: React.FC<CartPageProps> = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            Return to Shop
+            Quay lại trang chủ
           </MotionButton>
         </MotionPaper>
       </MotionContainer>
@@ -521,7 +520,7 @@ const CartPage: React.FC<CartPageProps> = ({
               mb: 2,
             }}
           >
-            Your cart is empty
+            Giỏ hàng của bạn đang trống
           </Typography>
 
           <Typography
@@ -534,8 +533,8 @@ const CartPage: React.FC<CartPageProps> = ({
               lineHeight: 1.6,
             }}
           >
-            Looks like you haven't added any items to your cart yet. Browse our
-            products and discover the best hydroponic solutions for your garden!
+            Hiện tại không có sản phẩm nào trong giỏ hàng của bạn. Hãy thêm sản
+            phẩm để bắt đầu mua sắm!
           </Typography>
 
           <MotionButton
@@ -556,14 +555,14 @@ const CartPage: React.FC<CartPageProps> = ({
               fontWeight: "bold",
             }}
           >
-            Explore Products
+            Bắt đầu mua sắm
           </MotionButton>
 
           <Box sx={{ mt: 3 }}>
             <Typography variant="body2" color="textSecondary">
-              Need help?{" "}
+              Bạn cần trợ giúp?{" "}
               <Button size="small" color="primary">
-                Contact Support
+                Liên hệ với chúng tôi
               </Button>
             </Typography>
           </Box>

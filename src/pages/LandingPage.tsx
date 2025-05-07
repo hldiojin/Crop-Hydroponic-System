@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 
 // Styled components
 const HeroSection = styled(Box)(({ theme }) => ({
@@ -135,9 +136,11 @@ export default function Home() {
                   Giám sát hệ thống thủy canh trong thời gian thực với công nghệ
                   IoT thiết kế đặc biệt cho phát triển bền vững agriculture
                 </Typography>
-                <GreenButton size="large">
-                  Khám phá giải pháp của chúng tôi
-                </GreenButton>
+                <Link to="/devices">
+                  <GreenButton size="large">
+                    Khám phá giải pháp của chúng tôi
+                  </GreenButton>
+                </Link>
               </motion.div>
             </Grid>
             <Grid item xs={12} md={6}>
@@ -180,8 +183,7 @@ export default function Home() {
                   title: "Giám sát thời gian thực",
                   description:
                     "Theo dõi pH, nhiệt độ, mức dinh dưỡng và nhiều thông số khác trong thời gian thực thông qua ứng dụng di động của chúng tôi",
-                  image:
-                    "https://images.unsplash.com/photo-1591619283177-e275bfcce32b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80",
+                  image: "/IOT-Tree.png",
                 },
                 {
                   title: "Cảnh báo thông minh",
@@ -262,15 +264,13 @@ export default function Home() {
                   title: "Mảng cảm biến đa thông số",
                   description:
                     "Giám sát pH, EC, nhiệt độ, độ ẩm và mức nước với độ chính xác của phòng thí nghiệm",
-                  image:
-                    "https://images.unsplash.com/photo-1581092921461-7d65ca45393a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+                  image: "/IOT-image.png",
                 },
                 {
                   title: "Doser dinh dưỡng thông minh",
                   description:
                     "Tự động điều chỉnh mức dinh dưỡng dựa trên đọc thời gian thực cho phát triển cây trồng tối ưu",
-                  image:
-                    "https://images.unsplash.com/photo-1611921561569-f8072d6c6a7f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1932&q=80",
+                  image: "/IOT-image2.png",
                 },
               ].map((product, index) => (
                 <Grid item xs={12} md={4} key={index}>
@@ -463,24 +463,26 @@ export default function Home() {
                 Sẵn sàng chuyển đổi trải nghiệm trồng thủy canh của bạn?
               </Typography>
               <Typography variant="h6" sx={{ mb: 4, opacity: 0.9 }}>
-                Tham gia hàng nghìn nông dân hiện đại đã đơn giản hóa việc giám
-                sát thủy canh của họ với HMES
+                Tham gia hộ gia đình hiện đại đã đơn giản hóa việc giám sát thủy
+                canh của họ với HMES
               </Typography>
-              <GreenButton
-                size="large"
-                sx={{
-                  px: 6,
-                  py: 1.5,
-                  fontSize: "1.2rem",
-                  backgroundColor: "white",
-                  color: "#2e7d32",
-                  "&:hover": {
-                    backgroundColor: "#f5f5f5",
-                  },
-                }}
-              >
-                Bắt đầu ngay hôm nay
-              </GreenButton>
+              <Link to="/devices" style={{ textDecoration: 'none' }}>
+                <GreenButton
+                  size="large"
+                  sx={{
+                    px: 6,
+                    py: 1.5,
+                    fontSize: "1.2rem",
+                    backgroundColor: "white",
+                    color: "#2e7d32",
+                    "&:hover": {
+                      backgroundColor: "#f5f5f5",
+                    },
+                  }}
+                >
+                  Bắt đầu ngay hôm nay
+                </GreenButton>
+              </Link>
             </Box>
           </motion.div>
         </Container>

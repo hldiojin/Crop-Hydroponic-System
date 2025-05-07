@@ -48,6 +48,237 @@ import { submitOrder } from "../services/orderSevice";
 const MotionCard = motion(Card);
 const MotionContainer = motion(Container);
 
+// Thêm utility function để xử lý rich text từ draft.js
+const parseRichText = (content: string): JSX.Element | string => {
+  try {
+    // Kiểm tra xem chuỗi có phải là JSON từ rich text editor
+    if (!content.startsWith("{")) {
+      return content;
+    }
+
+    const data = JSON.parse(content);
+
+    // Kiểm tra xem dữ liệu có cấu trúc chuẩn của draft.js không
+    if (!data.blocks || !Array.isArray(data.blocks)) {
+      return content;
+    }
+
+    // Render từng khối văn bản
+    return (
+      <>
+        {data.blocks.map((block: any, blockIndex: number) => {
+          // Lấy text của block
+          let text = block.text || "";
+
+          // Tạo bản sao text để thêm định dạng
+          const textSegments: {
+            text: string;
+            bold?: boolean;
+            italic?: boolean;
+            underline?: boolean;
+            start: number;
+            end: number;
+          }[] = [{ text, start: 0, end: text.length }];
+
+          // Xử lý style inline
+          if (
+            block.inlineStyleRanges &&
+            Array.isArray(block.inlineStyleRanges)
+          ) {
+            // Sắp xếp theo vị trí bắt đầu
+            const ranges = [...block.inlineStyleRanges].sort(
+              (a, b) => a.offset - b.offset
+            );
+
+            // Xử lý từng style range
+            for (const range of ranges) {
+              const { offset, length, style } = range;
+              const end = offset + length;
+
+              // Tìm tất cả các phân đoạn bị ảnh hưởng
+              for (let i = 0; i < textSegments.length; i++) {
+                const segment = textSegments[i];
+
+                // Nếu phân đoạn nằm ngoài phạm vi style, bỏ qua
+                if (segment.end <= offset || segment.start >= end) continue;
+
+                // Nếu phân đoạn nằm hoàn toàn trong phạm vi style
+                if (segment.start >= offset && segment.end <= end) {
+                  // Áp dụng style cho phân đoạn này
+                  if (style === "BOLD") segment.bold = true;
+                  if (style === "ITALIC") segment.italic = true;
+                  if (style === "UNDERLINE") segment.underline = true;
+                  continue;
+                }
+
+                // Trường hợp phân đoạn bị cắt bởi style
+                const newSegments = [];
+
+                // Phần trước style
+                if (segment.start < offset) {
+                  newSegments.push({
+                    ...segment,
+                    end: offset,
+                  });
+                }
+
+                // Phần trong style
+                const styledSegment = {
+                  ...segment,
+                  start: Math.max(offset, segment.start),
+                  end: Math.min(end, segment.end),
+                };
+
+                if (style === "BOLD") styledSegment.bold = true;
+                if (style === "ITALIC") styledSegment.italic = true;
+                if (style === "UNDERLINE") styledSegment.underline = true;
+
+                newSegments.push(styledSegment);
+
+                // Phần sau style
+                if (segment.end > end) {
+                  newSegments.push({
+                    ...segment,
+                    start: end,
+                  });
+                }
+
+                // Thay thế phân đoạn gốc bằng các phân đoạn mới
+                textSegments.splice(i, 1, ...newSegments);
+                i += newSegments.length - 1;
+              }
+            }
+          }
+
+          // Render block theo loại
+          let blockElement;
+          const blockType = block.type || "unstyled";
+
+          // Render từng phân đoạn với style
+          const renderedSegments = textSegments.map((segment, idx) => {
+            const style: React.CSSProperties = {};
+            if (segment.bold) style.fontWeight = "bold";
+            if (segment.italic) style.fontStyle = "italic";
+            if (segment.underline) style.textDecoration = "underline";
+
+            const segmentText = text.substring(segment.start, segment.end);
+
+            return (
+              <Box component="span" key={idx} sx={style}>
+                {segmentText}
+              </Box>
+            );
+          });
+
+          switch (blockType) {
+            case "header-one":
+              blockElement = (
+                <Typography
+                  variant="h5"
+                  gutterBottom
+                  sx={{ fontWeight: "bold" }}
+                >
+                  {renderedSegments}
+                </Typography>
+              );
+              break;
+            case "header-two":
+              blockElement = (
+                <Typography
+                  variant="h6"
+                  gutterBottom
+                  sx={{ fontWeight: "bold" }}
+                >
+                  {renderedSegments}
+                </Typography>
+              );
+              break;
+            case "header-three":
+              blockElement = (
+                <Typography
+                  variant="subtitle1"
+                  gutterBottom
+                  sx={{ fontWeight: "bold" }}
+                >
+                  {renderedSegments}
+                </Typography>
+              );
+              break;
+            case "blockquote":
+              blockElement = (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    pl: 2,
+                    borderLeft: "3px solid",
+                    borderColor: "primary.main",
+                    fontStyle: "italic",
+                    my: 1.5,
+                    py: 0.5,
+                    px: 1,
+                    bgcolor: "rgba(0,0,0,0.03)",
+                  }}
+                >
+                  {renderedSegments}
+                </Typography>
+              );
+              break;
+            case "unordered-list-item":
+              blockElement = (
+                <Box sx={{ display: "flex", pl: 2, mb: 1 }}>
+                  <Typography variant="body2" sx={{ pr: 1 }}>
+                    •
+                  </Typography>
+                  <Typography variant="body2">{renderedSegments}</Typography>
+                </Box>
+              );
+              break;
+            case "ordered-list-item":
+              blockElement = (
+                <Box sx={{ display: "flex", pl: 2, mb: 1 }}>
+                  <Typography variant="body2" sx={{ pr: 1 }}>
+                    {blockIndex + 1}.
+                  </Typography>
+                  <Typography variant="body2">{renderedSegments}</Typography>
+                </Box>
+              );
+              break;
+            case "code-block":
+              blockElement = (
+                <Box
+                  sx={{
+                    bgcolor: "rgba(0,0,0,0.05)",
+                    p: 1.5,
+                    borderRadius: 1,
+                    my: 1.5,
+                    fontFamily: "monospace",
+                  }}
+                >
+                  <Typography variant="body2" component="code">
+                    {renderedSegments}
+                  </Typography>
+                </Box>
+              );
+              break;
+            case "unstyled":
+            default:
+              blockElement = (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  {renderedSegments}
+                </Typography>
+              );
+          }
+
+          return <Box key={blockIndex}>{blockElement}</Box>;
+        })}
+      </>
+    );
+  } catch (error) {
+    console.error("Error parsing rich text:", error);
+    return content;
+  }
+};
+
 // Styled expand icon component
 interface ExpandMoreProps {
   expand: boolean;
@@ -376,20 +607,6 @@ const DeviceSelectionPage: React.FC = () => {
                     {device.name}
                   </Typography>
 
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    paragraph
-                    sx={{
-                      lineHeight: 1.7,
-                      mb: 2.5,
-                      minHeight: "4.2em", // Giữ khoảng 2-3 dòng text
-                    }}
-                  >
-                    {device.description ||
-                      "A premium hydroponic system designed for efficient plant growth with smart monitoring."}
-                  </Typography>
-
                   <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                     <Typography
                       variant="h6"
@@ -519,71 +736,21 @@ const DeviceSelectionPage: React.FC = () => {
                         ml: 1,
                       }}
                     >
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          fontWeight="medium"
-                        >
-                          Kích thước:{" "}
-                          <Box
-                            component="span"
-                            sx={{ color: "text.primary", fontWeight: "normal" }}
-                          >
-                            {device.size ||
-                              "Kích thước tiêu chuẩn cho sử dụng gia đình"}
-                          </Box>
+                      {device.description ? (
+                        <Box sx={{ color: "text.primary" }}>
+                          {typeof device.description === "string" ? (
+                            parseRichText(device.description)
+                          ) : (
+                            <Typography variant="body2">
+                              {String(device.description)}
+                            </Typography>
+                          )}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Không có thông tin chi tiết cho thiết bị này.
                         </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          fontWeight="medium"
-                        >
-                          Dung tích:{" "}
-                          <Box
-                            component="span"
-                            sx={{ color: "text.primary", fontWeight: "normal" }}
-                          >
-                            {device.capacity || "6-8 cây trung bình"}
-                          </Box>
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          fontWeight="medium"
-                        >
-                          Tính năng:{" "}
-                          <Box
-                            component="span"
-                            sx={{ color: "text.primary", fontWeight: "normal" }}
-                          >
-                            {device.features ||
-                              "Tự động tuần hoàn nước, đèn chiếu sáng LED, theo dõi dinh dưỡng"}
-                          </Box>
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          fontWeight="medium"
-                        >
-                          Bảo hành:{" "}
-                          <Box
-                            component="span"
-                            sx={{ color: "text.primary", fontWeight: "normal" }}
-                          >
-                            {device.warranty || "2 năm bảo hành nhà sản xuất"}
-                          </Box>
-                        </Typography>
-                      </Box>
+                      )}
                     </Box>
                   </CardContent>
                 </Collapse>
@@ -689,9 +856,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   : "1px solid rgba(0,0,0,0.05)",
                                 boxShadow: selectedProducts[product.id]
                                   ? `0 6px 16px ${alpha(
-                                    theme.palette.primary.main,
-                                    0.25
-                                  )}`
+                                      theme.palette.primary.main,
+                                      0.25
+                                    )}`
                                   : "0 3px 10px rgba(0,0,0,0.08)",
                                 transition: "all 0.2s ease",
                                 height: "100%",
@@ -702,9 +869,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   : "none",
                                 background: selectedProducts[product.id]
                                   ? `linear-gradient(to bottom, ${alpha(
-                                    theme.palette.primary.light,
-                                    0.1
-                                  )}, transparent)`
+                                      theme.palette.primary.light,
+                                      0.1
+                                    )}, transparent)`
                                   : theme.palette.background.paper,
                               }}
                             >
@@ -745,12 +912,14 @@ const DeviceSelectionPage: React.FC = () => {
                                 }}
                               />
 
-                              <CardContent sx={{
-                                flexGrow: 1,
-                                p: 2,
-                                display: 'flex',
-                                flexDirection: 'column',
-                              }}>
+                              <CardContent
+                                sx={{
+                                  flexGrow: 1,
+                                  p: 2,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                }}
+                              >
                                 <Typography
                                   variant="subtitle1"
                                   fontWeight="medium"
@@ -783,14 +952,14 @@ const DeviceSelectionPage: React.FC = () => {
                                   {product.description
                                     ? product.description.length > 60
                                       ? `${product.description.substring(
-                                        0,
-                                        60
-                                      )}...`
+                                          0,
+                                          60
+                                        )}...`
                                       : product.description
                                     : "Compatible accessory for your hydroponic system."}
                                 </Typography>
 
-                                <Box sx={{ mt: 'auto', pt: 2 }}>
+                                <Box sx={{ mt: "auto", pt: 2 }}>
                                   <Box
                                     sx={{
                                       display: "flex",
@@ -828,7 +997,7 @@ const DeviceSelectionPage: React.FC = () => {
                                       display: "flex",
                                       alignItems: "center",
                                       justifyContent: "space-between",
-                                      gap: 1
+                                      gap: 1,
                                     }}
                                   >
                                     <MotionButton
@@ -843,7 +1012,13 @@ const DeviceSelectionPage: React.FC = () => {
                                         handleProductSelect(product.id)
                                       }
                                       disabled={product.amount <= 0}
-                                      startIcon={selectedProducts[product.id] ? <CheckCircle /> : <ShoppingCart />}
+                                      startIcon={
+                                        selectedProducts[product.id] ? (
+                                          <CheckCircle />
+                                        ) : (
+                                          <ShoppingCart />
+                                        )
+                                      }
                                       variants={buttonVariants}
                                       whileHover="hover"
                                       whileTap="tap"
@@ -854,14 +1029,14 @@ const DeviceSelectionPage: React.FC = () => {
                                         boxShadow: selectedProducts[product.id]
                                           ? "0 4px 10px rgba(76, 175, 80, 0.2)"
                                           : "none",
-                                        textTransform: "none"
+                                        textTransform: "none",
                                       }}
                                     >
                                       {product.amount <= 0
                                         ? "Hết hàng"
                                         : selectedProducts[product.id]
-                                          ? "Đã chọn"
-                                          : "Thêm vào"}
+                                        ? "Đã chọn"
+                                        : "Thêm vào"}
                                     </MotionButton>
 
                                     {selectedProducts[product.id] && (
@@ -875,7 +1050,7 @@ const DeviceSelectionPage: React.FC = () => {
                                           )}`,
                                           borderRadius: 2,
                                           minWidth: "100px",
-                                          justifyContent: "space-between"
+                                          justifyContent: "space-between",
                                         }}
                                       >
                                         <IconButton
@@ -889,14 +1064,16 @@ const DeviceSelectionPage: React.FC = () => {
                                           disabled={
                                             (quantities[product.id] || 1) <= 1
                                           }
-                                          sx={{ color: theme.palette.primary.main }}
+                                          sx={{
+                                            color: theme.palette.primary.main,
+                                          }}
                                         >
                                           <Remove fontSize="small" />
                                         </IconButton>
                                         <Typography
                                           sx={{
                                             fontWeight: "medium",
-                                            color: theme.palette.primary.main
+                                            color: theme.palette.primary.main,
                                           }}
                                         >
                                           {quantities[product.id] || 1}
@@ -913,7 +1090,9 @@ const DeviceSelectionPage: React.FC = () => {
                                             (quantities[product.id] || 1) >=
                                             product.amount
                                           }
-                                          sx={{ color: theme.palette.primary.main }}
+                                          sx={{
+                                            color: theme.palette.primary.main,
+                                          }}
                                         >
                                           <Add fontSize="small" />
                                         </IconButton>
