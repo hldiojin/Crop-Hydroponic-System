@@ -44,16 +44,12 @@ interface Props {
   products: Product[];
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
-  onFavorite: (product: Product) => void;
-  favorites: string[];
 }
 
 const ProductList: React.FC<Props> = ({
   products: initialProducts,
   onAddToCart,
   onEdit,
-  onFavorite,
-  favorites,
 }) => {
   const theme = useTheme();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -457,7 +453,7 @@ const ProductList: React.FC<Props> = ({
                   }),
                 }}
               >
-                <MenuItem value="all">All Categories</MenuItem>
+                <MenuItem value="all">Tất cả danh mục</MenuItem>
                 {productCategories.map((category) => (
                   <MenuItem key={category.id} value={category.id}>
                     {category.name}
@@ -730,17 +726,6 @@ const ProductList: React.FC<Props> = ({
                           onAddToCart(p);
                         }}
                         onEdit={onEdit}
-                        onFavorite={(p) => {
-                          const isFav = favorites.includes(p.id);
-                          setSnackbarMessage(
-                            isFav
-                              ? `${p.name} removed from favorites`
-                              : `${p.name} added to favorites!`
-                          );
-                          setSnackbarOpen(true);
-                          onFavorite(p);
-                        }}
-                        favorites={favorites}
                       />
                     </Grid>
                   </Zoom>

@@ -76,7 +76,7 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount, onLogout }) => {
             >
               <img
                 src="https://cdn.openart.ai/uploads/image_A5tQhwj0_1732589401346_512.webp"
-                alt="Hydroponic Store"
+                alt="HMES"
                 style={{
                   height: "40px",
                   marginRight: "12px",
@@ -90,7 +90,7 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount, onLogout }) => {
                   display: { xs: "none", md: "block" },
                 }}
               >
-                Hydroponic Store
+                HMES
               </Typography>
             </Box>
 
@@ -129,7 +129,7 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount, onLogout }) => {
               </Button>
             </Box>
           </Box>
-          
+
           {/* Auth & Cart */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             {isAuthenticated ? (
@@ -173,13 +173,7 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount, onLogout }) => {
                   >
                     <Typography sx={{ color: "#2e7d32" }}>Cá nhân</Typography>
                   </MenuItem>
-                  <MenuItem
-                    component={Link}
-                    to="/favorites"
-                    onClick={handleMenuClose}
-                  >
-                    <Typography sx={{ color: "#2e7d32" }}>Yêu thích</Typography>
-                  </MenuItem>
+
                   {isAdmin && (
                     <MenuItem
                       component={Link}

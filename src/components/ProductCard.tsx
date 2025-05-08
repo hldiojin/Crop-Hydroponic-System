@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
@@ -19,7 +19,7 @@ import {
   useTheme,
   alpha,
 } from "@mui/material";
-import { ShoppingCart, Info, Edit, Star, Science } from "@mui/icons-material";
+import { ShoppingCart, Info, Edit, Science } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
 import { Product } from "../types/types";
 
@@ -27,42 +27,32 @@ interface Props {
   product: Product;
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
-  onFavorite: (product: Product) => void;
-  favorites: string[];
 }
 
 const ProductCard: React.FC<Props> = ({
   product,
   onAddToCart,
   onEdit,
-  onFavorite,
-  favorites,
 }) => {
   const theme = useTheme();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isFavorite, setIsFavorite] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editProduct, setEditProduct] = useState(product);
 
-  useEffect(() => {
-    // Không cần convert vì id và favorites đều là string
-    setIsFavorite(favorites.includes(product.id));
-  }, [favorites, product.id]);
-
-  const handleFavoriteClick = () => {
+  const handleAddToCart = () => {
     if (!isAuthenticated) {
       navigate("/login", {
         state: {
           from: location,
-          action: "favorite",
+          action: "cart",
           productId: product.id,
         },
       });
       return;
     }
-    onFavorite(product);
+    onAddToCart(product);
   };
 
   const handleEditOpen = () => {
@@ -135,30 +125,6 @@ const ProductCard: React.FC<Props> = ({
         }}
         elevation={3}
       >
-        {/* Favorite button positioned as a floating element */}
-        <Tooltip
-          title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-        >
-          <IconButton
-            color={isFavorite ? "secondary" : "default"}
-            onClick={handleFavoriteClick}
-            sx={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              bgcolor: "rgba(255,255,255,0.9)",
-              boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
-              "&:hover": {
-                bgcolor: "rgba(255,255,255,1)",
-                transform: "scale(1.1)",
-              },
-              zIndex: 1,
-            }}
-          >
-            <Star />
-          </IconButton>
-        </Tooltip>
-
         {/* Status Chip */}
         <Chip
           label={product.status}
@@ -263,7 +229,7 @@ const ProductCard: React.FC<Props> = ({
         >
           <Button
             variant="contained"
-            onClick={() => onAddToCart(product)}
+            onClick={handleAddToCart}
             startIcon={<ShoppingCart />}
             size="large"
             sx={{

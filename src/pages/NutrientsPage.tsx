@@ -44,15 +44,11 @@ import categoryService, { Category } from "../services/categoryService";
 interface Props {
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
-  onFavorite: (product: Product) => void;
-  favorites: string[];
 }
 
 const NutrientsPage: React.FC<Props> = ({
   onAddToCart,
   onEdit,
-  onFavorite,
-  favorites,
 }) => {
   const theme = useTheme();
   const [nutrients, setNutrients] = useState<Product[]>([]);
@@ -442,7 +438,7 @@ const NutrientsPage: React.FC<Props> = ({
               Dinh dưỡng
             </Typography>
             <Chip
-              label={`${filteredNutrients.length} item(s) found`}
+              label={`${filteredNutrients.length} vật phẩm được tìm thấy`}
               color="default"
               variant="outlined"
               size="small"
@@ -502,7 +498,7 @@ const NutrientsPage: React.FC<Props> = ({
                   }),
                 }}
               >
-                <MenuItem value="all">All Categories</MenuItem>
+                <MenuItem value="all">Tất cả danh mục</MenuItem>
                 {nutrientCategories.map((category) => (
                   <MenuItem key={category.id} value={category.id}>
                     {category.name}
@@ -750,7 +746,7 @@ const NutrientsPage: React.FC<Props> = ({
                   Sản phẩm dinh dưỡng
                 </Typography>
                 <Chip
-                  label={`${filteredNutrients.length} item(s) found`}
+                  label={`${filteredNutrients.length} vật phẩm được tìm thấy`}
                   color="default"
                   variant="outlined"
                   size="small"
@@ -778,17 +774,6 @@ const NutrientsPage: React.FC<Props> = ({
                           onAddToCart(p);
                         }}
                         onEdit={onEdit}
-                        onFavorite={(p) => {
-                          const isFav = favorites.includes(p.id);
-                          setSnackbarMessage(
-                            isFav
-                              ? `${p.name} đã được xóa khỏi danh sách yêu thích`
-                              : `${p.name} đã được thêm vào danh sách yêu thích!`
-                          );
-                          setSnackbarOpen(true);
-                          onFavorite(p);
-                        }}
-                        favorites={favorites}
                       />
                     </Grid>
                   </Zoom>
