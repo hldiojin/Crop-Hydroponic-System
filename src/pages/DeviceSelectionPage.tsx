@@ -33,6 +33,7 @@ import { motion } from "framer-motion";
 import { deviceService, Device } from "../services/deviceService";
 import { Product } from "../types/types";
 import productService from "../services/productService";
+import parse from 'html-react-parser';
 
 import {
   MotionBox,
@@ -313,11 +314,11 @@ const DeviceSelectionPage: React.FC = () => {
 
   const [devices, setDevices] = useState<Device[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<Device[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<
     Record<string, boolean>
   >({});
-  const [expandedDevice, setExpandedDevice] = useState<string | null>(null);
+  const [expandedDevice, setExpandedDevice] = useState<string[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [deviceQuantities, setDeviceQuantities] = useState<
@@ -394,12 +395,14 @@ const DeviceSelectionPage: React.FC = () => {
 
   // Handle device selection
   const handleDeviceSelect = (device: Device) => {
-    setSelectedDevice(device);
-    setExpandedDevice(device.id);
-
-    // Clear previously selected products when selecting a new device
-    setSelectedProducts({});
+    const isAlreadySelected = selectedDevice.some((d) => d.id === device.id);
+    if (isAlreadySelected) {
+      setSelectedDevice((prev) => prev.filter((d) => d.id !== device.id));
+    } else {
+      setSelectedDevice((prev) => [...prev, device]);
+    }
   };
+
 
   // Handle product selection
   const handleProductSelect = (productId: string) => {
@@ -411,16 +414,21 @@ const DeviceSelectionPage: React.FC = () => {
 
   // Handle expand panel for a device
   const handleExpandDevice = (deviceId: string) => {
-    setExpandedDevice(expandedDevice === deviceId ? null : deviceId);
+    setExpandedDevice((prev) =>
+      prev.includes(deviceId)
+        ? prev.filter((id) => id !== deviceId)
+        : [...prev, deviceId]
+    );
   };
 
   // Process checkout
   const handleCheckout = async () => {
-    if (!selectedDevice) return;
+    if (!selectedDevice.length) return;
 
-    const selectedDevicesObj: Record<string, number> = {
-      [selectedDevice.id]: 1,
-    };
+    const selectedDevicesObj: Record<string, number> = {};
+    selectedDevice.forEach((device) => {
+      selectedDevicesObj[device.id] = 1;
+    });
 
     const selectedProductsList = products
       .filter((product) => selectedProducts[product.id])
@@ -438,13 +446,11 @@ const DeviceSelectionPage: React.FC = () => {
         unitPrice: product.unitPrice,
         quantity: quantities[product.productId] || 1,
       })),
-      devices: [
-        {
-          id: selectedDevice.id,
-          unitPrice: selectedDevice.price,
-          quantity: deviceQuantities[selectedDevice.id] || 1,
-        },
-      ],
+      devices: selectedDevice.map((device) => ({
+        id: device.id,
+        unitPrice: device.price,
+        quantity: deviceQuantities[device.id] || 1,
+      })),
     };
 
     const orderResponse = await submitOrder(orderData);
@@ -452,9 +458,9 @@ const DeviceSelectionPage: React.FC = () => {
       console.error("Failed to submit order:", orderResponse);
       return;
     }
+
     localStorage.setItem("backLocation", "/devices");
     localStorage.setItem("currentOrderId", orderResponse.response.data);
-    // Redirect to cart page after successful order submission
     navigate(`/checkout/${orderResponse.response.data}/shipping`);
   };
 
@@ -550,7 +556,7 @@ const DeviceSelectionPage: React.FC = () => {
                   borderRadius: 3,
                   overflow: "hidden",
                   boxShadow:
-                    selectedDevice?.id === device.id
+                    selectedDevice.some((d) => d.id === device.id)
                       ? `0 0 0 2px ${theme.palette.primary.main}, 0 8px 20px rgba(0,0,0,0.12)`
                       : "0 8px 20px rgba(0,0,0,0.1)",
                   position: "relative",
@@ -558,12 +564,12 @@ const DeviceSelectionPage: React.FC = () => {
                   display: "flex",
                   flexDirection: "column",
                   backgroundColor:
-                    selectedDevice?.id === device.id
+                    selectedDevice.some((d) => d.id === device.id)
                       ? alpha(theme.palette.primary.light, 0.05)
                       : theme.palette.background.paper,
                 }}
               >
-                {selectedDevice?.id === device.id && (
+                {selectedDevice.some((d) => d.id === device.id) && (
                   <Chip
                     icon={<CheckCircle />}
                     label="Selected"
@@ -636,7 +642,7 @@ const DeviceSelectionPage: React.FC = () => {
                   <Box sx={{ display: "flex", alignItems: "center" }}>
                     <MotionButton
                       variant={
-                        selectedDevice?.id === device.id
+                        selectedDevice.some((d) => d.id === device.id)
                           ? "contained"
                           : "outlined"
                       }
@@ -653,16 +659,16 @@ const DeviceSelectionPage: React.FC = () => {
                         borderRadius: 2,
                         fontWeight: 500,
                         boxShadow:
-                          selectedDevice?.id === device.id
+                          selectedDevice.some((d) => d.id === device.id)
                             ? "0 4px 10px rgba(76, 175, 80, 0.25)"
                             : "none",
                       }}
                     >
-                      {selectedDevice?.id === device.id
+                      {selectedDevice.some((d) => d.id === device.id)
                         ? "Đã chọn"
                         : "Chọn thiết bị"}
                     </MotionButton>
-                    {selectedDevice?.id === device.id && (
+                    {selectedDevice.some((d) => d.id === device.id) && (
                       <Box
                         sx={{
                           display: "flex",
@@ -706,13 +712,13 @@ const DeviceSelectionPage: React.FC = () => {
                     )}
                   </Box>
                   <ExpandMore
-                    expand={expandedDevice === device.id}
+                    expand={expandedDevice.some((d) => d === device.id)}
                     onClick={() => handleExpandDevice(device.id)}
                   />
                 </CardActions>
 
                 <Collapse
-                  in={expandedDevice === device.id}
+                  in={expandedDevice.some((d) => d === device.id)}
                   timeout="auto"
                   unmountOnExit
                 >
@@ -737,14 +743,17 @@ const DeviceSelectionPage: React.FC = () => {
                       }}
                     >
                       {device.description ? (
+                        // <Box sx={{ color: "text.primary" }}>
+                        //   {typeof device.description === "string" ? (
+                        //     parseRichText(device.description)
+                        //   ) : (
+                        //     <Typography variant="body2">
+                        //       {String(device.description)}
+                        //     </Typography>
+                        //   )}
+                        // </Box>
                         <Box sx={{ color: "text.primary" }}>
-                          {typeof device.description === "string" ? (
-                            parseRichText(device.description)
-                          ) : (
-                            <Typography variant="body2">
-                              {String(device.description)}
-                            </Typography>
-                          )}
+                          {parse(device.description)}
                         </Box>
                       ) : (
                         <Typography variant="body2" color="text.secondary">
@@ -760,7 +769,7 @@ const DeviceSelectionPage: React.FC = () => {
         </Grid>
 
         {/* Product selection section - only visible when a device is selected */}
-        {selectedDevice && (
+        {selectedDevice.length > 0 && (
           <Fade in={!!selectedDevice} timeout={800}>
             <Box sx={{ mt: 6 }}>
               <Paper
@@ -823,7 +832,7 @@ const DeviceSelectionPage: React.FC = () => {
                       component="span"
                       sx={{ fontWeight: "bold", color: "primary.main" }}
                     >
-                      {selectedDevice.name}
+                      {selectedDevice?.map(device => device.name).join(", ")}
                     </Box>{" "}
                     với các sản phẩm tương thích. Đây là tùy chọn và có thể được
                     thay đổi sau.
@@ -856,9 +865,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   : "1px solid rgba(0,0,0,0.05)",
                                 boxShadow: selectedProducts[product.id]
                                   ? `0 6px 16px ${alpha(
-                                      theme.palette.primary.main,
-                                      0.25
-                                    )}`
+                                    theme.palette.primary.main,
+                                    0.25
+                                  )}`
                                   : "0 3px 10px rgba(0,0,0,0.08)",
                                 transition: "all 0.2s ease",
                                 height: "100%",
@@ -869,9 +878,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   : "none",
                                 background: selectedProducts[product.id]
                                   ? `linear-gradient(to bottom, ${alpha(
-                                      theme.palette.primary.light,
-                                      0.1
-                                    )}, transparent)`
+                                    theme.palette.primary.light,
+                                    0.1
+                                  )}, transparent)`
                                   : theme.palette.background.paper,
                               }}
                             >
@@ -952,9 +961,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   {product.description
                                     ? product.description.length > 60
                                       ? `${product.description.substring(
-                                          0,
-                                          60
-                                        )}...`
+                                        0,
+                                        60
+                                      )}...`
                                       : product.description
                                     : "Compatible accessory for your hydroponic system."}
                                 </Typography>
@@ -1035,8 +1044,8 @@ const DeviceSelectionPage: React.FC = () => {
                                       {product.amount <= 0
                                         ? "Hết hàng"
                                         : selectedProducts[product.id]
-                                        ? "Đã chọn"
-                                        : "Thêm vào"}
+                                          ? "Đã chọn"
+                                          : "Thêm vào"}
                                     </MotionButton>
 
                                     {selectedProducts[product.id] && (

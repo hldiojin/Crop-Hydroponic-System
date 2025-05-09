@@ -763,13 +763,13 @@ const PaymentPage: React.FC = () => {
                     {
                       id: "payos",
                       name: "PayOS",
-                      description: "Pay securely with PayOS gateway",
+                      description: "Thanh toán với cổng thanh toán PayOS",
                       icon: <CreditCardOutlined />,
                     },
                     {
                       id: "cashOnDelivery",
                       name: "Cash on Delivery",
-                      description: "Pay with cash when you receive your order",
+                      description: "Thanh toán khi nhận hàng",
                       icon: <LocalAtm />,
                     },
                   ].map((method) => (
