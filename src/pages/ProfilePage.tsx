@@ -647,6 +647,8 @@ const ProfilePage: React.FC = () => {
     setTicketDetailsDialogOpen(false);
     setSelectedTicketDetails(null);
     setSelectedTicketId(null);
+    setTicketResponseAttachments([]);
+    setResponseMessage("");
   };
 
   // Format date string for better display
@@ -1610,8 +1612,8 @@ const ProfilePage: React.FC = () => {
                         {ticket.type === "Shopping"
                           ? "Mua hàng"
                           : ticket.type === "Technical"
-                          ? "Kỹ thuật"
-                          : ticket.type}
+                            ? "Kỹ thuật"
+                            : ticket.type}
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -1749,8 +1751,8 @@ const ProfilePage: React.FC = () => {
                       {selectedTicketDetails.type === "Shopping"
                         ? "Mua hàng"
                         : selectedTicketDetails.type === "Technical"
-                        ? "Kỹ thuật"
-                        : selectedTicketDetails.type}
+                          ? "Kỹ thuật"
+                          : selectedTicketDetails.type}
                     </Typography>
 
                     <Typography
@@ -1782,6 +1784,21 @@ const ProfilePage: React.FC = () => {
                         sx={{ fontWeight: "medium" }}
                       />
                     </Box>
+                    {selectedTicketDetails.type === "Technical" && (
+                      <>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          gutterBottom
+                        >
+                          Serial thiết bị
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium" paragraph>
+                          {selectedTicketDetails.deviceItemSerial}
+                        </Typography>
+                      </>
+                    )}
+
 
                     {selectedTicketDetails.statusUpdatedAt && (
                       <>
@@ -2040,9 +2057,8 @@ const ProfilePage: React.FC = () => {
                                               <Box
                                                 component="img"
                                                 src={attachment}
-                                                alt={`Response ${
-                                                  index + 1
-                                                } Attachment ${attIndex + 1}`}
+                                                alt={`Response ${index + 1
+                                                  } Attachment ${attIndex + 1}`}
                                                 sx={{
                                                   width: "100%",
                                                   height: "100%",
@@ -2099,7 +2115,7 @@ const ProfilePage: React.FC = () => {
                       multiline
                       rows={2}
                       value={responseMessage}
-                      disabled={selectedTicketDetails.status === "Pending"}
+                      disabled={selectedTicketDetails.status === "Pending" || selectedTicketDetails.status === "Done" || selectedTicketDetails.status === "Closed"}
                       onChange={(e) =>
                         handleMessageChange(
                           (e.target as HTMLInputElement).value
@@ -2129,7 +2145,7 @@ const ProfilePage: React.FC = () => {
                           id="ticket-attachments"
                           multiple
                           type="file"
-                          disabled={selectedTicketDetails.status === "Pending"}
+                          disabled={selectedTicketDetails.status === "Pending" || selectedTicketDetails.status === "Done" || selectedTicketDetails.status === "Closed"}
                           onChange={handleTicketResponseAttachmentsChange}
                         />
                         <label htmlFor="ticket-attachments">
@@ -2142,7 +2158,7 @@ const ProfilePage: React.FC = () => {
                               component="span"
                               startIcon={<AddPhotoIcon />}
                               disabled={
-                                selectedTicketDetails.status === "Pending"
+                                selectedTicketDetails.status === "Pending" || selectedTicketDetails.status === "Done" || selectedTicketDetails.status === "Closed"
                               }
                             >
                               Thêm tài liệu đính kèm
@@ -2162,7 +2178,7 @@ const ProfilePage: React.FC = () => {
                         variant="contained"
                         color="primary"
                         onClick={() => handleResponseMessage()}
-                        disabled={selectedTicketDetails.status === "Pending"}
+                        disabled={selectedTicketDetails.status === "Pending" || selectedTicketDetails.status === "Done" || selectedTicketDetails.status === "Closed"}
                       >
                         Gửi phản hồi
                       </Button>
@@ -2631,14 +2647,14 @@ const ProfilePage: React.FC = () => {
                             order.status === "PendingPayment"
                               ? "Chờ thanh toán"
                               : order.status === "AllowRepayment"
-                              ? "Cho phép thanh toán lại"
-                              : order.status === "Success"
-                              ? "Hoàn tất"
-                              : order.status === "Delivering"
-                              ? "Đang vận chuyển"
-                              : order.status === "Cancelled"
-                              ? "Đã hủy"
-                              : order.status
+                                ? "Cho phép thanh toán lại"
+                                : order.status === "Success"
+                                  ? "Hoàn tất"
+                                  : order.status === "Delivering"
+                                    ? "Đang vận chuyển"
+                                    : order.status === "Cancelled"
+                                      ? "Đã hủy"
+                                      : order.status
                           }
                           color={getOrderStatusColor(order.status)}
                           size="small"
@@ -2772,10 +2788,10 @@ const ProfilePage: React.FC = () => {
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
-                      selectedOrderDetails.transactions.length > 0
+                        selectedOrderDetails.transactions.length > 0
                         ? formatDate(
-                            selectedOrderDetails.transactions[0].createdAt
-                          )
+                          selectedOrderDetails.transactions[0].createdAt
+                        )
                         : "N/A"}
                     </Typography>
 
@@ -2792,14 +2808,14 @@ const ProfilePage: React.FC = () => {
                           selectedOrderDetails.status === "PendingPayment"
                             ? "Chờ thanh toán"
                             : selectedOrderDetails.status === "AllowRepayment"
-                            ? "Cho phép thanh toán lại"
-                            : selectedOrderDetails.status === "Success"
-                            ? "Hoàn tất"
-                            : selectedOrderDetails.status === "Delivering"
-                            ? "Đang vận chuyển"
-                            : selectedOrderDetails.status === "Cancelled"
-                            ? "Đã hủy"
-                            : selectedOrderDetails.status
+                              ? "Cho phép thanh toán lại"
+                              : selectedOrderDetails.status === "Success"
+                                ? "Hoàn tất"
+                                : selectedOrderDetails.status === "Delivering"
+                                  ? "Đang vận chuyển"
+                                  : selectedOrderDetails.status === "Cancelled"
+                                    ? "Đã hủy"
+                                    : selectedOrderDetails.status
                         }
                         color={getOrderStatusColor(selectedOrderDetails.status)}
                         sx={{ fontWeight: "medium" }}
@@ -2875,7 +2891,7 @@ const ProfilePage: React.FC = () => {
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
-                      selectedOrderDetails.transactions.length > 0
+                        selectedOrderDetails.transactions.length > 0
                         ? selectedOrderDetails.transactions[0].paymentMethod ===
                           "BANK"
                           ? "Online Payment (PayOS)"
@@ -2892,29 +2908,29 @@ const ProfilePage: React.FC = () => {
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
-                      selectedOrderDetails.transactions.length > 0
+                        selectedOrderDetails.transactions.length > 0
                         ? selectedOrderDetails.transactions[0].paymentStatus ==
                           "PAID"
                           ? "Đã thanh toán"
                           : selectedOrderDetails.transactions[0]
-                              .paymentStatus == "PENDING"
-                          ? "Chờ thanh toán"
-                          : selectedOrderDetails.transactions[0]
+                            .paymentStatus == "PENDING"
+                            ? "Chờ thanh toán"
+                            : selectedOrderDetails.transactions[0]
                               .paymentStatus == "FAILED"
-                          ? "Thanh toán thất bại"
-                          : selectedOrderDetails.transactions[0]
-                              .paymentStatus == "REFUNDED"
-                          ? "Đã hoàn tiền"
-                          : selectedOrderDetails.transactions[0]
-                              .paymentStatus == "CANCELLED"
-                          ? "Đã hủy"
-                          : selectedOrderDetails.transactions[0]
-                              .paymentStatus == "PROCESSING"
-                          ? "Đang xử lý"
-                          : selectedOrderDetails.transactions[0]
-                              .paymentStatus == "EXPIRED"
-                          ? "Thanh toán hết hạn"
-                          : selectedOrderDetails.transactions[0].paymentStatus
+                              ? "Thanh toán thất bại"
+                              : selectedOrderDetails.transactions[0]
+                                .paymentStatus == "REFUNDED"
+                                ? "Đã hoàn tiền"
+                                : selectedOrderDetails.transactions[0]
+                                  .paymentStatus == "CANCELLED"
+                                  ? "Đã hủy"
+                                  : selectedOrderDetails.transactions[0]
+                                    .paymentStatus == "PROCESSING"
+                                    ? "Đang xử lý"
+                                    : selectedOrderDetails.transactions[0]
+                                      .paymentStatus == "EXPIRED"
+                                      ? "Thanh toán hết hạn"
+                                      : selectedOrderDetails.transactions[0].paymentStatus
                         : "N/A"}
                     </Typography>
 
@@ -2977,7 +2993,7 @@ const ProfilePage: React.FC = () => {
                   </Typography>
 
                   {selectedOrderDetails.orderDetailsItems &&
-                  selectedOrderDetails.orderDetailsItems.length > 0 ? (
+                    selectedOrderDetails.orderDetailsItems.length > 0 ? (
                     <Card
                       variant="outlined"
                       sx={{ borderRadius: 2, overflow: "hidden" }}
@@ -3033,7 +3049,7 @@ const ProfilePage: React.FC = () => {
                               </ListItem>
                               {index <
                                 selectedOrderDetails.orderDetailsItems.length -
-                                  1 && <Divider />}
+                                1 && <Divider />}
                             </React.Fragment>
                           )
                         )}
@@ -3114,8 +3130,8 @@ const ProfilePage: React.FC = () => {
           sx={{ p: 2, borderTop: "1px solid rgba(0, 0, 0, 0.08)" }}
         >
           {selectedOrderDetails &&
-          selectedOrderDetails.transactions &&
-          selectedOrderDetails.transactions.length > 0 ? (
+            selectedOrderDetails.transactions &&
+            selectedOrderDetails.transactions.length > 0 ? (
             selectedOrderDetails.transactions[0].paymentMethod === "COD" ? (
               <Button
                 onClick={handleOpenConfirmCancelOrderDialog}
@@ -3123,7 +3139,7 @@ const ProfilePage: React.FC = () => {
                 color="error"
                 disabled={
                   selectedOrderDetails.transactions[0].paymentMethod !==
-                    "COD" ||
+                  "COD" ||
                   loadingCancelOrder ||
                   selectedOrderDetails.status === "Cancelled"
                 }
