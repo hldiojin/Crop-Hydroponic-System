@@ -662,6 +662,8 @@ const ShippingPage: React.FC = () => {
         ) {
           navigate("/login", { state: { from: `/checkout/${orderId}/shipping` } });
           return;
+        } else if (err.response?.status === 404 && err.response?.data?.message?.includes("Address not found or invalid coordinates.")) {
+          setAddressError("Địa chỉ không hợp lệ. Vui lòng kiểm tra lại.");
         }
       }
     } else if (selectedAddress) {
@@ -671,7 +673,7 @@ const ShippingPage: React.FC = () => {
           // Navigate to payment page
           navigate(`/checkout/${orderId}/payment`);
         } else {
-          setAddressError("Failed to update address. Please try again.");
+          setAddressError("Đã xảy ra lỗi khi cập nhật địa chỉ. Vui lòng thử lại.");
         }
       }
     }
@@ -923,7 +925,7 @@ const ShippingPage: React.FC = () => {
       </MotionBox>
 
       {addressError && (
-        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
           {addressError}
         </Alert>
       )}
