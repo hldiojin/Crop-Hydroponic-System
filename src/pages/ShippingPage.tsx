@@ -273,6 +273,7 @@ const ShippingPage: React.FC = () => {
       district: "",
       province: "",
     }));
+    setAddressError(null);
     setIsFillAddress(false);
     setSelectedProvince(0);
     setSelectedDistrict(0);
@@ -301,6 +302,7 @@ const ShippingPage: React.FC = () => {
   }
 
   const handleCloseOpenEdit = () => {
+    setEditAddressError(null);
     setOpenEditDialog(false)
   }
 
