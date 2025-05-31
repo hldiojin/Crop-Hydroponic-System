@@ -802,6 +802,25 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const getOrderStatusText = (status: string): string => {
+    switch (status) {
+      case "PendingPayment":
+        return "Chờ thanh toán";
+      case "AllowRepayment":
+        return "Cho phép thanh toán lại";
+      case "IsWaiting":
+        return "Đang chờ xác thực";
+      case "Success":
+        return "Hoàn tất";
+      case "Delivering":
+        return "Đang vận chuyển";
+      case "Cancelled":
+        return "Đã hủy";
+      default:
+        return status;
+    }
+  }
+
   // Helper function to get status color for orders
   const getOrderStatusColor = (
     status: string
@@ -2648,13 +2667,15 @@ const ProfilePage: React.FC = () => {
                               ? "Chờ thanh toán"
                               : order.status === "AllowRepayment"
                                 ? "Cho phép thanh toán lại"
-                                : order.status === "Success"
-                                  ? "Hoàn tất"
-                                  : order.status === "Delivering"
-                                    ? "Đang vận chuyển"
-                                    : order.status === "Cancelled"
-                                      ? "Đã hủy"
-                                      : order.status
+                                : order.status === "IsWaiting"
+                                  ? "Đang chờ xác thực"
+                                  : order.status === "Success"
+                                    ? "Hoàn tất"
+                                    : order.status === "Delivering"
+                                      ? "Đang vận chuyển"
+                                      : order.status === "Cancelled"
+                                        ? "Đã hủy"
+                                        : order.status
                           }
                           color={getOrderStatusColor(order.status)}
                           size="small"
@@ -2741,7 +2762,7 @@ const ProfilePage: React.FC = () => {
           </Typography>
           {selectedOrderDetails && (
             <Chip
-              label={selectedOrderDetails.status}
+              label={getOrderStatusText(selectedOrderDetails.status)}
               color={getOrderStatusColor(selectedOrderDetails.status)}
               size="small"
               sx={{ fontWeight: "bold", px: 1 }}
@@ -2809,13 +2830,15 @@ const ProfilePage: React.FC = () => {
                             ? "Chờ thanh toán"
                             : selectedOrderDetails.status === "AllowRepayment"
                               ? "Cho phép thanh toán lại"
-                              : selectedOrderDetails.status === "Success"
-                                ? "Hoàn tất"
-                                : selectedOrderDetails.status === "Delivering"
-                                  ? "Đang vận chuyển"
-                                  : selectedOrderDetails.status === "Cancelled"
-                                    ? "Đã hủy"
-                                    : selectedOrderDetails.status
+                              : selectedOrderDetails.status === "IsWaiting"
+                                ? "Đang chờ xác thực"
+                                : selectedOrderDetails.status === "Success"
+                                  ? "Hoàn tất"
+                                  : selectedOrderDetails.status === "Delivering"
+                                    ? "Đang vận chuyển"
+                                    : selectedOrderDetails.status === "Cancelled"
+                                      ? "Đã hủy"
+                                      : selectedOrderDetails.status
                         }
                         color={getOrderStatusColor(selectedOrderDetails.status)}
                         sx={{ fontWeight: "medium" }}
@@ -3139,9 +3162,8 @@ const ProfilePage: React.FC = () => {
                 color="error"
                 disabled={
                   selectedOrderDetails.transactions[0].paymentMethod !==
-                  "COD" ||
-                  loadingCancelOrder ||
-                  selectedOrderDetails.status === "Cancelled"
+                  "COD" || selectedOrderDetails.status !== "IsWaiting" ||
+                  loadingCancelOrder
                 }
               >
                 Hủy đơn hàng

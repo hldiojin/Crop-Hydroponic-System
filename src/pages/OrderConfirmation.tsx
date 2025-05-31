@@ -755,7 +755,7 @@ const OrderConfirmation: React.FC = () => {
                   </Typography>
                   <Chip
                     label={
-                      orderDetails?.statusPayment && orderDetails?.statusPayment == "Delivering" && paymentMethod == "cashOnDelivery" ? "Đang xử lý" : "Đã thanh toán"
+                      orderDetails?.statusPayment && orderDetails?.statusPayment == "Delivering" && paymentMethod == "cashOnDelivery" ? "Đang vận chuyển" : orderDetails?.statusPayment == "IsWaiting" ? "Đang chờ xác thực" : "Đã thanh toán"
                     }
                     color={paymentStatus === "success" ? "success" : "error"}
                     size="small"
