@@ -144,6 +144,7 @@ const ShippingPage: React.FC = () => {
   const [selectedWard, setSelectedWard] = useState<string>("0");
   const [addressLoading, setAddressLoading] = useState<boolean>(true);
   const [addressError, setAddressError] = useState<string | null>(null);
+  const [editAddressError, setEditAddressError] = useState<string | null>(null);
   const [useExistingAddress, setUseExistingAddress] = useState<boolean>(true);
   const [openEditDialog, setOpenEditDialog] = useState<boolean>(false);
   const [isFillAddress, setIsFillAddress] = useState<boolean>(false);
@@ -417,6 +418,11 @@ const ShippingPage: React.FC = () => {
       [name]: type === "checkbox" ? checked : value,
     }));
 
+    if (name === "address") {
+      // Reset district and ward when province changes
+      setEditAddressError("");
+    }
+
     // Clear validation error when field is changed
     if (formErrors[name as keyof ShippingFormData]) {
       setFormErrors((prev) => ({
@@ -591,12 +597,13 @@ const ShippingPage: React.FC = () => {
         if (response.statusCodes === 200) {
           setLoading(true);
           fetchUserAddress();
+          setOpenEditDialog(false);
         }
       } catch (e) {
+        setEditAddressError("Địa chỉ không hợp lệ. Vui lòng thử lại.");
         console.log("Không thể cập nhật địa chỉ")
       } finally {
         setLoadingEdit(false);
-        setOpenEditDialog(false);
       }
     }
   }
@@ -1203,11 +1210,16 @@ const ShippingPage: React.FC = () => {
                       label="Địa chỉ"
                       value={editFormData.address}
                       onChange={handleEditFormChange}
-                      error={!!formErrors.address}
+                      error={!!formErrors.address || !!editAddressError}
                       helperText={formErrors.address}
                       sx={{ mb: 2 }}
                       placeholder="Số nhà, tên đường"
                     />
+                    {editAddressError && (
+                      <Alert severity="error" sx={{ mb: 2 }}>
+                        {editAddressError}
+                      </Alert>
+                    )}
                   </Grid>
                   <Grid item xs={12} md={4}>
                     <FormControl fullWidth sx={{ mb: 2 }}>
@@ -1389,7 +1401,7 @@ const ShippingPage: React.FC = () => {
                       label="Địa chỉ"
                       value={formData.address}
                       onChange={handleFormChange}
-                      error={!!formErrors.address}
+                      error={!!formErrors.address || !!addressError}
                       helperText={formErrors.address}
                       sx={{ mb: 2 }}
                       placeholder="Số nhà, tên đường"
