@@ -3205,7 +3205,10 @@ const ProfilePage: React.FC = () => {
                           fontWeight="bold"
                           color="primary.main"
                         >
-                          {formatCurrency(selectedOrderDetails.price)}
+                          {formatCurrency(
+                            selectedOrderDetails.price +
+                              selectedOrderDetails.shippingFee
+                          )}
                         </Typography>
                       </Box>
                     </Card>

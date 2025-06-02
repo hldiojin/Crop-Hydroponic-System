@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Container,
   Grid,
@@ -19,6 +19,19 @@ import {
   Fade,
   Zoom,
   IconButton,
+  TextField,
+  InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  SelectChangeEvent,
+  Badge,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stack,
 } from "@mui/material";
 import {
   ShoppingCart,
@@ -27,13 +40,19 @@ import {
   ArrowForward,
   Remove,
   Add,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  Clear as ClearIcon,
+  CategoryOutlined as CategoryIcon,
+  Close,
+  ArrowBack,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { deviceService, Device } from "../services/deviceService";
 import { Product } from "../types/types";
 import productService from "../services/productService";
-import parse from 'html-react-parser';
+import parse from "html-react-parser";
 
 import {
   MotionBox,
@@ -48,6 +67,22 @@ import { submitOrder } from "../services/orderSevice";
 // Định nghĩa thêm MotionCard và MotionContainer vì chúng không có trong file utils/motion.tsx
 const MotionCard = motion(Card);
 const MotionContainer = motion(Container);
+
+// Interface for detailed product information
+interface DetailedProduct {
+  id: string;
+  name: string;
+  description: string;
+  mainImage: string;
+  categoryId: string;
+  categoryName: string;
+  amount: number;
+  price: number;
+  images: string[];
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 // Thêm utility function để xử lý rich text từ draft.js
 const parseRichText = (content: string): JSX.Element | string => {
@@ -325,6 +360,33 @@ const DeviceSelectionPage: React.FC = () => {
     Record<string, number>
   >({});
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [showAllProducts, setShowAllProducts] = useState<boolean>(false);
+  const [sortOrder, setSortOrder] = useState<string>("nameAsc");
+  const [openProductDetails, setOpenProductDetails] = useState<boolean>(false);
+  const [selectedProductDetails, setSelectedProductDetails] =
+    useState<DetailedProduct | null>(null);
+  const [loadingProductDetails, setLoadingProductDetails] =
+    useState<boolean>(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
+
+  // Extract unique product categories from products (same logic as ProductList)
+  const productCategories = useMemo(() => {
+    const uniqueCategories = new Map<string, { id: string; name: string }>();
+
+    products.forEach((product) => {
+      if (product.categoryId && !uniqueCategories.has(product.categoryId)) {
+        uniqueCategories.set(product.categoryId, {
+          id: product.categoryId,
+          name: product.categoryName || "Unknown",
+        });
+      }
+    });
+
+    return Array.from(uniqueCategories.values());
+  }, [products]);
 
   // Fetch devices on component mount
   useEffect(() => {
@@ -403,7 +465,6 @@ const DeviceSelectionPage: React.FC = () => {
     }
   };
 
-
   // Handle product selection
   const handleProductSelect = (productId: string) => {
     setSelectedProducts((prev) => ({
@@ -462,6 +523,98 @@ const DeviceSelectionPage: React.FC = () => {
     localStorage.setItem("backLocation", "/devices");
     localStorage.setItem("currentOrderId", orderResponse.response.data);
     navigate(`/checkout/${orderResponse.response.data}/shipping`);
+  };
+
+  // Filter products
+  useEffect(() => {
+    const filterProducts = () => {
+      let filtered = products;
+
+      if (selectedCategory) {
+        filtered = filtered.filter(
+          (product) => product.categoryId === selectedCategory
+        );
+      }
+
+      if (searchQuery) {
+        filtered = filtered.filter(
+          (product) =>
+            product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (product.description &&
+              product.description
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase())) ||
+            product.id.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+
+      // Apply sorting
+      filtered = [...filtered].sort((a, b) => {
+        switch (sortOrder) {
+          case "nameAsc":
+            return a.name.localeCompare(b.name);
+          case "nameDesc":
+            return b.name.localeCompare(a.name);
+          case "priceAsc":
+            return (a.price || 0) - (b.price || 0);
+          case "priceDesc":
+            return (b.price || 0) - (a.price || 0);
+          default:
+            return 0;
+        }
+      });
+
+      setFilteredProducts(filtered);
+    };
+
+    filterProducts();
+  }, [products, selectedCategory, searchQuery, sortOrder]);
+
+  // Initialize filteredProducts when products load
+  useEffect(() => {
+    setFilteredProducts(products);
+  }, [products]);
+
+  const handleProductDetails = async (
+    product: Product,
+    e?: React.MouseEvent
+  ) => {
+    // Prevent triggering on button clicks
+    if (e && (e.target as HTMLElement).closest("button")) {
+      return;
+    }
+
+    setLoadingProductDetails(true);
+    setOpenProductDetails(true);
+    setSelectedImageIndex(0);
+
+    try {
+      const details = await productService.getDetailById(product.id);
+      if (details) {
+        setSelectedProductDetails(details);
+      }
+    } catch (error) {
+      console.error("Error fetching product details:", error);
+    } finally {
+      setLoadingProductDetails(false);
+    }
+  };
+
+  const handleCloseProductDetails = () => {
+    setOpenProductDetails(false);
+    setSelectedProductDetails(null);
+    setSelectedImageIndex(0);
+  };
+
+  const handleImageChange = (direction: "prev" | "next") => {
+    if (!selectedProductDetails?.images) return;
+
+    const totalImages = selectedProductDetails.images.length;
+    if (direction === "next") {
+      setSelectedImageIndex((prev) => (prev + 1) % totalImages);
+    } else {
+      setSelectedImageIndex((prev) => (prev - 1 + totalImages) % totalImages);
+    }
   };
 
   // Loading state
@@ -555,18 +708,18 @@ const DeviceSelectionPage: React.FC = () => {
                 sx={{
                   borderRadius: 3,
                   overflow: "hidden",
-                  boxShadow:
-                    selectedDevice.some((d) => d.id === device.id)
-                      ? `0 0 0 2px ${theme.palette.primary.main}, 0 8px 20px rgba(0,0,0,0.12)`
-                      : "0 8px 20px rgba(0,0,0,0.1)",
+                  boxShadow: selectedDevice.some((d) => d.id === device.id)
+                    ? `0 0 0 2px ${theme.palette.primary.main}, 0 8px 20px rgba(0,0,0,0.12)`
+                    : "0 8px 20px rgba(0,0,0,0.1)",
                   position: "relative",
                   height: "100%",
                   display: "flex",
                   flexDirection: "column",
-                  backgroundColor:
-                    selectedDevice.some((d) => d.id === device.id)
-                      ? alpha(theme.palette.primary.light, 0.05)
-                      : theme.palette.background.paper,
+                  backgroundColor: selectedDevice.some(
+                    (d) => d.id === device.id
+                  )
+                    ? alpha(theme.palette.primary.light, 0.05)
+                    : theme.palette.background.paper,
                 }}
               >
                 {selectedDevice.some((d) => d.id === device.id) && (
@@ -658,10 +811,11 @@ const DeviceSelectionPage: React.FC = () => {
                         py: 1,
                         borderRadius: 2,
                         fontWeight: 500,
-                        boxShadow:
-                          selectedDevice.some((d) => d.id === device.id)
-                            ? "0 4px 10px rgba(76, 175, 80, 0.25)"
-                            : "none",
+                        boxShadow: selectedDevice.some(
+                          (d) => d.id === device.id
+                        )
+                          ? "0 4px 10px rgba(76, 175, 80, 0.25)"
+                          : "none",
                       }}
                     >
                       {selectedDevice.some((d) => d.id === device.id)
@@ -743,15 +897,6 @@ const DeviceSelectionPage: React.FC = () => {
                       }}
                     >
                       {device.description ? (
-                        // <Box sx={{ color: "text.primary" }}>
-                        //   {typeof device.description === "string" ? (
-                        //     parseRichText(device.description)
-                        //   ) : (
-                        //     <Typography variant="body2">
-                        //       {String(device.description)}
-                        //     </Typography>
-                        //   )}
-                        // </Box>
                         <Box sx={{ color: "text.primary" }}>
                           {parse(device.description)}
                         </Box>
@@ -832,11 +977,426 @@ const DeviceSelectionPage: React.FC = () => {
                       component="span"
                       sx={{ fontWeight: "bold", color: "primary.main" }}
                     >
-                      {selectedDevice?.map(device => device.name).join(", ")}
+                      {selectedDevice?.map((device) => device.name).join(", ")}
                     </Box>{" "}
                     với các sản phẩm tương thích. Đây là tùy chọn và có thể được
                     thay đổi sau.
                   </Typography>
+
+                  {/* Search and Filter Section */}
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      p: 2.5,
+                      mb: 3,
+                      borderRadius: 2,
+                      bgcolor: alpha(theme.palette.background.paper, 0.8),
+                      border: `1px solid ${alpha(
+                        theme.palette.primary.main,
+                        0.08
+                      )}`,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        mb: 2,
+                      }}
+                    >
+                      <FilterListIcon color="primary" sx={{ mr: 1 }} />
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        Tìm kiếm và lọc sản phẩm
+                      </Typography>
+                      <Chip
+                        label={`${filteredProducts.length} sản phẩm`}
+                        color="primary"
+                        variant="outlined"
+                        size="small"
+                        sx={{ ml: 2 }}
+                      />
+                    </Box>
+
+                    <Grid container spacing={2} alignItems="center">
+                      {/* Category Filter */}
+                      <Grid item xs={12} sm={6} md={4}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Lọc theo danh mục</InputLabel>
+                          <Select
+                            value={selectedCategory}
+                            onChange={(e) =>
+                              setSelectedCategory(e.target.value)
+                            }
+                            label="Lọc theo danh mục"
+                            startAdornment={
+                              <InputAdornment position="start">
+                                <CategoryIcon color="action" />
+                              </InputAdornment>
+                            }
+                          >
+                            <MenuItem value="">Tất cả danh mục</MenuItem>
+                            {productCategories.map((category) => (
+                              <MenuItem key={category.id} value={category.id}>
+                                {category.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+
+                      {/* Search Bar */}
+                      <Grid item xs={12} sm={6} md={4}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Tìm kiếm theo tên, mô tả hoặc ID"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Nhập từ khóa tìm kiếm..."
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon color="action" />
+                              </InputAdornment>
+                            ),
+                            endAdornment: searchQuery && (
+                              <InputAdornment position="end">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => setSearchQuery("")}
+                                >
+                                  <ClearIcon fontSize="small" />
+                                </IconButton>
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+                      </Grid>
+
+                      {/* Sort Dropdown */}
+                      <Grid item xs={12} sm={12} md={4}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Sắp xếp theo</InputLabel>
+                          <Select
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value)}
+                            label="Sắp xếp theo"
+                          >
+                            <MenuItem value="nameAsc">Tên (A-Z)</MenuItem>
+                            <MenuItem value="nameDesc">Tên (Z-A)</MenuItem>
+                            <MenuItem value="priceAsc">
+                              Giá (Thấp - Cao)
+                            </MenuItem>
+                            <MenuItem value="priceDesc">
+                              Giá (Cao - Thấp)
+                            </MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                    </Grid>
+
+                    {/* Clear Filters */}
+                    {(selectedCategory ||
+                      searchQuery ||
+                      sortOrder !== "nameAsc") && (
+                      <Box sx={{ mt: 2 }}>
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            setSelectedCategory("");
+                            setSearchQuery("");
+                            setSortOrder("nameAsc");
+                          }}
+                          startIcon={<ClearIcon />}
+                        >
+                          Đặt lại tất cả bộ lọc
+                        </Button>
+                      </Box>
+                    )}
+                  </Paper>
+
+                  {/* Selected Products Section */}
+                  {Object.keys(selectedProducts).some(
+                    (id) => selectedProducts[id]
+                  ) && (
+                    <Paper
+                      elevation={1}
+                      sx={{
+                        p: 2.5,
+                        mb: 3,
+                        borderRadius: 2,
+                        bgcolor: alpha(theme.palette.success.light, 0.05),
+                        border: `1px solid ${alpha(
+                          theme.palette.success.main,
+                          0.2
+                        )}`,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          mb: 2,
+                        }}
+                      >
+                        <CheckCircle color="success" sx={{ mr: 1 }} />
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          Sản phẩm đã chọn
+                        </Typography>
+                        <Chip
+                          label={`${
+                            Object.keys(selectedProducts).filter(
+                              (id) => selectedProducts[id]
+                            ).length
+                          } sản phẩm`}
+                          color="success"
+                          variant="outlined"
+                          size="small"
+                          sx={{ ml: 2 }}
+                        />
+                      </Box>
+
+                      <Grid container spacing={2}>
+                        {products
+                          .filter((product) => selectedProducts[product.id])
+                          .map((product) => (
+                            <Grid item xs={12} sm={6} md={4} key={product.id}>
+                              <Card
+                                onClick={(e) =>
+                                  handleProductDetails(product, e)
+                                }
+                                sx={{
+                                  p: 2,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  bgcolor: alpha(
+                                    theme.palette.success.light,
+                                    0.03
+                                  ),
+                                  border: `1px solid ${alpha(
+                                    theme.palette.success.main,
+                                    0.1
+                                  )}`,
+                                  borderRadius: 2,
+                                  cursor: "pointer",
+                                  "&:hover": {
+                                    bgcolor: alpha(
+                                      theme.palette.success.light,
+                                      0.08
+                                    ),
+                                  },
+                                }}
+                              >
+                                <Box
+                                  component="img"
+                                  src={
+                                    product.mainImage ||
+                                    "/placeholder-product.jpg"
+                                  }
+                                  alt={product.name}
+                                  sx={{
+                                    width: 50,
+                                    height: 50,
+                                    objectFit: "contain",
+                                    borderRadius: 1,
+                                    bgcolor: alpha(
+                                      theme.palette.grey[100],
+                                      0.5
+                                    ),
+                                    mr: 2,
+                                  }}
+                                />
+
+                                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                  <Typography
+                                    variant="subtitle2"
+                                    fontWeight={500}
+                                    sx={{
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                      mb: 0.5,
+                                    }}
+                                  >
+                                    {product.name}
+                                  </Typography>
+
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ fontSize: "0.75rem", mb: 1 }}
+                                  >
+                                    {(product.price || 0).toLocaleString()} VND
+                                  </Typography>
+
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                    }}
+                                  >
+                                    {/* Quantity Controls */}
+                                    <Box
+                                      sx={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        border: `1px solid ${alpha(
+                                          theme.palette.success.main,
+                                          0.3
+                                        )}`,
+                                        borderRadius: 1,
+                                        bgcolor: alpha(
+                                          theme.palette.success.light,
+                                          0.1
+                                        ),
+                                      }}
+                                    >
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleProductQuantityChange(
+                                            product.id,
+                                            -1
+                                          );
+                                        }}
+                                        disabled={
+                                          (quantities[product.id] || 1) <= 1
+                                        }
+                                        sx={{
+                                          color: theme.palette.success.main,
+                                          p: 0.3,
+                                        }}
+                                      >
+                                        <Remove fontSize="small" />
+                                      </IconButton>
+                                      <Typography
+                                        variant="body2"
+                                        sx={{
+                                          mx: 1,
+                                          fontWeight: 500,
+                                          color: theme.palette.success.main,
+                                          minWidth: "20px",
+                                          textAlign: "center",
+                                        }}
+                                      >
+                                        {quantities[product.id] || 1}
+                                      </Typography>
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleProductQuantityChange(
+                                            product.id,
+                                            1
+                                          );
+                                        }}
+                                        disabled={
+                                          (quantities[product.id] || 1) >=
+                                          product.amount
+                                        }
+                                        sx={{
+                                          color: theme.palette.success.main,
+                                          p: 0.3,
+                                        }}
+                                      >
+                                        <Add fontSize="small" />
+                                      </IconButton>
+                                    </Box>
+
+                                    {/* Remove Button */}
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleProductSelect(product.id);
+                                      }}
+                                      sx={{
+                                        color: theme.palette.error.main,
+                                        bgcolor: alpha(
+                                          theme.palette.error.main,
+                                          0.1
+                                        ),
+                                        "&:hover": {
+                                          bgcolor: alpha(
+                                            theme.palette.error.main,
+                                            0.2
+                                          ),
+                                        },
+                                      }}
+                                    >
+                                      <ClearIcon fontSize="small" />
+                                    </IconButton>
+                                  </Box>
+                                </Box>
+                              </Card>
+                            </Grid>
+                          ))}
+                      </Grid>
+
+                      {/* Selected Products Summary */}
+                      <Divider sx={{ my: 2 }} />
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: 2,
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Tổng số lượng:{" "}
+                            <Box
+                              component="span"
+                              sx={{ fontWeight: 600, color: "success.main" }}
+                            >
+                              {products
+                                .filter(
+                                  (product) => selectedProducts[product.id]
+                                )
+                                .reduce(
+                                  (total, product) =>
+                                    total + (quantities[product.id] || 1),
+                                  0
+                                )}{" "}
+                              sản phẩm
+                            </Box>
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Tổng giá trị:{" "}
+                            <Box
+                              component="span"
+                              sx={{
+                                fontWeight: 600,
+                                color: "success.main",
+                                fontSize: "1rem",
+                              }}
+                            >
+                              {products
+                                .filter(
+                                  (product) => selectedProducts[product.id]
+                                )
+                                .reduce(
+                                  (total, product) =>
+                                    total +
+                                    (product.price || 0) *
+                                      (quantities[product.id] || 1),
+                                  0
+                                )
+                                .toLocaleString()}{" "}
+                              VND
+                            </Box>
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Paper>
+                  )}
 
                   {loadingProducts ? (
                     <Box
@@ -848,15 +1408,46 @@ const DeviceSelectionPage: React.FC = () => {
                         thickness={4}
                       />
                     </Box>
+                  ) : filteredProducts.length === 0 ? (
+                    <Paper
+                      sx={{
+                        p: 4,
+                        textAlign: "center",
+                        bgcolor: alpha(theme.palette.grey[100], 0.5),
+                        borderRadius: 2,
+                      }}
+                    >
+                      <Typography
+                        variant="h6"
+                        color="text.secondary"
+                        gutterBottom
+                      >
+                        Không tìm thấy sản phẩm
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm
+                      </Typography>
+                    </Paper>
                   ) : (
                     <Grid container spacing={3} sx={{ mt: 0.5 }}>
-                      {products.slice(0, 4).map((product, index) => (
-                        <Grid item key={product.id} xs={12} sm={6} md={3}>
+                      {(showAllProducts
+                        ? filteredProducts
+                        : filteredProducts.slice(0, 8)
+                      ).map((product, index) => (
+                        <Grid
+                          item
+                          key={product.id}
+                          xs={12}
+                          sm={6}
+                          md={4}
+                          lg={3}
+                        >
                           <Zoom
                             in={true}
-                            style={{ transitionDelay: `${index * 100}ms` }}
+                            style={{ transitionDelay: `${index * 50}ms` }}
                           >
                             <Card
+                              onClick={(e) => handleProductDetails(product, e)}
                               sx={{
                                 borderRadius: 2,
                                 cursor: "pointer",
@@ -865,9 +1456,9 @@ const DeviceSelectionPage: React.FC = () => {
                                   : "1px solid rgba(0,0,0,0.05)",
                                 boxShadow: selectedProducts[product.id]
                                   ? `0 6px 16px ${alpha(
-                                    theme.palette.primary.main,
-                                    0.25
-                                  )}`
+                                      theme.palette.primary.main,
+                                      0.25
+                                    )}`
                                   : "0 3px 10px rgba(0,0,0,0.08)",
                                 transition: "all 0.2s ease",
                                 height: "100%",
@@ -878,10 +1469,16 @@ const DeviceSelectionPage: React.FC = () => {
                                   : "none",
                                 background: selectedProducts[product.id]
                                   ? `linear-gradient(to bottom, ${alpha(
-                                    theme.palette.primary.light,
-                                    0.1
-                                  )}, transparent)`
+                                      theme.palette.primary.light,
+                                      0.1
+                                    )}, transparent)`
                                   : theme.palette.background.paper,
+                                maxWidth: "280px",
+                                mx: "auto",
+                                "&:hover": {
+                                  transform: "translateY(-6px)",
+                                  boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
+                                },
                               }}
                             >
                               {selectedProducts[product.id] && (
@@ -927,6 +1524,7 @@ const DeviceSelectionPage: React.FC = () => {
                                   p: 2,
                                   display: "flex",
                                   flexDirection: "column",
+                                  minHeight: "160px",
                                 }}
                               >
                                 <Typography
@@ -934,12 +1532,13 @@ const DeviceSelectionPage: React.FC = () => {
                                   fontWeight="medium"
                                   gutterBottom
                                   sx={{
-                                    height: "42px",
                                     overflow: "hidden",
                                     textOverflow: "ellipsis",
                                     display: "-webkit-box",
                                     WebkitLineClamp: 2,
                                     WebkitBoxOrient: "vertical",
+                                    lineHeight: 1.3,
+                                    mb: 1,
                                   }}
                                 >
                                   {product.name}
@@ -949,40 +1548,32 @@ const DeviceSelectionPage: React.FC = () => {
                                   variant="body2"
                                   color="text.secondary"
                                   sx={{
-                                    mt: 1,
-                                    height: "60px",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    display: "-webkit-box",
-                                    WebkitLineClamp: 3,
-                                    WebkitBoxOrient: "vertical",
+                                    mb: 2,
+                                    flexGrow: 1,
+                                    fontSize: "0.875rem",
+                                    lineHeight: 1.4,
                                   }}
                                 >
-                                  {product.description
-                                    ? product.description.length > 60
-                                      ? `${product.description.substring(
-                                        0,
-                                        60
-                                      )}...`
-                                      : product.description
-                                    : "Compatible accessory for your hydroponic system."}
+                                  {product.categoryName || "Phụ kiện thủy canh"}
                                 </Typography>
 
-                                <Box sx={{ mt: "auto", pt: 2 }}>
+                                <Box sx={{ mt: "auto" }}>
                                   <Box
                                     sx={{
                                       display: "flex",
                                       justifyContent: "space-between",
                                       alignItems: "center",
-                                      mb: 2,
+                                      mb: 1.5,
                                     }}
                                   >
                                     <Typography
                                       variant="h6"
                                       color="primary"
                                       fontWeight="bold"
+                                      sx={{ fontSize: "1.1rem" }}
                                     >
-                                      {product.price || 0} VND
+                                      {(product.price || 0).toLocaleString()}{" "}
+                                      VND
                                     </Typography>
 
                                     <Chip
@@ -997,7 +1588,10 @@ const DeviceSelectionPage: React.FC = () => {
                                           ? "primary"
                                           : "default"
                                       }
-                                      sx={{ fontWeight: "medium" }}
+                                      sx={{
+                                        fontWeight: "medium",
+                                        fontSize: "0.75rem",
+                                      }}
                                     />
                                   </Box>
 
@@ -1017,7 +1611,7 @@ const DeviceSelectionPage: React.FC = () => {
                                           : "outlined"
                                       }
                                       color="primary"
-                                      onClick={() =>
+                                      onClick={(e) =>
                                         handleProductSelect(product.id)
                                       }
                                       disabled={product.amount <= 0}
@@ -1044,8 +1638,8 @@ const DeviceSelectionPage: React.FC = () => {
                                       {product.amount <= 0
                                         ? "Hết hàng"
                                         : selectedProducts[product.id]
-                                          ? "Đã chọn"
-                                          : "Thêm vào"}
+                                        ? "Đã chọn"
+                                        : "Thêm vào"}
                                     </MotionButton>
 
                                     {selectedProducts[product.id] && (
@@ -1064,7 +1658,7 @@ const DeviceSelectionPage: React.FC = () => {
                                       >
                                         <IconButton
                                           size="small"
-                                          onClick={() =>
+                                          onClick={(e) =>
                                             handleProductQuantityChange(
                                               product.id,
                                               -1
@@ -1089,7 +1683,7 @@ const DeviceSelectionPage: React.FC = () => {
                                         </Typography>
                                         <IconButton
                                           size="small"
-                                          onClick={() =>
+                                          onClick={(e) =>
                                             handleProductQuantityChange(
                                               product.id,
                                               1
@@ -1115,6 +1709,39 @@ const DeviceSelectionPage: React.FC = () => {
                         </Grid>
                       ))}
                     </Grid>
+                  )}
+
+                  {/* Show More/Show Less Button */}
+                  {filteredProducts.length > 8 && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        mt: 3,
+                        pt: 2,
+                        borderTop: `1px solid ${alpha(
+                          theme.palette.divider,
+                          0.1
+                        )}`,
+                      }}
+                    >
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={() => setShowAllProducts(!showAllProducts)}
+                        sx={{
+                          px: 4,
+                          py: 1,
+                          borderRadius: 2,
+                          fontWeight: 500,
+                          textTransform: "none",
+                        }}
+                      >
+                        {showAllProducts
+                          ? `Ẩn bớt sản phẩm`
+                          : `Xem thêm ${filteredProducts.length - 8} sản phẩm`}
+                      </Button>
+                    </Box>
                   )}
                 </Box>
               </Paper>
@@ -1154,6 +1781,273 @@ const DeviceSelectionPage: React.FC = () => {
           </Fade>
         )}
       </MotionContainer>
+
+      {/* Product Details Dialog */}
+      <Dialog
+        open={openProductDetails}
+        onClose={handleCloseProductDetails}
+        maxWidth="md"
+        fullWidth
+        scroll="paper"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            maxHeight: "90vh",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            bgcolor: theme.palette.primary.main,
+            color: "white",
+            fontWeight: "bold",
+            fontSize: "1.25rem",
+          }}
+        >
+          Chi tiết sản phẩm
+          <IconButton
+            onClick={handleCloseProductDetails}
+            sx={{ color: "white" }}
+          >
+            <Close />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 0 }}>
+          {loadingProductDetails ? (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: 400,
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              <CircularProgress size={50} />
+              <Typography variant="body1" color="text.secondary">
+                Đang tải chi tiết sản phẩm...
+              </Typography>
+            </Box>
+          ) : selectedProductDetails ? (
+            <Grid container>
+              {/* Image Section */}
+              <Grid item xs={12} md={6}>
+                <Box sx={{ position: "relative", height: "100%" }}>
+                  {/* Main Image */}
+                  <Box
+                    component="img"
+                    src={
+                      selectedProductDetails.images &&
+                      selectedProductDetails.images.length > 0
+                        ? selectedProductDetails.images[selectedImageIndex]
+                        : selectedProductDetails.mainImage
+                    }
+                    alt={selectedProductDetails.name}
+                    sx={{
+                      width: "100%",
+                      height: { xs: 300, md: 400 },
+                      objectFit: "cover",
+                    }}
+                  />
+
+                  {/* Image Navigation */}
+                  {selectedProductDetails.images &&
+                    selectedProductDetails.images.length > 1 && (
+                      <>
+                        <IconButton
+                          onClick={() => handleImageChange("prev")}
+                          sx={{
+                            position: "absolute",
+                            left: 8,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            bgcolor: alpha(theme.palette.common.black, 0.5),
+                            color: "white",
+                            "&:hover": {
+                              bgcolor: alpha(theme.palette.common.black, 0.7),
+                            },
+                          }}
+                        >
+                          <ArrowBack />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => handleImageChange("next")}
+                          sx={{
+                            position: "absolute",
+                            right: 8,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            bgcolor: alpha(theme.palette.common.black, 0.5),
+                            color: "white",
+                            "&:hover": {
+                              bgcolor: alpha(theme.palette.common.black, 0.7),
+                            },
+                          }}
+                        >
+                          <ArrowForward />
+                        </IconButton>
+
+                        {/* Image Indicators */}
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            bottom: 16,
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            display: "flex",
+                            gap: 1,
+                          }}
+                        >
+                          {selectedProductDetails.images.map((_, index) => (
+                            <Box
+                              key={index}
+                              onClick={() => setSelectedImageIndex(index)}
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                bgcolor:
+                                  index === selectedImageIndex
+                                    ? "white"
+                                    : alpha(theme.palette.common.white, 0.5),
+                                cursor: "pointer",
+                                transition: "all 0.2s",
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </>
+                    )}
+                </Box>
+              </Grid>
+
+              {/* Product Info Section */}
+              <Grid item xs={12} md={6}>
+                <Box sx={{ p: 3, height: "100%" }}>
+                  <Stack spacing={2} sx={{ height: "100%" }}>
+                    {/* Product Name */}
+                    <Typography variant="h5" fontWeight="bold" color="primary">
+                      {selectedProductDetails.name}
+                    </Typography>
+
+                    {/* Category and Status */}
+                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                      <Chip
+                        label={selectedProductDetails.categoryName}
+                        color="primary"
+                        size="small"
+                      />
+                      <Chip
+                        label={selectedProductDetails.status}
+                        color={
+                          selectedProductDetails.status === "Active"
+                            ? "success"
+                            : "default"
+                        }
+                        size="small"
+                      />
+                    </Box>
+
+                    {/* Price */}
+                    <Typography variant="h4" color="primary" fontWeight="bold">
+                      {selectedProductDetails.price.toLocaleString()} VND
+                    </Typography>
+
+                    {/* Availability */}
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Số lượng có sẵn:
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        color={
+                          selectedProductDetails.amount > 0
+                            ? "success.main"
+                            : "error.main"
+                        }
+                      >
+                        {selectedProductDetails.amount > 0
+                          ? `${selectedProductDetails.amount} sản phẩm`
+                          : "Hết hàng"}
+                      </Typography>
+                    </Box>
+
+                    <Divider />
+
+                    {/* Description */}
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Typography variant="h6" gutterBottom fontWeight="medium">
+                        Mô tả sản phẩm
+                      </Typography>
+                      <Typography
+                        variant="body1"
+                        color="text.secondary"
+                        sx={{
+                          lineHeight: 1.6,
+                          whiteSpace: "pre-line",
+                        }}
+                      >
+                        {selectedProductDetails.description ||
+                          "Không có mô tả chi tiết."}
+                      </Typography>
+                    </Box>
+
+                    <Divider />
+
+                    {/* Add to Cart Button */}
+                    <Button
+                      variant="contained"
+                      size="large"
+                      startIcon={<ShoppingCart />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleProductSelect(selectedProductDetails.id);
+                        handleCloseProductDetails();
+                      }}
+                      disabled={selectedProductDetails.amount <= 0}
+                      sx={{
+                        py: 1.5,
+                        fontSize: "1.1rem",
+                        fontWeight: "bold",
+                        borderRadius: 2,
+                      }}
+                    >
+                      {selectedProductDetails.amount > 0
+                        ? selectedProducts[selectedProductDetails.id]
+                          ? "Đã chọn"
+                          : "Thêm vào danh sách"
+                        : "Hết hàng"}
+                    </Button>
+                  </Stack>
+                </Box>
+              </Grid>
+            </Grid>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: 400,
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              <Typography variant="h6" color="error">
+                Không thể tải thông tin sản phẩm
+              </Typography>
+              <Button variant="outlined" onClick={handleCloseProductDetails}>
+                Đóng
+              </Button>
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };
