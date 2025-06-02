@@ -224,7 +224,6 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after any change
       const details = await cartService.getCartDetails();
       setCartDetails(details);
-
     } catch (error) {
       console.error("Failed to update cart item:", error);
     }
@@ -241,7 +240,6 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after removing
       const details = await cartService.getCartDetails();
       setCartDetails(details);
-
     } catch (error) {
       console.error("Failed to remove cart item:", error);
     }
@@ -294,7 +292,7 @@ const CartPage: React.FC<CartPageProps> = ({
         localStorage.setItem("currentOrderId", orderId);
 
         // Chuyển đến trang shipping
-        navigate("/checkout/shipping");
+        navigate(`/checkout/${orderId}/shipping`);
       } else {
         throw new Error("Failed to create order");
       }
@@ -312,7 +310,6 @@ const CartPage: React.FC<CartPageProps> = ({
       // Refresh cart details after removing
       const details = await cartService.getCartDetails();
       setCartDetails(details);
-
     } catch (error) {
       console.error("Failed to remove cart item:", error);
     }
@@ -403,11 +400,10 @@ const CartPage: React.FC<CartPageProps> = ({
             {error}
           </Alert>
           <Typography variant="h5" gutterBottom fontWeight="bold">
-            We couldn't load your cart
+            Không thể tải giỏ hàng
           </Typography>
           <Typography color="textSecondary" paragraph>
-            There was a problem connecting to our services. Please try again
-            later.
+            Có vẻ như có sự cố khi tải giỏ hàng của bạn. Vui lòng thử lại sau.
           </Typography>
           <MotionButton
             variant="contained"
@@ -418,7 +414,7 @@ const CartPage: React.FC<CartPageProps> = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            Return to Shop
+            Quay lại trang chủ
           </MotionButton>
         </MotionPaper>
       </MotionContainer>
@@ -524,7 +520,7 @@ const CartPage: React.FC<CartPageProps> = ({
               mb: 2,
             }}
           >
-            Your cart is empty
+            Giỏ hàng của bạn đang trống
           </Typography>
 
           <Typography
@@ -537,8 +533,8 @@ const CartPage: React.FC<CartPageProps> = ({
               lineHeight: 1.6,
             }}
           >
-            Looks like you haven't added any items to your cart yet. Browse our
-            products and discover the best hydroponic solutions for your garden!
+            Hiện tại không có sản phẩm nào trong giỏ hàng của bạn. Hãy thêm sản
+            phẩm để bắt đầu mua sắm!
           </Typography>
 
           <MotionButton
@@ -559,14 +555,14 @@ const CartPage: React.FC<CartPageProps> = ({
               fontWeight: "bold",
             }}
           >
-            Explore Products
+            Bắt đầu mua sắm
           </MotionButton>
 
           <Box sx={{ mt: 3 }}>
             <Typography variant="body2" color="textSecondary">
-              Need help?{" "}
+              Bạn cần trợ giúp?{" "}
               <Button size="small" color="primary">
-                Contact Support
+                Liên hệ với chúng tôi
               </Button>
             </Typography>
           </Box>
@@ -654,7 +650,7 @@ const CartPage: React.FC<CartPageProps> = ({
             letterSpacing: "0.5px",
           }}
         >
-          Your Shopping Cart
+          Giỏ hàng
         </Typography>
 
         <Badge
@@ -697,10 +693,10 @@ const CartPage: React.FC<CartPageProps> = ({
           }}
         >
           {[
-            { label: "Cart", icon: <ShoppingCart /> },
-            { label: "Shipping", icon: <LocalShipping /> },
-            { label: "Payment", icon: <CreditCard /> },
-            { label: "Confirmation", icon: <CheckCircleOutline /> },
+            { label: "Giỏ hàng", icon: <ShoppingCart /> },
+            { label: "Vận chuyển", icon: <LocalShipping /> },
+            { label: "Thanh toán", icon: <CreditCard /> },
+            { label: "Xác nhận", icon: <CheckCircleOutline /> },
           ].map((step, index) => (
             <Box
               key={step.label}
@@ -789,17 +785,17 @@ const CartPage: React.FC<CartPageProps> = ({
                 </Grid>
                 <Grid item xs={4} sm={5}>
                   <Typography variant="subtitle1" fontWeight="bold">
-                    Product
+                    Sản phẩm
                   </Typography>
                 </Grid>
                 <Grid item xs={3} sm={2} sx={{ textAlign: "center" }}>
                   <Typography variant="subtitle1" fontWeight="bold">
-                    Quantity
+                    Số lượng
                   </Typography>
                 </Grid>
                 <Grid item xs={4} sm={4} sx={{ textAlign: "right" }}>
                   <Typography variant="subtitle1" fontWeight="bold">
-                    Subtotal
+                    Tổng cộng
                   </Typography>
                 </Grid>
               </Grid>
@@ -1010,7 +1006,7 @@ const CartPage: React.FC<CartPageProps> = ({
                         WebkitTextFillColor: "transparent",
                       }}
                     >
-                      ${(item.unitPrice * item.quantity).toLocaleString()}
+                      {(item.unitPrice * item.quantity).toLocaleString()} VND
                     </Typography>
 
                     <Button
@@ -1028,7 +1024,7 @@ const CartPage: React.FC<CartPageProps> = ({
                         },
                       }}
                     >
-                      Remove
+                      Xóa
                     </Button>
                   </Grid>
                 </Grid>
@@ -1053,7 +1049,7 @@ const CartPage: React.FC<CartPageProps> = ({
                 px: 3,
               }}
             >
-              Continue Shopping
+              Tiếp tục mua hàng
             </MotionButton>
 
             <MotionButton
@@ -1066,7 +1062,7 @@ const CartPage: React.FC<CartPageProps> = ({
               startIcon={<Delete />}
               sx={{ fontWeight: "medium" }}
             >
-              Clear Cart
+              Xóa giỏ hàng
             </MotionButton>
           </MotionBox>
         </Grid>
@@ -1112,15 +1108,15 @@ const CartPage: React.FC<CartPageProps> = ({
                 fontWeight="bold"
                 sx={{ position: "relative", zIndex: 1 }}
               >
-                Order Summary
+                Tóm tắt đơn hàng
               </Typography>
 
               <Typography
                 variant="body2"
                 sx={{ mt: 1, opacity: 0.8, position: "relative", zIndex: 1 }}
               >
-                {cartDetails.reduce((sum, item) => sum + item.quantity, 0)}{" "}
-                items in your cart
+                {cartDetails.reduce((sum, item) => sum + item.quantity, 0)} sản
+                phẩm trong giỏ hàng
               </Typography>
             </Box>
 
@@ -1134,11 +1130,11 @@ const CartPage: React.FC<CartPageProps> = ({
                   }}
                 >
                   <Typography variant="body1" color="text.secondary">
-                    Subtotal ({selectedCount}{" "}
+                    Tổng sản Phẩm ({selectedCount}{" "}
                     {selectedCount > 1 ? "items" : "item"})
                   </Typography>
                   <Typography variant="body1" fontWeight="bold">
-                    ${selectedSubtotal.toLocaleString()}
+                    {selectedSubtotal.toLocaleString()} VND
                   </Typography>
                 </Box>
 
@@ -1152,7 +1148,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   }}
                 >
                   <Typography variant="h6" fontWeight="bold">
-                    Total
+                    Tổng cộng
                   </Typography>
                   <Typography
                     variant="h5"
@@ -1164,7 +1160,7 @@ const CartPage: React.FC<CartPageProps> = ({
                       WebkitTextFillColor: "transparent",
                     }}
                   >
-                    ${selectedTotal.toLocaleString()}
+                    {selectedTotal.toLocaleString()} VND
                   </Typography>
                 </Box>
 
@@ -1175,7 +1171,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   size="large"
                   startIcon={<Payment />}
                   onClick={handleProceedToCheckout}
-                  disabled={selectedCount === 0} // Vô hiệu hóa nút nếu không có sản phẩm nào được chọn
+                  disabled={selectedCount === 0}
                   whileHover={{
                     scale: 1.02,
                     boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
@@ -1190,9 +1186,8 @@ const CartPage: React.FC<CartPageProps> = ({
                   }}
                 >
                   {selectedCount > 0
-                    ? `Checkout (${selectedCount} item${selectedCount > 1 ? "s" : ""
-                    })`
-                    : "Select items to checkout"}
+                    ? `Checkout (${selectedCount} sản phẩm)`
+                    : "Chọn sản phẩm để thanh toán"}
                 </MotionButton>
 
                 {/* Payment methods - Updated */}
@@ -1203,7 +1198,7 @@ const CartPage: React.FC<CartPageProps> = ({
                     gutterBottom
                     sx={{ fontWeight: "medium" }}
                   >
-                    We Accept:
+                    Chúng tôi chấp nhận:
                   </Typography>
                   <Box
                     sx={{
@@ -1273,7 +1268,7 @@ const CartPage: React.FC<CartPageProps> = ({
                         }}
                       />
                       <Typography variant="body2" fontWeight="medium">
-                        Cash on Delivery
+                        Thanh toán khi nhận hàng
                       </Typography>
                     </Box>
                   </Box>
@@ -1299,7 +1294,7 @@ const CartPage: React.FC<CartPageProps> = ({
             }}
           >
             <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-              Selected Devices
+              Thiết bị đã chọn
             </Typography>
 
             {Object.entries(selectedDevices)
@@ -1374,7 +1369,7 @@ const CartPage: React.FC<CartPageProps> = ({
                             color="primary"
                             fontWeight="bold"
                           >
-                            ${(device.price * quantity).toLocaleString()}
+                            {(device.price * quantity).toLocaleString()} VND
                           </Typography>
                           <Button
                             color="error"
@@ -1391,7 +1386,7 @@ const CartPage: React.FC<CartPageProps> = ({
                             startIcon={<Delete fontSize="small" />}
                             sx={{ mt: 1 }}
                           >
-                            Remove
+                            Xóa
                           </Button>
                         </Grid>
                       </Grid>

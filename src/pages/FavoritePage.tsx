@@ -163,7 +163,7 @@ const FavoritePage: React.FC<Props> = ({
                           whileHover="hover"
                           whileTap="tap"
                         >
-                          Add to Cart
+                          Thêm vào giỏ hàng
                         </MotionButton>
                         <MotionBox
                           component={IconButton}
@@ -282,7 +282,7 @@ const FavoritePage: React.FC<Props> = ({
                 whileHover="hover"
                 whileTap="tap"
               >
-                Add to Cart
+                Thêm vào giỏ hàng
               </MotionButton>
               <MotionButton
                 onClick={handleCloseDialog}

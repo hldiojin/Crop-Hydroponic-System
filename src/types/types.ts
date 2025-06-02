@@ -93,6 +93,12 @@ export interface TicketRequest {
   Attachments?: File[] | null;
 }
 
+export interface TicketResponseData {
+  TicketId: string;
+  Message: string;
+  Attachments?: File[] | null;
+}
+
 export interface Ticket {
   id: string;
   userFullName: string;

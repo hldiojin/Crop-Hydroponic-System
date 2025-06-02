@@ -292,7 +292,7 @@ const OrderConfirmation: React.FC = () => {
             );
             setLoading(false);
           }
-        } else if (orderId && transactionId) {
+        } else if (transactionId) {
           var response = await checkTransactionStatus(transactionId)
           if (response && response.statusCodes === 200) {
             const orderData = response.response.data;
@@ -755,7 +755,7 @@ const OrderConfirmation: React.FC = () => {
                   </Typography>
                   <Chip
                     label={
-                      orderDetails?.statusPayment && orderDetails?.statusPayment == "Delivering" && paymentMethod == "cashOnDelivery" ? "Đang xử lý" : "Đã thanh toán"
+                      orderDetails?.statusPayment && orderDetails?.statusPayment == "Delivering" && paymentMethod == "cashOnDelivery" ? "Đang vận chuyển" : orderDetails?.statusPayment == "IsWaiting" ? "Đang chờ xác thực" : "Đã thanh toán"
                     }
                     color={paymentStatus === "success" ? "success" : "error"}
                     size="small"
@@ -792,7 +792,7 @@ const OrderConfirmation: React.FC = () => {
                   >
                     <List disablePadding>
                       {orderDetails.orderProductItem.map((item, index) => (
-                        <React.Fragment key={item.id}>
+                        <React.Fragment key={index}>
                           <ListItem
                             sx={{
                               py: 2,
@@ -834,6 +834,14 @@ const OrderConfirmation: React.FC = () => {
                               >
                                 ₫{formatPrice(item.unitPrice)} x {item.quantity}
                               </Typography>
+                              {item.serial && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  Serial: {item.serial}
+                                </Typography>
+                              )}
                             </Box>
                             <Typography variant="subtitle2" fontWeight="bold">
                               ₫{formatPrice(item.unitPrice)} x {item.quantity}
@@ -905,7 +913,7 @@ const OrderConfirmation: React.FC = () => {
             Về trang chủ
           </MotionButton>
 
-          {paymentStatus === "success" && (
+          {/* {paymentStatus === "success" && (
             <MotionButton
               variant="outlined"
               size="large"
@@ -928,7 +936,7 @@ const OrderConfirmation: React.FC = () => {
             >
               Xem đơn hàng
             </MotionButton>
-          )}
+          )} */}
 
           {paymentStatus !== "success" && (
             <MotionButton
@@ -961,11 +969,11 @@ const OrderConfirmation: React.FC = () => {
             variants={itemVariants}
             sx={{ textAlign: "center", mt: 3 }}
           >
-            <Typography variant="body2" color="text.secondary">
+            {/* <Typography variant="body2" color="text.secondary">
               Email xác nhận đã được gửi đến địa chỉ email của bạn.
-            </Typography>
+            </Typography> */}
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Bạn cũng có thể theo dõi trạng thái đơn hàng trong mục "Đơn hàng
+              Bạn có thể theo dõi trạng thái đơn hàng trong mục "Đơn hàng
               của tôi" trên trang cá nhân.
             </Typography>
           </MotionBox>

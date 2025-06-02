@@ -53,8 +53,10 @@ import {
   Dashboard as DashboardIcon,
   ShoppingBasket as OrdersIcon,
   RemoveRedEye as ViewIcon,
+  NavigateNext,
 } from "@mui/icons-material";
 import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import ticketService from "../services/ticketService";
@@ -63,8 +65,10 @@ import {
   getOrderById,
   OrderDetail,
   OrderSummary,
+  cancelOrder,
+  processTransaction,
 } from "../services/orderSevice";
-import { Ticket, TicketRequest } from "../types/types";
+import { Ticket, TicketRequest, TicketResponseData } from "../types/types";
 import { motion } from "framer-motion";
 import {
   MotionBox,
@@ -77,6 +81,8 @@ import {
   logoVariants,
   buttonVariants,
 } from "../utils/motion";
+import { set } from "date-fns";
+import { DeviceItem, deviceService } from "../services/deviceService";
 
 const ProfilePage: React.FC = () => {
   const theme = useTheme();
@@ -129,7 +135,19 @@ const ProfilePage: React.FC = () => {
     Type: "Shopping",
     Description: "",
   });
+
+  const [ticketResponseData, setTicketResponseData] =
+    useState<TicketResponseData>({
+      TicketId: "",
+      Message: "",
+      Attachments: [],
+    });
+  const [deviceItem, setDeviceItem] = useState<DeviceItem[] | null>(null);
+  const [selectedDeviceItemId, setSelectedDeviceItemId] = useState<string>("");
   const [ticketAttachments, setTicketAttachments] = useState<File[]>([]);
+  const [ticketResponseAttachments, setTicketResponseAttachments] = useState<
+    File[]
+  >([]);
   const [ticketLoading, setTicketLoading] = useState(false);
   const [ticketError, setTicketError] = useState<string | null>(null);
 
@@ -154,9 +172,12 @@ const ProfilePage: React.FC = () => {
   const [orderPage, setOrderPage] = useState(1);
   const [totalOrderPages, setTotalOrderPages] = useState(1);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [responseMessage, setResponseMessage] = useState<string>("");
 
   // Order detail state
   const [orderDetailsDialogOpen, setOrderDetailsDialogOpen] = useState(false);
+  const [confirmCancelOrderDialogOpen, setConfirmCancelOrderDialogOpen] =
+    useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [selectedOrderDetails, setSelectedOrderDetails] =
     useState<OrderDetail | null>(null);
@@ -164,6 +185,8 @@ const ProfilePage: React.FC = () => {
   const [orderDetailsError, setOrderDetailsError] = useState<string | null>(
     null
   );
+
+  const [loadingCancelOrder, setLoadingCancelOrder] = useState(false);
 
   const checkedCookiesRef = useRef(false);
 
@@ -281,7 +304,7 @@ const ProfilePage: React.FC = () => {
       await getUserInfo();
       setSnackbar({
         open: true,
-        message: "Profile refreshed successfully",
+        message: "Làm mới thông tin cá nhân thành công",
         severity: "success",
       });
     } catch (error) {
@@ -339,6 +362,14 @@ const ProfilePage: React.FC = () => {
     setShowPasswords((prev) => ({
       ...prev,
       [field]: !prev[field],
+    }));
+  };
+
+  const handleMessageChange = (message: string) => {
+    setResponseMessage(message);
+    setTicketResponseData((prev) => ({
+      ...prev,
+      Message: message,
     }));
   };
 
@@ -407,6 +438,38 @@ const ProfilePage: React.FC = () => {
     setTicketModalOpen(true);
   };
 
+  const handleResponseMessage = async () => {
+    if (selectedTicketId === null) {
+      setSnackbar({
+        open: true,
+        message: "Vui lòng chọn một yêu cầu để phản hồi",
+        severity: "error",
+      });
+      return;
+    }
+    const response = await ticketService.responseTicket(
+      ticketResponseData,
+      ticketResponseAttachments
+    );
+    if (response && response.statusCodes === 200) {
+      setSnackbar({
+        open: true,
+        message: "Đã gửi phản hồi thành công",
+        severity: "success",
+      });
+      handleViewTicketDetails(selectedTicketId);
+      setTicketResponseAttachments([]);
+      setResponseMessage("");
+    } else {
+      console.error("Failed to send ticket response");
+      setSnackbar({
+        open: true,
+        message: "Gui phản hồi thất bại",
+        severity: "success",
+      });
+    }
+  };
+
   const handleTicketModalClose = () => {
     setTicketModalOpen(false);
     setTicketData({
@@ -415,15 +478,42 @@ const ProfilePage: React.FC = () => {
     });
     setTicketAttachments([]);
     setTicketError(null);
+    setSelectedDeviceItemId("");
+    setDeviceItem(null);
+  };
+
+  const handleLoadDeviceItem = async () => {
+    const response = await deviceService.getMyDevices();
+    if (response && response.statusCodes === 200) {
+      setDeviceItem(response.response.data);
+    } else {
+      console.error("Failed to fetch device items");
+    }
+  };
+
+  const handleDeviceItemChange = (e: SelectChangeEvent<string>) => {
+    setSelectedDeviceItemId(e.target.value);
+    setTicketData((prev: any) => ({
+      ...prev,
+      DeviceItemId: e.target.value,
+    }));
   };
 
   const handleTicketTypeChange = (
     e: SelectChangeEvent<"Shopping" | "Technical">
   ) => {
-    setTicketData((prev: any) => ({
-      ...prev,
-      Type: e.target.value as "Shopping" | "Technical",
-    }));
+    if (e.target.value === "Technical") {
+      handleLoadDeviceItem();
+      setTicketData((prev: any) => ({
+        ...prev,
+        Type: e.target.value as "Technical",
+      }));
+    } else {
+      setTicketData((prev: any) => ({
+        ...prev,
+        Type: e.target.value as "Shopping",
+      }));
+    }
   };
 
   const handleTicketDescriptionChange = (
@@ -440,6 +530,14 @@ const ProfilePage: React.FC = () => {
   ) => {
     if (e.target.files) {
       setTicketAttachments(Array.from(e.target.files));
+    }
+  };
+
+  const handleTicketResponseAttachmentsChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (e.target.files) {
+      setTicketResponseAttachments(Array.from(e.target.files));
     }
   };
 
@@ -522,6 +620,10 @@ const ProfilePage: React.FC = () => {
     setSelectedTicketId(ticketId);
     setLoadingTicketDetails(true);
     setTicketDetailsError(null);
+    setTicketResponseData((prev: any) => ({
+      ...prev,
+      TicketId: ticketId,
+    }));
 
     try {
       const response = await ticketService.getTicketById(ticketId);
@@ -545,6 +647,8 @@ const ProfilePage: React.FC = () => {
     setTicketDetailsDialogOpen(false);
     setSelectedTicketDetails(null);
     setSelectedTicketId(null);
+    setTicketResponseAttachments([]);
+    setResponseMessage("");
   };
 
   // Format date string for better display
@@ -609,6 +713,10 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleOpenConfirmCancelOrderDialog = () => {
+    setConfirmCancelOrderDialogOpen(true);
+  };
+
   const handleLoadMoreOrders = async () => {
     if (orderPage < totalOrderPages) {
       setIsLoadingOrders(true);
@@ -665,6 +773,54 @@ const ProfilePage: React.FC = () => {
     setSelectedOrderId(null);
   };
 
+  const handleCloseConfirmCancelOrderDialog = () => {
+    setConfirmCancelOrderDialogOpen(false);
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    setLoadingCancelOrder(true);
+    try {
+      // Call the cancel order API here
+      await cancelOrder(orderId);
+      setSnackbar({
+        open: true,
+        message: "Order cancelled successfully",
+        severity: "success",
+      });
+      await handleViewAllOrders(); // Refresh the orders list
+      await handleViewOrderDetails(orderId);
+    } catch (error) {
+      console.error("Error cancelling order:", error);
+      setSnackbar({
+        open: true,
+        message: "Failed to cancel order",
+        severity: "error",
+      });
+    } finally {
+      setConfirmCancelOrderDialogOpen(false);
+      setLoadingCancelOrder(false);
+    }
+  };
+
+  const getOrderStatusText = (status: string): string => {
+    switch (status) {
+      case "PendingPayment":
+        return "Chờ thanh toán";
+      case "AllowRepayment":
+        return "Cho phép thanh toán lại";
+      case "IsWaiting":
+        return "Đang chờ xác thực";
+      case "Success":
+        return "Hoàn tất";
+      case "Delivering":
+        return "Đang vận chuyển";
+      case "Cancelled":
+        return "Đã hủy";
+      default:
+        return status;
+    }
+  }
+
   // Helper function to get status color for orders
   const getOrderStatusColor = (
     status: string
@@ -694,6 +850,76 @@ const ProfilePage: React.FC = () => {
         .format(amount)
         .replace("₫", "") + " ₫"
     );
+  };
+
+  const handleGoToPaymentPage = (paymentLinkId: string) => {
+    window.location.href = `https://pay.payos.vn/web/${paymentLinkId}`;
+  };
+
+  const [processingPayment, setProcessingPayment] = useState<boolean>(false);
+
+  const handleRepayment = async (orderId: string) => {
+    try {
+      setProcessingPayment(true);
+      // Process PayOS transaction
+      const paymentUrl = await processTransaction(orderId);
+
+      if (paymentUrl && typeof paymentUrl === "string") {
+        // Redirect to PayOS payment page
+        window.location.href = paymentUrl;
+      } else {
+        throw new Error("Failed to get payment URL");
+      }
+    } catch (transactionError) {
+      console.error("PayOS transaction error:", transactionError);
+      setSnackbar({
+        open: true,
+        message: "Không thể tạo giao dịch",
+        severity: "error",
+      });
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    var userUpdate = {
+      name: editData.name,
+      phone: editData.phone,
+    };
+    if (editData.name === "") {
+      setSnackbar({
+        open: true,
+        message: "Tên không được để trống",
+        severity: "error",
+      });
+      return;
+    }
+
+    if (editData.phone === "") {
+      setSnackbar({
+        open: true,
+        message: "Số điện thoại không được để trống",
+        severity: "error",
+      });
+      return;
+    }
+
+    try {
+      await updateProfile(userUpdate);
+      setSnackbar({
+        open: true,
+        message: "Cập nhật thông tin thành công",
+        severity: "success",
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      setSnackbar({
+        open: true,
+        message: "Cập nhật thông tin thất bại",
+        severity: "error",
+      });
+    }
   };
 
   return (
@@ -814,7 +1040,7 @@ const ProfilePage: React.FC = () => {
                 textShadow: "0 2px 4px rgba(0,0,0,0.08)",
               }}
             >
-              My Profile
+              Thông tin của tôi
             </MotionTypography>
 
             {/* Just a dummy element to center the title */}
@@ -934,7 +1160,7 @@ const ProfilePage: React.FC = () => {
                 >
                   <Chip
                     icon={<BadgeIcon fontSize="small" />}
-                    label={user?.role || "User"}
+                    label="Khách hàng"
                     color="primary"
                     size="small"
                     sx={{
@@ -943,19 +1169,6 @@ const ProfilePage: React.FC = () => {
                       boxShadow: "0 2px 5px rgba(0,0,0,0.08)",
                     }}
                   />
-
-                  {user?.status && (
-                    <Chip
-                      label={user.status}
-                      color={user.status === "Active" ? "success" : "warning"}
-                      size="small"
-                      sx={{
-                        fontWeight: "medium",
-                        px: 1,
-                        boxShadow: "0 2px 5px rgba(0,0,0,0.08)",
-                      }}
-                    />
-                  )}
                 </Box>
               </Card>
 
@@ -984,7 +1197,7 @@ const ProfilePage: React.FC = () => {
                   variants={itemVariants}
                   sx={{ mb: 2 }}
                 >
-                  Quick Actions
+                  Hành động nhanh
                 </MotionTypography>
 
                 <Stack spacing={2} mt={2}>
@@ -1005,7 +1218,7 @@ const ProfilePage: React.FC = () => {
                       },
                     }}
                   >
-                    Change Password
+                    Đổi mật khẩu
                   </MotionButton>
 
                   <MotionButton
@@ -1025,7 +1238,7 @@ const ProfilePage: React.FC = () => {
                       },
                     }}
                   >
-                    View Orders
+                    Xem đơn hàng
                   </MotionButton>
 
                   <MotionButton
@@ -1049,7 +1262,7 @@ const ProfilePage: React.FC = () => {
                     {loadingProfile ? (
                       <CircularProgress size={24} />
                     ) : (
-                      "Refresh Profile"
+                      "Làm mới thông tin"
                     )}
                   </MotionButton>
                 </Stack>
@@ -1113,7 +1326,7 @@ const ProfilePage: React.FC = () => {
                       fontSize: { xs: "1.2rem", md: "1.4rem" },
                     }}
                   >
-                    Personal Information
+                    Thông tin cá nhân
                   </MotionTypography>
                 </Box>
 
@@ -1132,8 +1345,9 @@ const ProfilePage: React.FC = () => {
                     <MotionTextField
                       variants={itemVariants}
                       fullWidth
-                      label="Full Name"
+                      label="Họ và tên"
                       name="name"
+                      required
                       value={isEditing ? editData.name : user?.name || ""}
                       onChange={handleChange}
                       disabled={!isEditing || loading}
@@ -1161,6 +1375,7 @@ const ProfilePage: React.FC = () => {
                       label="Email"
                       name="email"
                       type="email"
+                      required
                       value={isEditing ? editData.email : user?.email || ""}
                       onChange={handleChange}
                       disabled={true} // Email cannot be changed
@@ -1180,8 +1395,9 @@ const ProfilePage: React.FC = () => {
                     <MotionTextField
                       variants={itemVariants}
                       fullWidth
-                      label="Phone Number"
+                      label="Số điện thoại"
                       name="phone"
+                      required
                       value={isEditing ? editData.phone : user?.phone || ""}
                       onChange={handleChange}
                       disabled={!isEditing || loading}
@@ -1202,6 +1418,30 @@ const ProfilePage: React.FC = () => {
                         },
                       }}
                     />
+                    <MotionButton
+                      variants={buttonVariants}
+                      whileHover="hover"
+                      whileTap="tap"
+                      variant="outlined"
+                      startIcon={isEditing ? <SaveIcon /> : <EditIcon />}
+                      onClick={() => {
+                        setIsEditing((prev) => !prev);
+                        if (isEditing) {
+                          handleUpdateProfile();
+                        }
+                      }}
+                      fullWidth
+                      sx={{
+                        py: 1.5,
+                        borderRadius: 3,
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
+                        "&:hover": {
+                          boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+                        },
+                      }}
+                    >
+                      {isEditing ? "Lưu thay đổi" : "Chỉnh sửa thông tin"}
+                    </MotionButton>
                   </Stack>
                 </Box>
               </Card>
@@ -1253,7 +1493,7 @@ const ProfilePage: React.FC = () => {
                       fontSize: { xs: "1.2rem", md: "1.4rem" },
                     }}
                   >
-                    Support & Help
+                    Hỗ trợ và trợ giúp
                   </MotionTypography>
                 </Box>
 
@@ -1267,8 +1507,9 @@ const ProfilePage: React.FC = () => {
                       lineHeight: 1.6,
                     }}
                   >
-                    Need help with your account or have a question about our
-                    services? Our support team is ready to assist you.
+                    Cần trợ giúp với tài khoản của bạn hoặc có câu hỏi về dịch
+                    vụ của chúng tôi? Đội ngũ hỗ trợ của chúng tôi sẵn sàng giúp
+                    đỡ bạn.
                   </Typography>
 
                   <Stack
@@ -1291,7 +1532,7 @@ const ProfilePage: React.FC = () => {
                         boxShadow: "0 4px 12px rgba(33, 150, 243, 0.3)",
                       }}
                     >
-                      Submit Ticket
+                      Gửi yêu cầu
                     </MotionButton>
 
                     <MotionButton
@@ -1308,7 +1549,7 @@ const ProfilePage: React.FC = () => {
                         borderRadius: 3,
                       }}
                     >
-                      View All Tickets
+                      Xem tất cả yêu cầu
                     </MotionButton>
                   </Stack>
                 </Box>
@@ -1339,7 +1580,7 @@ const ProfilePage: React.FC = () => {
           }}
         >
           <Typography variant="h6" fontWeight="bold">
-            Your Support Tickets
+            Yêu cầu hỗ trợ của bạn
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ p: 0 }}>
@@ -1350,7 +1591,7 @@ const ProfilePage: React.FC = () => {
           ) : tickets.length === 0 ? (
             <Box p={4} textAlign="center">
               <Typography variant="body1" color="text.secondary">
-                You haven't submitted any tickets yet.
+                Bạn chưa gửi bất kỳ yêu cầu hỗ trợ nào.
               </Typography>
             </Box>
           ) : (
@@ -1358,15 +1599,13 @@ const ProfilePage: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                    <TableCell sx={{ fontWeight: "bold" }}>Mô tả</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Loại</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>
-                      Description
+                      Trạng thái
                     </TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Type</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>
-                      Created At
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Ngày tạo</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Hành động</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1388,7 +1627,13 @@ const ProfilePage: React.FC = () => {
                       >
                         {ticket.briefDescription}
                       </TableCell>
-                      <TableCell>{ticket.type}</TableCell>
+                      <TableCell>
+                        {ticket.type === "Shopping"
+                          ? "Mua hàng"
+                          : ticket.type === "Technical"
+                            ? "Kỹ thuật"
+                            : ticket.type}
+                      </TableCell>
                       <TableCell>
                         <Chip
                           label={ticket.status}
@@ -1414,7 +1659,7 @@ const ProfilePage: React.FC = () => {
                             },
                           }}
                         >
-                          View Details
+                          Xem chi tiết
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -1437,7 +1682,7 @@ const ProfilePage: React.FC = () => {
                 isLoadingTickets ? <CircularProgress size={16} /> : null
               }
             >
-              {isLoadingTickets ? "Loading..." : "Load More"}
+              {isLoadingTickets ? "Đang tải..." : "Tải thêm"}
             </Button>
           )}
           <Button
@@ -1445,7 +1690,7 @@ const ProfilePage: React.FC = () => {
             variant="contained"
             color="primary"
           >
-            Close
+            Đóng
           </Button>
         </DialogActions>
       </Dialog>
@@ -1475,10 +1720,10 @@ const ProfilePage: React.FC = () => {
           }}
         >
           <Typography variant="h6" fontWeight="bold">
-            Ticket Details
+            Chi tiết yêu cầu
           </Typography>
           <Chip
-            label={selectedTicketDetails?.status || "Loading"}
+            label={selectedTicketDetails?.status || "Đang tải..."}
             color={getStatusColor(selectedTicketDetails?.status || "Pending")}
             size="small"
             sx={{ fontWeight: "bold", px: 1 }}
@@ -1508,7 +1753,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Ticket ID
+                      Mã yêu cầu
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedTicketDetails.id}
@@ -1519,10 +1764,14 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Type
+                      Loại
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
-                      {selectedTicketDetails.type}
+                      {selectedTicketDetails.type === "Shopping"
+                        ? "Mua hàng"
+                        : selectedTicketDetails.type === "Technical"
+                          ? "Kỹ thuật"
+                          : selectedTicketDetails.type}
                     </Typography>
 
                     <Typography
@@ -1530,7 +1779,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Created At
+                      Ngày tạo
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {formatDate(selectedTicketDetails.createdAt)}
@@ -1545,7 +1794,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Status
+                      Trạng thái
                     </Typography>
                     <Box sx={{ mb: 2 }}>
                       <Chip
@@ -1554,6 +1803,21 @@ const ProfilePage: React.FC = () => {
                         sx={{ fontWeight: "medium" }}
                       />
                     </Box>
+                    {selectedTicketDetails.type === "Technical" && (
+                      <>
+                        <Typography
+                          variant="subtitle2"
+                          color="text.secondary"
+                          gutterBottom
+                        >
+                          Serial thiết bị
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium" paragraph>
+                          {selectedTicketDetails.deviceItemSerial}
+                        </Typography>
+                      </>
+                    )}
+
 
                     {selectedTicketDetails.statusUpdatedAt && (
                       <>
@@ -1562,7 +1826,7 @@ const ProfilePage: React.FC = () => {
                           color="text.secondary"
                           gutterBottom
                         >
-                          Status Updated
+                          Trạng thái đã cập nhật
                         </Typography>
                         <Typography
                           variant="body1"
@@ -1581,7 +1845,7 @@ const ProfilePage: React.FC = () => {
                           color="text.secondary"
                           gutterBottom
                         >
-                          Assigned To
+                          Được giao cho
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
                           {selectedTicketDetails.assignee}
@@ -1598,7 +1862,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Description
+                      Mô tả
                     </Typography>
                     <Typography
                       variant="body1"
@@ -1618,7 +1882,7 @@ const ProfilePage: React.FC = () => {
                         fontWeight="bold"
                         gutterBottom
                       >
-                        Attachments
+                        Tài liệu đính kèm
                       </Typography>
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
                         {selectedTicketDetails.attachments.map(
@@ -1710,7 +1974,7 @@ const ProfilePage: React.FC = () => {
                         fontWeight="bold"
                         gutterBottom
                       >
-                        Responses
+                        Các phản hồi
                       </Typography>
                       <Stack spacing={2}>
                         {selectedTicketDetails.ticketResponses.map(
@@ -1746,7 +2010,7 @@ const ProfilePage: React.FC = () => {
                                   >
                                     {isStaff
                                       ? response.userFullName || "Support Staff"
-                                      : "You"}
+                                      : "Bạn"}
                                   </Typography>
                                   <Typography
                                     variant="caption"
@@ -1860,11 +2124,91 @@ const ProfilePage: React.FC = () => {
                       </Stack>
                     </Grid>
                   )}
+                <Grid item xs={12}>
+                  <Stack spacing={2}>
+                    <MotionTextField
+                      variants={itemVariants}
+                      fullWidth
+                      label="Phản hồi..."
+                      name="responseMessage"
+                      multiline
+                      rows={2}
+                      value={responseMessage}
+                      disabled={selectedTicketDetails.status === "Pending" || selectedTicketDetails.status === "Done" || selectedTicketDetails.status === "Closed"}
+                      onChange={(e) =>
+                        handleMessageChange(
+                          (e.target as HTMLInputElement).value
+                        )
+                      }
+                      variant="outlined"
+                      sx={{ mt: 2 }}
+                      InputProps={{
+                        sx: {
+                          borderRadius: 2,
+                          "&:hover": {
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                          },
+                        },
+                      }}
+                    />
+                    <Stack
+                      direction="row"
+                      spacing={2}
+                      justifyContent="flex-end"
+                      sx={{ mt: 2 }}
+                    >
+                      <Box sx={{ mt: 2 }}>
+                        <input
+                          accept="image/*"
+                          style={{ display: "none" }}
+                          id="ticket-attachments"
+                          multiple
+                          type="file"
+                          disabled={selectedTicketDetails.status === "Pending" || selectedTicketDetails.status === "Done" || selectedTicketDetails.status === "Closed"}
+                          onChange={handleTicketResponseAttachmentsChange}
+                        />
+                        <label htmlFor="ticket-attachments">
+                          <motion.div
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                          >
+                            <Button
+                              variant="outlined"
+                              component="span"
+                              startIcon={<AddPhotoIcon />}
+                              disabled={
+                                selectedTicketDetails.status === "Pending" || selectedTicketDetails.status === "Done" || selectedTicketDetails.status === "Closed"
+                              }
+                            >
+                              Thêm tài liệu đính kèm
+                            </Button>
+                          </motion.div>
+                        </label>
+                        {ticketResponseAttachments.length > 0 && (
+                          <Typography
+                            variant="body2"
+                            sx={{ mt: 1, color: "success.main" }}
+                          >
+                            {ticketResponseAttachments.length} tài liệu đã chọn
+                          </Typography>
+                        )}
+                      </Box>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => handleResponseMessage()}
+                        disabled={selectedTicketDetails.status === "Pending" || selectedTicketDetails.status === "Done" || selectedTicketDetails.status === "Closed"}
+                      >
+                        Gửi phản hồi
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </Grid>
               </Grid>
             </Box>
           ) : (
             <Typography color="text.secondary">
-              No ticket details available
+              Không có chi tiết yêu cầu
             </Typography>
           )}
         </DialogContent>
@@ -1876,7 +2220,7 @@ const ProfilePage: React.FC = () => {
             variant="contained"
             color="primary"
           >
-            Close
+            Đóng
           </Button>
         </DialogActions>
       </Dialog>
@@ -1912,7 +2256,7 @@ const ProfilePage: React.FC = () => {
             fontWeight="bold"
             gutterBottom
           >
-            Change Password
+            Đổi mật khẩu
           </Typography>
 
           {error && (
@@ -1923,7 +2267,7 @@ const ProfilePage: React.FC = () => {
 
           <Box component="form" sx={{ mt: 2 }}>
             <FormControl fullWidth margin="normal" variant="outlined">
-              <InputLabel htmlFor="old-password">Current Password</InputLabel>
+              <InputLabel htmlFor="old-password">Mật khẩu hiện tại</InputLabel>
               <OutlinedInput
                 id="old-password"
                 name="oldPassword"
@@ -1945,7 +2289,7 @@ const ProfilePage: React.FC = () => {
                     </IconButton>
                   </InputAdornment>
                 }
-                label="Current Password"
+                label="Mật khẩu hiện tại"
               />
               {passwordErrors.oldPassword && (
                 <Typography
@@ -1959,7 +2303,7 @@ const ProfilePage: React.FC = () => {
             </FormControl>
 
             <FormControl fullWidth margin="normal" variant="outlined">
-              <InputLabel htmlFor="new-password">New Password</InputLabel>
+              <InputLabel htmlFor="new-password">Mật khẩu mới</InputLabel>
               <OutlinedInput
                 id="new-password"
                 name="newPassword"
@@ -1981,7 +2325,7 @@ const ProfilePage: React.FC = () => {
                     </IconButton>
                   </InputAdornment>
                 }
-                label="New Password"
+                label="Mật khẩu mới"
               />
               {passwordErrors.newPassword && (
                 <Typography
@@ -1996,7 +2340,7 @@ const ProfilePage: React.FC = () => {
 
             <FormControl fullWidth margin="normal" variant="outlined">
               <InputLabel htmlFor="confirm-password">
-                Confirm New Password
+                Xác nhận mật khẩu mới
               </InputLabel>
               <OutlinedInput
                 id="confirm-password"
@@ -2021,7 +2365,7 @@ const ProfilePage: React.FC = () => {
                     </IconButton>
                   </InputAdornment>
                 }
-                label="Confirm New Password"
+                label="Xác nhận mật khẩu mới"
               />
               {passwordErrors.confirmPassword && (
                 <Typography
@@ -2043,7 +2387,7 @@ const ProfilePage: React.FC = () => {
               }}
             >
               <Button variant="outlined" onClick={handlePasswordModalClose}>
-                Cancel
+                Hủy bỏ
               </Button>
               <motion.div
                 whileHover={{ scale: 1.03 }}
@@ -2055,7 +2399,7 @@ const ProfilePage: React.FC = () => {
                   onClick={handleSubmitPasswordChange}
                   disabled={loading}
                 >
-                  {loading ? <CircularProgress size={24} /> : "Change Password"}
+                  {loading ? <CircularProgress size={24} /> : "Đổi mật khẩu"}
                 </Button>
               </motion.div>
             </Box>
@@ -2072,7 +2416,7 @@ const ProfilePage: React.FC = () => {
         <Box
           sx={{
             position: "absolute",
-            top: "50%",
+            top: ticketData.Type == "Technical" ? "30%" : "40%",
             left: "50%",
             transform: "translate(-50%, -50%)",
             width: { xs: "90%", sm: 500 },
@@ -2080,6 +2424,12 @@ const ProfilePage: React.FC = () => {
             boxShadow: 24,
             p: 4,
             borderRadius: 2,
+            maxHeight: "90vh",
+            overflowY: "auto",
+            margin: "0 auto",
+            "&:focus": {
+              outline: "none",
+            },
           }}
           component={motion.div}
           initial={{ opacity: 0, y: 20 }}
@@ -2094,7 +2444,7 @@ const ProfilePage: React.FC = () => {
             fontWeight="bold"
             gutterBottom
           >
-            Submit Support Ticket
+            Gửi yêu cầu hỗ trợ
           </Typography>
 
           {ticketError && (
@@ -2107,33 +2457,58 @@ const ProfilePage: React.FC = () => {
             </Alert>
           )}
 
-          <Box component="form" sx={{ mt: 2 }}>
+          <Box component="form" sx={{ mb: 2 }}>
             <FormControl fullWidth margin="normal">
-              <InputLabel htmlFor="ticket-type">Ticket Type</InputLabel>
+              <InputLabel htmlFor="ticket-type">Loại yêu cầu</InputLabel>
               <Select
                 id="ticket-type"
                 value={ticketData.Type}
                 onChange={handleTicketTypeChange}
-                label="Ticket Type"
+                label="Loại yêu cầu"
               >
-                <MenuItem value="Shopping">Shopping</MenuItem>
-                <MenuItem value="Technical">Technical</MenuItem>
+                <MenuItem value="Shopping">Mua hàng</MenuItem>
+                <MenuItem value="Technical">Kỹ thuật</MenuItem>
               </Select>
             </FormControl>
+
+            {ticketData.Type === "Technical" && (
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel htmlFor="device-item">Chọn thiết bị</InputLabel>
+                <Select
+                  id="device-item"
+                  value={selectedDeviceItemId}
+                  onChange={handleDeviceItemChange}
+                  label="Chọn thiết bị"
+                >
+                  {deviceItem && deviceItem.length > 0 ? (
+                    deviceItem.map((item) => (
+                      <MenuItem key={item.id} value={item.id}>
+                        {item.id} - {item.name} -{" "}
+                        {item.isActive ? "Đã kích hoạt" : "Chưa kích hoạt"}
+                      </MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem value="" disabled>
+                      Không có thiết bị nào
+                    </MenuItem>
+                  )}
+                </Select>
+              </FormControl>
+            )}
 
             <TextField
               fullWidth
               multiline
               rows={4}
               margin="normal"
-              label="Description"
+              label="Mô tả"
               value={ticketData.Description}
               onChange={handleTicketDescriptionChange}
               error={!!ticketError}
               helperText={
                 ticketError
                   ? ticketError
-                  : "Please describe your issue in detail"
+                  : "Vui lòng mô tả vấn đề của bạn chi tiết"
               }
               sx={{
                 "& .MuiOutlinedInput-root": {
@@ -2162,7 +2537,7 @@ const ProfilePage: React.FC = () => {
                     component="span"
                     startIcon={<AddPhotoIcon />}
                   >
-                    Add Attachments
+                    Thêm tài liệu đính kèm
                   </Button>
                 </motion.div>
               </label>
@@ -2171,7 +2546,7 @@ const ProfilePage: React.FC = () => {
                   variant="body2"
                   sx={{ mt: 1, color: "success.main" }}
                 >
-                  {ticketAttachments.length} file(s) selected
+                  {ticketAttachments.length} tài liệu đã chọn
                 </Typography>
               )}
             </Box>
@@ -2185,7 +2560,7 @@ const ProfilePage: React.FC = () => {
               }}
             >
               <Button variant="outlined" onClick={handleTicketModalClose}>
-                Cancel
+                Hủy bỏ
               </Button>
               <motion.div
                 whileHover={{ scale: 1.03 }}
@@ -2200,7 +2575,7 @@ const ProfilePage: React.FC = () => {
                   {ticketLoading ? (
                     <CircularProgress size={24} />
                   ) : (
-                    "Submit Ticket"
+                    "Gửi yêu cầu"
                   )}
                 </Button>
               </motion.div>
@@ -2230,7 +2605,7 @@ const ProfilePage: React.FC = () => {
           }}
         >
           <Typography variant="h6" fontWeight="bold">
-            Your Orders
+            Đơn hàng của bạn
           </Typography>
         </DialogTitle>
         <DialogContent sx={{ p: 0 }}>
@@ -2241,7 +2616,7 @@ const ProfilePage: React.FC = () => {
           ) : orders.length === 0 ? (
             <Box p={4} textAlign="center">
               <Typography variant="body1" color="text.secondary">
-                You haven't placed any orders yet.
+                Bạn chưa đặt hàng nào.
               </Typography>
             </Box>
           ) : (
@@ -2249,11 +2624,17 @@ const ProfilePage: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                    <TableCell sx={{ fontWeight: "bold" }}>Order ID</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Date</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Total</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Mã đơn hàng
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Ngày đặt hàng
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Tổng cộng</TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>
+                      Trạng thái
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold" }}>Hành động</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -2281,7 +2662,21 @@ const ProfilePage: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={order.status}
+                          label={
+                            order.status === "PendingPayment"
+                              ? "Chờ thanh toán"
+                              : order.status === "AllowRepayment"
+                                ? "Cho phép thanh toán lại"
+                                : order.status === "IsWaiting"
+                                  ? "Đang chờ xác thực"
+                                  : order.status === "Success"
+                                    ? "Hoàn tất"
+                                    : order.status === "Delivering"
+                                      ? "Đang vận chuyển"
+                                      : order.status === "Cancelled"
+                                        ? "Đã hủy"
+                                        : order.status
+                          }
                           color={getOrderStatusColor(order.status)}
                           size="small"
                           sx={{ fontWeight: "medium" }}
@@ -2302,7 +2697,7 @@ const ProfilePage: React.FC = () => {
                             },
                           }}
                         >
-                          View Details
+                          Xem chi tiết
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -2325,7 +2720,7 @@ const ProfilePage: React.FC = () => {
                 isLoadingOrders ? <CircularProgress size={16} /> : null
               }
             >
-              {isLoadingOrders ? "Loading..." : "Load More"}
+              {isLoadingOrders ? "Đang tải..." : "Tải thêm"}
             </Button>
           )}
           <Button
@@ -2333,7 +2728,7 @@ const ProfilePage: React.FC = () => {
             variant="contained"
             color="primary"
           >
-            Close
+            Đóng
           </Button>
         </DialogActions>
       </Dialog>
@@ -2363,11 +2758,11 @@ const ProfilePage: React.FC = () => {
           }}
         >
           <Typography variant="h6" fontWeight="bold">
-            Order Details
+            Chi tiết đơn hàng
           </Typography>
           {selectedOrderDetails && (
             <Chip
-              label={selectedOrderDetails.status}
+              label={getOrderStatusText(selectedOrderDetails.status)}
               color={getOrderStatusColor(selectedOrderDetails.status)}
               size="small"
               sx={{ fontWeight: "bold", px: 1 }}
@@ -2399,7 +2794,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Order ID
+                      Mã đơn hàng
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.orderId}
@@ -2410,7 +2805,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Date Placed
+                      Ngày đặt hàng
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
@@ -2426,15 +2821,84 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Status
+                      Trạng thái
                     </Typography>
                     <Box sx={{ mb: 2 }}>
                       <Chip
-                        label={selectedOrderDetails.status}
+                        label={
+                          selectedOrderDetails.status === "PendingPayment"
+                            ? "Chờ thanh toán"
+                            : selectedOrderDetails.status === "AllowRepayment"
+                              ? "Cho phép thanh toán lại"
+                              : selectedOrderDetails.status === "IsWaiting"
+                                ? "Đang chờ xác thực"
+                                : selectedOrderDetails.status === "Success"
+                                  ? "Hoàn tất"
+                                  : selectedOrderDetails.status === "Delivering"
+                                    ? "Đang vận chuyển"
+                                    : selectedOrderDetails.status === "Cancelled"
+                                      ? "Đã hủy"
+                                      : selectedOrderDetails.status
+                        }
                         color={getOrderStatusColor(selectedOrderDetails.status)}
                         sx={{ fontWeight: "medium" }}
                       />
                     </Box>
+                    {selectedOrderDetails.status === "PendingPayment" ? (
+                      <MotionButton
+                        variants={buttonVariants}
+                        whileHover="hover"
+                        whileTap="tap"
+                        type="submit"
+                        variant="contained"
+                        color="primary"
+                        endIcon={<NavigateNext />}
+                        onClick={() =>
+                          handleGoToPaymentPage(
+                            selectedOrderDetails.transactions[0].paymentLinkId
+                          )
+                        }
+                        sx={{
+                          fontWeight: "bold",
+                          borderRadius: 2,
+                          px: 4,
+                          py: 1.5,
+                          background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        }}
+                      >
+                        Đi đến trang thanh toán
+                      </MotionButton>
+                    ) : selectedOrderDetails.status === "AllowRepayment" ? (
+                      <MotionButton
+                        variants={buttonVariants}
+                        whileHover="hover"
+                        whileTap="tap"
+                        onClick={() =>
+                          handleRepayment(selectedOrderDetails.orderId)
+                        }
+                        variant="contained"
+                        color="primary"
+                        disabled={processingPayment}
+                        endIcon={
+                          processingPayment ? (
+                            <CircularProgress size={20} color="inherit" />
+                          ) : (
+                            <NavigateNext />
+                          )
+                        }
+                        sx={{
+                          fontWeight: "bold",
+                          borderRadius: 2,
+                          px: 4,
+                          py: 1.5,
+                          background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        }}
+                      >
+                        {processingPayment ? "Đang xử lý..." : "Thanh toán lại"}
+                      </MotionButton>
+                    ) : null}
                   </Card>
                 </Grid>
 
@@ -2446,7 +2910,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Payment Method
+                      Phương thức thanh toán
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
@@ -2463,12 +2927,34 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Payment Status
+                      Trạng thái thanh toán
                     </Typography>
                     <Typography variant="body1" fontWeight="medium" paragraph>
                       {selectedOrderDetails.transactions &&
                         selectedOrderDetails.transactions.length > 0
-                        ? selectedOrderDetails.transactions[0].paymentStatus == "PAID" ? "Đã thanh toán" : selectedOrderDetails.transactions[0].paymentStatus == "PENDING" ? "Chờ thanh toán" : selectedOrderDetails.transactions[0].paymentStatus == "FAILED" ? "Thanh toán thất bại" : selectedOrderDetails.transactions[0].paymentStatus == "REFUNDED" ? "Đã hoàn tiền" : selectedOrderDetails.transactions[0].paymentStatus == "CANCELED" ? "Đã hủy" : selectedOrderDetails.transactions[0].paymentStatus == "PROCESSING" ? "Đang xử lý" : selectedOrderDetails.transactions[0].paymentStatus : "N/A"}
+                        ? selectedOrderDetails.transactions[0].paymentStatus ==
+                          "PAID"
+                          ? "Đã thanh toán"
+                          : selectedOrderDetails.transactions[0]
+                            .paymentStatus == "PENDING"
+                            ? "Chờ thanh toán"
+                            : selectedOrderDetails.transactions[0]
+                              .paymentStatus == "FAILED"
+                              ? "Thanh toán thất bại"
+                              : selectedOrderDetails.transactions[0]
+                                .paymentStatus == "REFUNDED"
+                                ? "Đã hoàn tiền"
+                                : selectedOrderDetails.transactions[0]
+                                  .paymentStatus == "CANCELLED"
+                                  ? "Đã hủy"
+                                  : selectedOrderDetails.transactions[0]
+                                    .paymentStatus == "PROCESSING"
+                                    ? "Đang xử lý"
+                                    : selectedOrderDetails.transactions[0]
+                                      .paymentStatus == "EXPIRED"
+                                      ? "Thanh toán hết hạn"
+                                      : selectedOrderDetails.transactions[0].paymentStatus
+                        : "N/A"}
                     </Typography>
 
                     <Typography
@@ -2476,7 +2962,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Total Amount
+                      Tổng số tiền
                     </Typography>
                     <Typography
                       variant="h6"
@@ -2496,7 +2982,7 @@ const ProfilePage: React.FC = () => {
                       color="text.secondary"
                       gutterBottom
                     >
-                      Shipping Address
+                      Địa chỉ giao hàng
                     </Typography>
 
                     {selectedOrderDetails.userAddress ? (
@@ -2513,7 +2999,7 @@ const ProfilePage: React.FC = () => {
                       </Box>
                     ) : (
                       <Typography variant="body2" color="text.secondary">
-                        No shipping address information available.
+                        Không có thông tin địa chỉ giao hàng.
                       </Typography>
                     )}
                   </Card>
@@ -2526,7 +3012,7 @@ const ProfilePage: React.FC = () => {
                     fontWeight="bold"
                     gutterBottom
                   >
-                    Order Items
+                    Sản phẩm đơn hàng
                   </Typography>
 
                   {selectedOrderDetails.orderDetailsItems &&
@@ -2603,14 +3089,14 @@ const ProfilePage: React.FC = () => {
                       >
                         <Box>
                           <Typography variant="body2" color="text.secondary">
-                            Subtotal:
+                            Tổng cộng:
                           </Typography>
                           <Typography
                             variant="body2"
                             color="text.secondary"
                             sx={{ mt: 1 }}
                           >
-                            Shipping:
+                            Phí giao hàng:
                           </Typography>
                         </Box>
                         <Box sx={{ textAlign: "right" }}>
@@ -2638,7 +3124,7 @@ const ProfilePage: React.FC = () => {
                         }}
                       >
                         <Typography variant="subtitle1" fontWeight="bold">
-                          Total:
+                          Tổng cộng:
                         </Typography>
                         <Typography
                           variant="h6"
@@ -2651,7 +3137,7 @@ const ProfilePage: React.FC = () => {
                     </Card>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No items in this order.
+                      Không có sản phẩm trong đơn hàng này.
                     </Typography>
                   )}
                 </Grid>
@@ -2659,19 +3145,92 @@ const ProfilePage: React.FC = () => {
             </Box>
           ) : (
             <Typography color="text.secondary">
-              No order details available
+              Không có chi tiết đơn hàng.
             </Typography>
           )}
         </DialogContent>
         <DialogActions
           sx={{ p: 2, borderTop: "1px solid rgba(0, 0, 0, 0.08)" }}
         >
+          {selectedOrderDetails &&
+            selectedOrderDetails.transactions &&
+            selectedOrderDetails.transactions.length > 0 ? (
+            selectedOrderDetails.transactions[0].paymentMethod === "COD" ? (
+              <Button
+                onClick={handleOpenConfirmCancelOrderDialog}
+                variant="contained"
+                color="error"
+                disabled={
+                  selectedOrderDetails.transactions[0].paymentMethod !==
+                  "COD" || selectedOrderDetails.status !== "IsWaiting" ||
+                  loadingCancelOrder
+                }
+              >
+                Hủy đơn hàng
+              </Button>
+            ) : null
+          ) : null}
           <Button
             onClick={handleCloseOrderDetailsDialog}
             variant="contained"
             color="primary"
           >
-            Close
+            Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={confirmCancelOrderDialogOpen}
+        onClose={handleCloseConfirmCancelOrderDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: "hidden",
+            maxHeight: "90vh",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: "linear-gradient(120deg, #2e7d32, #4caf50)",
+            color: "white",
+            p: 3,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold">
+            Xác nhận hủy đơn hàng
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3, mt: 3 }}>
+          <Typography variant="body1" color="text.secondary">
+            Bạn có chắc chắn muốn hủy đơn hàng này? Hành động này không thể hoàn
+            tác.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseConfirmCancelOrderDialog}
+            variant="outlined"
+            color="primary"
+          >
+            Đóng
+          </Button>
+          <Button
+            onClick={() =>
+              selectedOrderDetails &&
+              handleCancelOrder(selectedOrderDetails.orderId)
+            }
+            variant="contained"
+            color="error"
+            disabled={loadingCancelOrder}
+          >
+            {loadingCancelOrder ? <CircularProgress size={24} /> : "Xác nhận"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -19,8 +19,6 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProductDetail from "./pages/ProductDetail";
-import PlantsPage from "./pages/PlantsPage";
-import SystemsPage from "./pages/SystemsPage";
 import NutrientsPage from "./pages/NutrientsPage";
 import ProfilePage from "./pages/ProfilePage";
 import FavoritePage from "./pages/FavoritePage";
@@ -36,6 +34,10 @@ import cartService from "./services/cartService";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import PayOSCallback from "./pages/PayOSCallback";
 import NotFoundPage from "./pages/NotFoundPage";
+import LandingPage from "./pages/LandingPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
+import ContactPage from "./pages/ContactPage";
 
 const theme = createTheme({
   palette: {
@@ -351,13 +353,7 @@ const MainContent: React.FC<{
                   <CircularProgress />
                 </Box>
               ) : (
-                <ProductList
-                  products={products}
-                  onAddToCart={handleAddToCart}
-                  onEdit={handleEditProduct}
-                  onFavorite={handleFavoriteProduct}
-                  favorites={favorites}
-                />
+                <LandingPage />
               )
             }
           />
@@ -395,7 +391,7 @@ const MainContent: React.FC<{
             }
           />
           <Route
-            path="/checkout/shipping"
+            path="/checkout/:orderId/shipping"
             element={
               <ProtectedRoute>
                 <ShippingPage />
@@ -403,7 +399,7 @@ const MainContent: React.FC<{
             }
           />
           <Route
-            path="/checkout/payment"
+            path="/checkout/:orderId/payment"
             element={
               <ProtectedRoute>
                 <PaymentPage />
@@ -411,36 +407,14 @@ const MainContent: React.FC<{
             }
           />
           <Route path="/checkout/confirmation" element={<OrderConfirmation />} />
-          <Route
-            path="/plants"
-            element={
-              <PlantsPage
-                onAddToCart={handleAddToCart}
-                onEdit={handleEditProduct}
-                onFavorite={handleFavoriteProduct}
-                favorites={favorites}
-              />
-            }
-          />
-          <Route
-            path="/systems"
-            element={
-              <SystemsPage
-                onAddToCart={handleAddToCart}
-                onEdit={handleEditProduct}
-                onFavorite={handleFavoriteProduct}
-                favorites={favorites}
-              />
-            }
-          />
+
+
           <Route
             path="/nutrients"
             element={
               <NutrientsPage
                 onAddToCart={handleAddToCart}
                 onEdit={handleEditProduct}
-                onFavorite={handleFavoriteProduct}
-                favorites={favorites}
               />
             }
           />
@@ -495,6 +469,9 @@ const MainContent: React.FC<{
           />
           <Route path="/payos-callback" element={<PayOSCallback />} />
           <Route path="/payment" element={<PayOSCallback />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </>

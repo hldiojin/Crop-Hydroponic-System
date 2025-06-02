@@ -44,7 +44,7 @@ import {
   LocalAtm,
 } from "@mui/icons-material";
 import { CartDetailItem } from "../services/cartService";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   MotionBox,
@@ -64,6 +64,7 @@ import {
 } from "../services/orderSevice";
 import { deviceService, Device } from "../services/deviceService";
 import { response } from "express";
+import NotFoundPage from "./NotFoundPage";
 
 // Create properly typed motion components to fix TypeScript errors
 const MotionCard = motion(Card);
@@ -84,7 +85,7 @@ const PaymentPage: React.FC = () => {
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { isAuthenticated, token } = useAuth();
-
+  const { orderId } = useParams();
   const [loading, setLoading] = useState<boolean>(false);
   const [processingPayment, setProcessingPayment] = useState<boolean>(false);
   const [formErrors, setFormErrors] = useState<Partial<PaymentFormData>>({});
@@ -114,8 +115,11 @@ const PaymentPage: React.FC = () => {
   const [subtotal, setSubtotal] = useState<number>(0);
   const [shipping, setShipping] = useState<number>(0);
   const [total, setTotal] = useState<number>(0);
-  const handleCloseToast = (event?: React.SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
+  const handleCloseToast = (
+    event?: React.SyntheticEvent | Event,
+    reason?: string
+  ) => {
+    if (reason === "clickaway") {
       return;
     }
     setToast({ ...toast, open: false });
@@ -126,7 +130,7 @@ const PaymentPage: React.FC = () => {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate("/login", { state: { from: "/checkout/payment" } });
+      navigate("/login", { state: { from: "/checkout/:orderId/payment" } });
     }
   }, [isAuthenticated, navigate]);
 
@@ -164,7 +168,7 @@ const PaymentPage: React.FC = () => {
 
         // const address = localStorage.getItem("shippingAddress");
         // const method = localStorage.getItem("shippingMethod");
-        const orderId = localStorage.getItem("currentOrderId");
+        // const orderId = localStorage.getItem("currentOrderId");
 
         // If we have an order ID, try to fetch order details
         if (orderId) {
@@ -177,7 +181,9 @@ const PaymentPage: React.FC = () => {
               orderResponse.response?.data
             ) {
               const orderData = orderResponse.response.data;
-
+              if (orderData.status != "Pending") {
+                navigate("/*");
+              }
               // Store the entire order data for easy access
               setOrderDetails(orderData);
 
@@ -223,14 +229,20 @@ const PaymentPage: React.FC = () => {
                 navigate("/cart");
                 return;
               }
-            } else if (orderResponse.statusCodes == 400 && orderResponse.message == "Không tìm thấy địa chỉ mặc định cho người dùng.") {
+            } else if (
+              orderResponse.statusCodes == 400 &&
+              orderResponse.message ==
+              "Không tìm thấy địa chỉ mặc định cho người dùng."
+            ) {
               setToast({
                 open: true,
                 message: `${orderResponse.message}`,
-                severity: "error"
+                severity: "error",
               });
-              navigate("/checkout/shipping");
+              navigate(`/checkout/${orderId}/shipping`);
               return;
+            } else if (orderResponse.statusCodes == 404) {
+              navigate("/*");
             } else {
               console.error("Invalid order data format");
               // Continue with fallback data
@@ -264,6 +276,10 @@ const PaymentPage: React.FC = () => {
         setCartDetails(JSON.parse(cartData));
       }
     };
+
+    if (!orderId) {
+      navigate("/*");
+    }
 
     // Lấy dữ liệu giỏ hàng khi trang được tải
     syncCartDetails();
@@ -383,13 +399,12 @@ const PaymentPage: React.FC = () => {
       setProcessingPayment(true);
 
       // Get the current order ID - first from orderDetails, then from localStorage
-      const orderId =
-        orderDetails?.orderId || localStorage.getItem("currentOrderId");
 
       if (!orderId) {
+        navigate("/*");
         setFormErrors({
           paymentMethod:
-            "Order information not found. Please try again or create a new order.",
+            "Thông tin đơn hàng không được tìm thấy. Vui lòng thử lại hoặc tạo đơn hàng mới.",
         });
         console.error("Order ID not found in state or localStorage");
         setProcessingPayment(false);
@@ -421,7 +436,7 @@ const PaymentPage: React.FC = () => {
           console.error("COD transaction failed:", error);
           setFormErrors({
             paymentMethod:
-              "Failed to process cash on delivery. Please try again.",
+              "Không thể xử lý thanh toán tiền mặt. Vui lòng thử lại.",
           });
         }
       }
@@ -451,14 +466,14 @@ const PaymentPage: React.FC = () => {
           console.error("PayOS transaction error:", transactionError);
           setFormErrors({
             paymentMethod:
-              "Failed to create payment transaction. Please try another payment method.",
+              "Không thể tạo giao dịch thanh toán. Vui lòng thử một phương thức thanh toán khác.",
           });
         }
       }
     } catch (error) {
       console.error("Payment processing failed:", error);
       setFormErrors({
-        paymentMethod: "Payment processing failed. Please try again.",
+        paymentMethod: "Không thể xử lý thanh toán. Vui lòng thử lại.",
       });
     } finally {
       setProcessingPayment(false);
@@ -496,7 +511,7 @@ const PaymentPage: React.FC = () => {
           <Payment sx={{ fontSize: 80, color: theme.palette.primary.main }} />
         </motion.div>
         <Typography variant="h6" color="textSecondary" sx={{ mt: 3 }}>
-          Loading payment options...
+          Đang tải phương thức thanh toán...
         </Typography>
       </Box>
     );
@@ -555,7 +570,7 @@ const PaymentPage: React.FC = () => {
         }}
       >
         <IconButton
-          onClick={() => navigate("/checkout/shipping")}
+          onClick={() => navigate(`/checkout/${orderId}/shipping`)}
           sx={{
             mr: 2,
             bgcolor: alpha(theme.palette.primary.main, 0.1),
@@ -581,7 +596,7 @@ const PaymentPage: React.FC = () => {
             letterSpacing: "0.5px",
           }}
         >
-          Payment Method
+          Phương thức thanh toán
         </Typography>
 
         <Badge badgeContent={3} color="secondary" sx={{ ml: "auto" }}>
@@ -617,10 +632,10 @@ const PaymentPage: React.FC = () => {
           }}
         >
           {[
-            { label: "Cart", icon: <ShoppingCart /> },
-            { label: "Shipping", icon: <LocalShipping /> },
-            { label: "Payment", icon: <CreditCard /> },
-            { label: "Confirmation", icon: <CheckCircleOutline /> },
+            { label: "Giỏ hàng", icon: <ShoppingCart /> },
+            { label: "Vận chuyển", icon: <LocalShipping /> },
+            { label: "Thanh toán", icon: <CreditCard /> },
+            { label: "Xác nhận", icon: <CheckCircleOutline /> },
           ].map((step, index) => (
             <Box
               key={step.label}
@@ -636,7 +651,7 @@ const PaymentPage: React.FC = () => {
                 index === 0
                   ? () => navigate("/cart")
                   : index === 1
-                    ? () => navigate("/checkout/shipping")
+                    ? () => navigate(`/checkout/${orderId}/shipping`)
                     : undefined
               }
             >
@@ -730,7 +745,8 @@ const PaymentPage: React.FC = () => {
                   zIndex: 1,
                 }}
               >
-                <Payment fontSize="small" color="primary" /> Payment Method
+                <Payment fontSize="small" color="primary" /> Phương thức thanh
+                toán
               </Typography>
 
               <FormControl
@@ -747,13 +763,13 @@ const PaymentPage: React.FC = () => {
                     {
                       id: "payos",
                       name: "PayOS",
-                      description: "Pay securely with PayOS gateway",
+                      description: "Thanh toán với cổng thanh toán PayOS",
                       icon: <CreditCardOutlined />,
                     },
                     {
                       id: "cashOnDelivery",
                       name: "Cash on Delivery",
-                      description: "Pay with cash when you receive your order",
+                      description: "Thanh toán khi nhận hàng",
                       icon: <LocalAtm />,
                     },
                   ].map((method) => (
@@ -836,8 +852,9 @@ const PaymentPage: React.FC = () => {
                   icon={<CreditCardOutlined />}
                 >
                   <Typography variant="body2">
-                    Click "Complete Order" to proceed with PayOS payment
-                    gateway. You will be redirected to a secure payment page.
+                    Nhấp vào "Hoàn tất đơn hàng" để tiếp tục với cổng thanh toán
+                    PayOS. Bạn sẽ được chuyển hướng đến trang thanh toán an
+                    toàn.
                   </Typography>
                 </Alert>
               )}
@@ -849,8 +866,8 @@ const PaymentPage: React.FC = () => {
                   icon={<LocalAtm />}
                 >
                   <Typography variant="body2">
-                    Please have the exact amount ready when your order arrives.
-                    Our delivery personnel do not carry change.
+                    Vui lòng chuẩn bị số tiền chính xác sẵn sàng khi đơn hàng
+                    đến. Nhân viên giao hàng không mang tiền thừa.
                   </Typography>
                 </Alert>
               )}
@@ -893,8 +910,8 @@ const PaymentPage: React.FC = () => {
                   zIndex: 1,
                 }}
               >
-                <LocalShipping fontSize="small" color="primary" /> Shipping
-                Details
+                <LocalShipping fontSize="small" color="primary" /> Thông tin vận
+                chuyển
               </Typography>
 
               {shippingAddress && (
@@ -919,7 +936,7 @@ const PaymentPage: React.FC = () => {
                           color="text.secondary"
                           gutterBottom
                         >
-                          Shipping Address
+                          Địa chỉ vận chuyển
                         </Typography>
                         <Typography
                           variant="body1"
@@ -960,7 +977,7 @@ const PaymentPage: React.FC = () => {
                           color="text.secondary"
                           gutterBottom
                         >
-                          Shipping Method
+                          Phương thức vận chuyển
                         </Typography>
                         <Box sx={{ display: "flex", alignItems: "center" }}>
                           <LocalShipping
@@ -968,7 +985,7 @@ const PaymentPage: React.FC = () => {
                             sx={{ mr: 1, fontSize: 20 }}
                           />
                           <Typography variant="body1" fontWeight="medium">
-                            GHN Shipping
+                            Giao Hàng Nhanh
                           </Typography>
                         </Box>
                         {/* <Typography
@@ -984,7 +1001,7 @@ const PaymentPage: React.FC = () => {
                         </Typography> */}
                         <Chip
                           label={
-                            shipping === 0 ? "FREE" : `$${shipping.toFixed(2)}`
+                            shipping === 0 ? "Miễn Phí" : `${shipping.toLocaleString()}VNĐ`
                           }
                           size="small"
                           color={shipping === 0 ? "success" : "default"}
@@ -997,10 +1014,10 @@ const PaymentPage: React.FC = () => {
                   <Box sx={{ mt: 2, textAlign: "right" }}>
                     <Button
                       size="small"
-                      onClick={() => navigate("/checkout/shipping")}
+                      onClick={() => navigate(`/checkout/${orderId}/shipping`)}
                       startIcon={<ArrowBack fontSize="small" />}
                     >
-                      Edit Shipping Details
+                      Chỉnh sửa thông tin vận chuyển
                     </Button>
                   </Box>
                 </Box>
@@ -1021,14 +1038,14 @@ const PaymentPage: React.FC = () => {
                 whileTap="tap"
                 startIcon={<ArrowBack />}
                 variant="outlined"
-                onClick={() => navigate("/checkout/shipping")}
+                onClick={() => navigate(`/checkout/${orderId}/shipping`)}
                 sx={{
                   fontWeight: "medium",
                   borderRadius: 2,
                   px: 3,
                 }}
               >
-                Back to Shipping
+                Quay lại vận chuyển
               </MotionButton>
 
               <MotionButton
@@ -1055,7 +1072,7 @@ const PaymentPage: React.FC = () => {
                   boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                 }}
               >
-                {processingPayment ? "Processing..." : "Complete Order"}
+                {processingPayment ? "Đang xử lý..." : "Hoàn tất đơn hàng"}
               </MotionButton>
             </MotionBox>
           </Grid>
@@ -1100,7 +1117,7 @@ const PaymentPage: React.FC = () => {
                   fontWeight="bold"
                   sx={{ position: "relative", zIndex: 1 }}
                 >
-                  Order Summary
+                  Tóm tắt đơn hàng
                 </Typography>
 
                 <Typography
@@ -1108,7 +1125,7 @@ const PaymentPage: React.FC = () => {
                   sx={{ mt: 1, opacity: 0.8, position: "relative", zIndex: 1 }}
                 >
                   {cartDetails.reduce((sum, item) => sum + item.quantity, 0)}{" "}
-                  items in your cart
+                  sản phẩm trong giỏ hàng
                 </Typography>
               </Box>
 
@@ -1127,7 +1144,7 @@ const PaymentPage: React.FC = () => {
                       fontWeight="bold"
                       sx={{ mb: 2 }}
                     >
-                      Order Items
+                      Sản phẩm trong giỏ hàng
                     </Typography>
 
                     <Stack spacing={2}>
@@ -1146,7 +1163,7 @@ const PaymentPage: React.FC = () => {
                             </Typography>
                           </Typography>
                           <Typography variant="body2" fontWeight="medium">
-                            ${item.unitPrice.toLocaleString()}
+                            {item.unitPrice.toLocaleString()}VND
                           </Typography>
                         </Box>
                       ))}
@@ -1158,7 +1175,7 @@ const PaymentPage: React.FC = () => {
                       sx={{ mt: 2 }}
                       onClick={() => navigate("/cart")}
                     >
-                      Edit Cart
+                      Chỉnh sửa giỏ hàng
                     </Button>
                   </Paper>
 
@@ -1179,7 +1196,7 @@ const PaymentPage: React.FC = () => {
                           fontWeight="bold"
                           sx={{ mb: 2 }}
                         >
-                          Selected Devices
+                          Thiết bị đã chọn
                         </Typography>
 
                         <Stack spacing={2}>
@@ -1207,7 +1224,7 @@ const PaymentPage: React.FC = () => {
                                     </Typography>
                                   </Typography>
                                   <Typography variant="body2" fontWeight="medium">
-                                    ${(device?.price || 0) * quantity}
+                                    {(device?.price || 0) * quantity} VND
                                   </Typography>
                                 </Box>
                               );
@@ -1226,10 +1243,10 @@ const PaymentPage: React.FC = () => {
                     }}
                   >
                     <Typography variant="body1" color="text.secondary">
-                      Subtotal
+                      Tổng cộng
                     </Typography>
                     <Typography variant="body1" fontWeight="bold">
-                      ${subtotal.toLocaleString()}
+                      {subtotal.toLocaleString()} VND
                     </Typography>
                   </Box>
 
@@ -1241,18 +1258,18 @@ const PaymentPage: React.FC = () => {
                     }}
                   >
                     <Typography variant="body1" color="text.secondary">
-                      Shipping
+                      Vận chuyển
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {shipping === 0 ? (
                         <Chip
-                          label="FREE"
+                          label="Miễn Phí"
                           color="success"
                           size="small"
                           sx={{ fontWeight: "bold" }}
                         />
                       ) : (
-                        `$${shipping.toLocaleString()}`
+                        `${shipping.toLocaleString()}VNĐ`
                       )}
                     </Typography>
                   </Box>
@@ -1267,7 +1284,7 @@ const PaymentPage: React.FC = () => {
                     }}
                   >
                     <Typography variant="h6" fontWeight="bold">
-                      Total
+                      Tổng cộng
                     </Typography>
                     <Typography
                       variant="h5"
@@ -1279,7 +1296,7 @@ const PaymentPage: React.FC = () => {
                         WebkitTextFillColor: "transparent",
                       }}
                     >
-                      ${total.toLocaleString()}
+                      {total.toLocaleString()} VND
                     </Typography>
                   </Box>
                 </Stack>
@@ -1292,12 +1309,12 @@ const PaymentPage: React.FC = () => {
         open={toast.open}
         autoHideDuration={6000}
         onClose={handleCloseToast}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert
           onClose={handleCloseToast}
           severity={toast.severity}
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
         >
           {toast.message}
         </Alert>

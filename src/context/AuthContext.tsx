@@ -145,37 +145,73 @@ api.interceptors.request.use(
   }
 );
 
+// api.interceptors.response.use(
+//   (response) => response,
+//   async (error) => {
+//     const originalRequest = error.config;
+
+//     if (error.response?.status === 401 && !originalRequest._retry) {
+//       originalRequest._retry = true;
+
+//       try {
+//         // if (!authRefreshFunction) {
+//         //   throw new Error("Authentication refresh function not initialized");
+//         // }
+
+//         // const newToken = await authRefreshFunction();
+
+//         originalRequest.headers.Authorization = `Bearer ${newToken}`;
+//         return api(originalRequest);
+//       } catch (refreshError) {
+//         console.error("Failed to retry request after refreshing token:", refreshError);
+
+//         // if (authLogoutFunction) {
+//         //   authLogoutFunction();
+//         // }
+
+//         return Promise.reject(refreshError);
+//       }
+//     }
+
+//     return Promise.reject(error);
+//   }
+// );
+
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Nếu muốn, có thể cập nhật token ngay khi có new-access-token
+    const newToken = response.headers['new-access-token'];
+    if (newToken) {
+      localStorage.setItem('access_token', newToken); // hoặc lưu vào chỗ bạn đang dùng
+      api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+    }
+
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      try {
-        if (!authRefreshFunction) {
-          throw new Error("Authentication refresh function not initialized");
-        }
-
-        const newToken = await authRefreshFunction();
-
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+      const newToken = error.response.headers['new-access-token'];
+      if (newToken) {
+        // Lưu token mới
+        localStorage.setItem('access_token', newToken);
+        api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
         return api(originalRequest);
-      } catch (refreshError) {
-        console.error("Failed to retry request after refreshing token:", refreshError);
-
-        if (authLogoutFunction) {
-          authLogoutFunction();
-        }
-
-        return Promise.reject(refreshError);
       }
+
+      // Nếu không có token mới thì logout hoặc xử lý khác
+      // authLogoutFunction?.();
+      return Promise.reject(error);
     }
 
     return Promise.reject(error);
   }
 );
+
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -241,7 +277,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       throw new Error("Failed to refresh token");
     } catch (error) {
       console.error("Refresh token failed:", error);
-      logout();
+      // logout();
       throw error;
     }
   };
@@ -296,7 +332,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error("Unexpected login response structure:", response.data);
         throw new Error("Invalid response format from server");
       } else if (response.data?.statusCodes !== 200) {
-        const errorMessage =
+        let errorMessage =
           response.data?.response?.message ||
           response.data?.message ||
           "Login failed. Please check your credentials.";
@@ -309,12 +345,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error("Login error:", err);
 
       if (axios.isAxiosError(err)) {
-        const errorMessage =
+        let errorMessage =
           err.response?.data?.response?.message ||
           err.response?.data?.message ||
           "Failed to login. Please try again.";
-
-        setError(errorMessage);
 
         if (err.response?.status === 401) {
           setError("Invalid email or password. Please try again.");
@@ -323,6 +357,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         } else if (err.response?.status === 404) {
           setError("Account not found. Please check your email or register.");
         }
+
+        switch (errorMessage) {
+          case "User not found": {
+            errorMessage = "Tài khoản không tồn tại. Vui lòng kiểm tra địa chỉ email hoặc đăng ký.";
+            break;
+          }
+          case "Password is incorrect": {
+            errorMessage = "Mật khẩu không hợp lệ. Vui lòng thử lại.";
+            break;
+          }
+        }
+
+        setError(errorMessage);
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -439,7 +486,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const userData = response.data?.data || response.data?.response?.data;
         var newToken = response.headers["new-access-token"];
         if (newToken != null) {
-          const newToken = response.headers["new-access-token"];
           setToken(newToken);
           localStorage.setItem("authToken", newToken);
         }
@@ -508,7 +554,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       };
 
       const response = await api.post(
-        "/api/auth/me/change-password",
+        "/auth/me/change-password",
         requestData
       );
 
@@ -576,7 +622,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log("Requesting OTP for password reset for email:", email);
 
       const response = await api.post(
-        "/api/otp/send",
+        "/otp/send",
         JSON.stringify(email),
         {
           headers: {
@@ -658,7 +704,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       console.log("Verifying OTP to get reset token");
 
-      const verifyResponse = await api.post("/api/otp/verify", {
+      const verifyResponse = await api.post("/otp/verify", {
         email: data.email,
         otpCode: data.otp,
       });
@@ -742,7 +788,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log("Resetting password with token");
 
       const resetResponse = await api.post(
-        "/api/auth/me/reset-password",
+        "/auth/me/reset-password",
         {
           newPassword: data.newPassword,
           confirmPassword: data.confirmPassword,
@@ -810,6 +856,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     localStorage.removeItem("user");
     localStorage.removeItem("cart");
+    localStorage.clear();
 
     if (user?.email) {
       api
@@ -835,7 +882,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
 
     try {
-      const response = await api.post("/api/tickets", ticketData);
+      const response = await api.post("/tickets", ticketData);
 
       if (response.data && response.data.data) {
         const newTicket = response.data.data;
@@ -885,7 +932,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
 
     try {
-      const response = await api.patch(`/api/tickets/${ticketId}`, { status });
+      const response = await api.patch(`/tickets/${ticketId}`, { status });
 
       if (response.data && response.data.success) {
         const updatedTickets = tickets.map((ticket) => {
@@ -937,7 +984,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error("Authentication required. Please log in again.");
       }
 
-      const response = await api.put("/api/user/me", {
+      const response = await api.put("/user/me", {
         name: data.name,
         phone: data.phone,
       });
@@ -1021,7 +1068,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             console.log("Getting user info with existing token");
             const userData = await getUserInfo();
             setUser(userData);
-            setToken(authToken);
             console.log("Successfully authenticated with existing token");
           } catch (error) {
             console.error("Error using existing token:", error);
@@ -1030,20 +1076,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             if (refreshToken) {
               try {
                 console.log("Trying to refresh token");
-                const newToken = await refreshAuthToken();
+                // const newToken = await refreshAuthToken();
                 // After refresh, get user info
                 const userData = await getUserInfo();
                 setUser(userData);
-                setToken(newToken);
                 console.log("Successfully refreshed token and authenticated");
               } catch (refreshError) {
-                console.error("Error refreshing token:", refreshError);
+                throw new Error(`Error refreshing token:${refreshError}`);
                 // Clear everything if refresh fails
-                logout();
               }
             } else {
               console.log("No refresh token available, logging out");
-              logout();
             }
           }
         }
@@ -1051,21 +1094,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         else if (refreshToken) {
           try {
             console.log("No auth token but refresh token exists, attempting refresh");
-            const newToken = await refreshAuthToken();
+            // const newToken = await refreshAuthToken();
             const userData = await getUserInfo();
             setUser(userData);
-            setToken(newToken);
+            // setToken(newToken);
             console.log("Successfully obtained new token via refresh");
           } catch (error) {
-            console.error("Error refreshing token during init:", error);
-            logout();
+            throw new Error(`Error refreshing token during init:${error}`);
           }
         } else {
           console.log("No authentication tokens found, user is not logged in");
         }
       } catch (error) {
         console.error("Unexpected error during auth initialization:", error);
-        logout();
+        // logout();
       } finally {
         setLoading(false);
       }
@@ -1074,10 +1116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     initializeAuth();
   }, []);
 
-  useEffect(() => {
-    authRefreshFunction = refreshAuthToken;
-    authLogoutFunction = logout;
-  }, []);
+  // useEffect(() => {
+  //   authRefreshFunction = refreshAuthToken;
+  //   authLogoutFunction = logout;
+  // }, []);
 
   return (
     <AuthContext.Provider

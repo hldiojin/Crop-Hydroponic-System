@@ -80,6 +80,11 @@ export const cartService = {
         `/cart/details?pageIndex=${pageIndex}&pageSize=${pageSize}`,
         { withCredentials: true }
       );
+      var newToken = response.headers["new-access-token"];
+      if (newToken != null) {
+        const newToken = response.headers["new-access-token"];
+        localStorage.setItem("authToken", newToken);
+      }
       return response.data.response.data;
     } catch (error) {
       console.error("Error fetching cart details:", error);
@@ -95,6 +100,11 @@ export const cartService = {
         cartItem,
         { withCredentials: true }
       );
+      var newToken = response.headers["new-access-token"];
+      if (newToken != null) {
+        const newToken = response.headers["new-access-token"];
+        localStorage.setItem("authToken", newToken);
+      }
 
       // Assuming the API returns the created cart item
       if (response.data.response.data.length > 0) {
@@ -118,6 +128,11 @@ export const cartService = {
         cartItem,
         { withCredentials: true }
       );
+      var newToken = response.headers["new-access-token"];
+      if (newToken != null) {
+        const newToken = response.headers["new-access-token"];
+        localStorage.setItem("authToken", newToken);
+      }
 
       if (response.data.response.data.length > 0) {
         return response.data.response.data[0];
@@ -136,7 +151,7 @@ export const cartService = {
   ): Promise<boolean> => {
     try {
       // Use the PUT /cart endpoint with productId and quantity in body
-      await api.put(
+      const response = await api.put(
         `/cart`,
         {
           productId,
@@ -146,6 +161,11 @@ export const cartService = {
           withCredentials: true,
         }
       );
+      var newToken = response.headers["new-access-token"];
+      if (newToken != null) {
+        const newToken = response.headers["new-access-token"];
+        localStorage.setItem("authToken", newToken);
+      }
       return true;
     } catch (error) {
       console.error(`Error updating quantity for product ${productId}:`, error);
@@ -156,9 +176,14 @@ export const cartService = {
   // Remove an item from the cart
   removeFromCart: async (): Promise<boolean> => {
     try {
-      await api.delete(`/cart`, {
+      const response = await api.delete(`/cart`, {
         withCredentials: true,
       });
+      var newToken = response.headers["new-access-token"];
+      if (newToken != null) {
+        const newToken = response.headers["new-access-token"];
+        localStorage.setItem("authToken", newToken);
+      }
       return true;
     } catch (error) {
       console.error(`Error clear cart item:`, error);
@@ -173,6 +198,12 @@ export const cartService = {
         withCredentials: true,
       });
 
+      var newToken = response.headers["new-access-token"];
+      if (newToken != null) {
+        const newToken = response.headers["new-access-token"];
+        localStorage.setItem("authToken", newToken);
+      }
+
       if (response.data.response.data.length > 0) {
         return response.data.response.data[0];
       }
@@ -186,9 +217,14 @@ export const cartService = {
   // Clear the entire cart - use DELETE /cart to clear all items
   clearCart: async (): Promise<boolean> => {
     try {
-      await api.delete(`/cart`, {
+      const response = await api.delete(`/cart`, {
         withCredentials: true,
       });
+      var newToken = response.headers["new-access-token"];
+      if (newToken != null) {
+        const newToken = response.headers["new-access-token"];
+        localStorage.setItem("authToken", newToken);
+      }
       return true;
     } catch (error) {
       console.error("Error clearing cart:", error);

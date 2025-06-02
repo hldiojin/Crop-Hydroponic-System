@@ -1,10 +1,10 @@
 // src/components/HeroSection.tsx
-import React from 'react';
-import { Container, Typography, Button, Box } from '@mui/material';
-import { Link } from 'react-router-dom';
-import { keyframes } from '@mui/system';
-import { styled } from '@mui/material/styles';
-import Slider from 'react-slick';
+import React from "react";
+import { Container, Typography, Button, Box } from "@mui/material";
+import { Link } from "react-router-dom";
+import { keyframes } from "@mui/system";
+import { styled } from "@mui/material/styles";
+import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 
@@ -32,18 +32,18 @@ const pulse = keyframes`
 `;
 
 const HeroBox = styled(Box)({
-  position: 'relative',
-  height: '80vh',
-  overflow: 'hidden',
+  position: "relative",
+  height: "80vh",
+  overflow: "hidden",
 });
 
 const CarouselOverlay = styled(Box)({
-  position: 'absolute',
+  position: "absolute",
   top: 0,
   left: 0,
   right: 0,
   bottom: 0,
-  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  backgroundColor: "rgba(0, 0, 0, 0.5)",
   zIndex: 2,
 });
 
@@ -76,20 +76,20 @@ const StyledSlider = styled(Slider)`
   .slick-dots {
     bottom: 20px;
     z-index: 3;
-    
+
     li button:before {
       color: white;
     }
-    
+
     li.slick-active button:before {
       color: white;
     }
   }
 `;
 
-const CarouselImage = styled('div')<{ image: string }>`
+const CarouselImage = styled("div")<{ image: string }>`
   height: 100%;
-  background-image: url(${props => props.image});
+  background-image: url(${(props) => props.image});
   background-size: cover;
   background-position: center;
 `;
@@ -107,9 +107,9 @@ const HeroSection: React.FC = () => {
   };
 
   const carouselImages = [
-    'https://i.pinimg.com/originals/74/6b/27/746b27c541347a6d4b62be2f8f735115.jpg',  // Add your image paths here
-    'https://i.pinimg.com/originals/1a/8e/e2/1a8ee26f35f8d29477c28d4431a9bfbf.jpg',
-    'https://png.pngtree.com/background/20230401/original/pngtree-the-highlands-are-dense-with-forests-and-mountains-picture-image_2250103.jpg',
+    "https://i.pinimg.com/originals/74/6b/27/746b27c541347a6d4b62be2f8f735115.jpg", // Add your image paths here
+    "https://i.pinimg.com/originals/1a/8e/e2/1a8ee26f35f8d29477c28d4431a9bfbf.jpg",
+    "https://png.pngtree.com/background/20230401/original/pngtree-the-highlands-are-dense-with-forests-and-mountains-picture-image_2250103.jpg",
   ];
 
   return (
@@ -125,24 +125,24 @@ const HeroSection: React.FC = () => {
           variant="h1"
           gutterBottom
           sx={{
-            fontSize: { xs: '3.5rem', md: '6rem' },
+            fontSize: { xs: "3.5rem", md: "6rem" },
             fontFamily: "'Playfair Display', serif",
             fontWeight: 700,
             marginBottom: 4,
-            textShadow: '2px 2px 4px rgba(0,0,0,0.2)',
-            color: 'white',
+            textShadow: "2px 2px 4px rgba(0,0,0,0.2)",
+            color: "white",
           }}
         >
-          Welcome to{' '}
+          Chào mừng đến với{" "}
           <Box
             component="span"
             sx={{
-              color: '#4caf50',
+              color: "#4caf50",
               animation: `${pulse} 2s infinite ease-in-out`,
-              display: 'inline-block',
+              display: "inline-block",
             }}
           >
-            HydroPonic Garden
+            HMES
           </Box>
         </AnimatedTypography>
 
@@ -152,37 +152,38 @@ const HeroSection: React.FC = () => {
             fontWeight: 300,
             marginBottom: 6,
             opacity: 0.9,
-            maxWidth: '800px',
-            margin: '0 auto 40px',
+            maxWidth: "800px",
+            margin: "0 auto 40px",
             lineHeight: 1.6,
-            color: 'white',
-            textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+            color: "white",
+            textShadow: "1px 1px 2px rgba(0,0,0,0.3)",
           }}
         >
-          Discover the future of sustainable growing with our innovative hydroponic systems and supplies
+          Khám phá tương lai của trồng thủy canh bền vững với hệ thống và phụ
+          kiện thủy canh của chúng tôi
         </AnimatedTypography>
 
         <Button
           variant="contained"
           component={Link}
-          to="/systems"
+          to="/devices"
           sx={{
             animation: `${fadeIn} 1s ease-out 0.5s backwards`,
-            padding: '12px 36px',
-            fontSize: '1.1rem',
-            textTransform: 'none',
-            borderRadius: '30px',
-            transition: 'all 0.3s ease',
-            background: 'rgba(255, 255, 255, 0.9)',
-            color: '#2e7d32',
-            '&:hover': {
-              background: 'white',
-              transform: 'translateY(-2px)',
-              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
+            padding: "12px 36px",
+            fontSize: "1.1rem",
+            textTransform: "none",
+            borderRadius: "30px",
+            transition: "all 0.3s ease",
+            background: "rgba(255, 255, 255, 0.9)",
+            color: "#2e7d32",
+            "&:hover": {
+              background: "white",
+              transform: "translateY(-2px)",
+              boxShadow: "0 8px 20px rgba(0, 0, 0, 0.2)",
             },
           }}
         >
-          Explore Our Products
+          Khám phá sản phẩm của chúng tôi
         </Button>
       </HeroContent>
     </HeroBox>
