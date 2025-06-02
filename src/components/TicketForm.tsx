@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -7,7 +7,7 @@ import {
   TextField,
   Button,
   Box,
-} from '@mui/material';
+} from "@mui/material";
 
 interface TicketFormProps {
   open: boolean;
@@ -16,13 +16,13 @@ interface TicketFormProps {
 }
 
 const TicketForm: React.FC<TicketFormProps> = ({ open, onClose, onSubmit }) => {
-  const [subject, setSubject] = useState('');
-  const [description, setDescription] = useState('');
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
 
   const handleSubmit = () => {
     onSubmit(subject, description);
-    setSubject('');
-    setDescription('');
+    setSubject("");
+    setDescription("");
     onClose();
   };
 
@@ -30,7 +30,7 @@ const TicketForm: React.FC<TicketFormProps> = ({ open, onClose, onSubmit }) => {
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Create Support Ticket</DialogTitle>
       <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
           <TextField
             label="Subject"
             value={subject}
@@ -51,7 +51,7 @@ const TicketForm: React.FC<TicketFormProps> = ({ open, onClose, onSubmit }) => {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button 
+        <Button
           onClick={handleSubmit}
           variant="contained"
           disabled={!subject.trim() || !description.trim()}
