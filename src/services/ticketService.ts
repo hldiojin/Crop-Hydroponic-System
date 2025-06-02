@@ -1,6 +1,10 @@
 import { response } from "express";
 import api from "../context/AuthContext";
-import { TicketRequest, TicketResponse, TicketResponseData } from "../types/types";
+import {
+  TicketRequest,
+  TicketResponse,
+  TicketResponseData,
+} from "../types/types";
 
 export const ticketService = {
   createTicket: async (
@@ -42,11 +46,17 @@ export const ticketService = {
     }
   },
 
-  getAllTickets: async (pageIndex: number = 1, pageSize: number = 10): Promise<TicketResponse> => {
+  getAllTickets: async (
+    pageIndex: number = 1,
+    pageSize: number = 10
+  ): Promise<TicketResponse> => {
     try {
-      const response = await api.get<TicketResponse>(`/ticket?status&pageIndex=${pageIndex}&pageSize=${pageSize}`, {
-        withCredentials: true,
-      });
+      const response = await api.get<TicketResponse>(
+        `/ticket?status&pageIndex=${pageIndex}&pageSize=${pageSize}`,
+        {
+          withCredentials: true,
+        }
+      );
       var newToken = response.headers["new-access-token"];
       if (newToken != null) {
         const newToken = response.headers["new-access-token"];
@@ -101,10 +111,13 @@ export const ticketService = {
       }
       return response.data;
     } catch (error) {
-      console.error(`Error responding to ticket ID ${ticketData.TicketId}:`, error);
+      console.error(
+        `Error responding to ticket ID ${ticketData.TicketId}:`,
+        error
+      );
       throw error;
     }
-  }
+  },
 };
 
 export default ticketService;

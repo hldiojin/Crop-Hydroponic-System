@@ -26,6 +26,11 @@ import {
   InputAdornment,
   CircularProgress,
   Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Link,
 } from "@mui/material";
 import {
   ShoppingCart,
@@ -96,6 +101,7 @@ const PaymentPage: React.FC = () => {
     message: "",
     severity: "error" as "error" | "success" | "info" | "warning",
   });
+  const [termsModalOpen, setTermsModalOpen] = useState(false);
   const [formData, setFormData] = useState<PaymentFormData>({
     paymentMethod: "payos",
     cardholderName: "",
@@ -232,7 +238,7 @@ const PaymentPage: React.FC = () => {
             } else if (
               orderResponse.statusCodes == 400 &&
               orderResponse.message ==
-              "Không tìm thấy địa chỉ mặc định cho người dùng."
+                "Không tìm thấy địa chỉ mặc định cho người dùng."
             ) {
               setToast({
                 open: true,
@@ -651,8 +657,8 @@ const PaymentPage: React.FC = () => {
                 index === 0
                   ? () => navigate("/cart")
                   : index === 1
-                    ? () => navigate(`/checkout/${orderId}/shipping`)
-                    : undefined
+                  ? () => navigate(`/checkout/${orderId}/shipping`)
+                  : undefined
               }
             >
               <Box
@@ -786,9 +792,9 @@ const PaymentPage: React.FC = () => {
                         boxShadow:
                           formData.paymentMethod === method.id
                             ? `0 4px 12px ${alpha(
-                              theme.palette.primary.main,
-                              0.2
-                            )}`
+                                theme.palette.primary.main,
+                                0.2
+                              )}`
                             : "0 2px 8px rgba(0,0,0,0.05)",
                         transition: "all 0.2s ease",
                       }}
@@ -1001,7 +1007,9 @@ const PaymentPage: React.FC = () => {
                         </Typography> */}
                         <Chip
                           label={
-                            shipping === 0 ? "Miễn Phí" : `${shipping.toLocaleString()}VNĐ`
+                            shipping === 0
+                              ? "Miễn Phí"
+                              : `${shipping.toLocaleString()}VNĐ`
                           }
                           size="small"
                           color={shipping === 0 ? "success" : "default"}
@@ -1023,6 +1031,39 @@ const PaymentPage: React.FC = () => {
                 </Box>
               )}
             </MotionPaper>
+
+            {/* Terms of Service Disclaimer */}
+            <MotionBox variants={itemVariants} sx={{ mt: 3, mb: 2 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  textAlign: "center",
+                  fontSize: "0.875rem",
+                  lineHeight: 1.5,
+                }}
+              >
+                Nếu bạn chọn "Hoàn tất đơn hàng" đồng nghĩa với việc bạn đồng ý
+                với{" "}
+                <Link
+                  component="button"
+                  type="button"
+                  onClick={() => setTermsModalOpen(true)}
+                  sx={{
+                    color: theme.palette.primary.main,
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    fontWeight: 500,
+                    "&:hover": {
+                      color: theme.palette.primary.dark,
+                    },
+                  }}
+                >
+                  điều khoản dịch vụ
+                </Link>{" "}
+                của chúng tôi.
+              </Typography>
+            </MotionBox>
 
             <MotionBox
               variants={itemVariants}
@@ -1154,15 +1195,41 @@ const PaymentPage: React.FC = () => {
                           sx={{
                             display: "flex",
                             justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: 2,
+                            minHeight: "auto",
                           }}
                         >
-                          <Typography variant="body2">
-                            {item.productName}{" "}
-                            <Typography component="span" color="text.secondary">
-                              x{item.quantity}
+                          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                wordWrap: "break-word",
+                                overflowWrap: "break-word",
+                                hyphens: "auto",
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {item.productName}{" "}
+                              <Typography
+                                component="span"
+                                color="text.secondary"
+                                sx={{ whiteSpace: "nowrap" }}
+                              >
+                                x{item.quantity}
+                              </Typography>
                             </Typography>
-                          </Typography>
-                          <Typography variant="body2" fontWeight="medium">
+                          </Box>
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            sx={{
+                              flexShrink: 0,
+                              textAlign: "right",
+                              minWidth: "fit-content",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {item.unitPrice.toLocaleString()}VND
                           </Typography>
                         </Box>
@@ -1183,55 +1250,78 @@ const PaymentPage: React.FC = () => {
                   {Object.entries(selectedDevices).some(
                     ([_, quantity]) => quantity > 0
                   ) && (
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          borderRadius: 2,
-                          bgcolor: alpha(theme.palette.background.default, 0.5),
-                        }}
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        bgcolor: alpha(theme.palette.background.default, 0.5),
+                      }}
+                    >
+                      <Typography
+                        variant="subtitle2"
+                        fontWeight="bold"
+                        sx={{ mb: 2 }}
                       >
-                        <Typography
-                          variant="subtitle2"
-                          fontWeight="bold"
-                          sx={{ mb: 2 }}
-                        >
-                          Thiết bị đã chọn
-                        </Typography>
+                        Thiết bị đã chọn
+                      </Typography>
 
-                        <Stack spacing={2}>
-                          {Object.entries(selectedDevices)
-                            .filter(([_, quantity]) => quantity > 0)
-                            .map(([deviceId, quantity]) => {
-                              const device = devices.find(
-                                (d) => d.id === deviceId
-                              );
-                              return (
-                                <Box
-                                  key={deviceId}
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                  }}
-                                >
-                                  <Typography variant="body2">
+                      <Stack spacing={2}>
+                        {Object.entries(selectedDevices)
+                          .filter(([_, quantity]) => quantity > 0)
+                          .map(([deviceId, quantity]) => {
+                            const device = devices.find(
+                              (d) => d.id === deviceId
+                            );
+                            return (
+                              <Box
+                                key={deviceId}
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "flex-start",
+                                  gap: 2,
+                                  minHeight: "auto",
+                                }}
+                              >
+                                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      wordWrap: "break-word",
+                                      overflowWrap: "break-word",
+                                      hyphens: "auto",
+                                      lineHeight: 1.4,
+                                    }}
+                                  >
                                     {device?.name}{" "}
                                     <Typography
                                       component="span"
                                       color="text.secondary"
+                                      sx={{ whiteSpace: "nowrap" }}
                                     >
                                       x{quantity}
                                     </Typography>
                                   </Typography>
-                                  <Typography variant="body2" fontWeight="medium">
-                                    {(device?.price || 0) * quantity} VND
-                                  </Typography>
                                 </Box>
-                              );
-                            })}
-                        </Stack>
-                      </Paper>
-                    )}
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="medium"
+                                  sx={{
+                                    flexShrink: 0,
+                                    textAlign: "right",
+                                    minWidth: "fit-content",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {(device?.price || 0) * quantity} VND
+                                </Typography>
+                              </Box>
+                            );
+                          })}
+                      </Stack>
+                    </Paper>
+                  )}
 
                   <Divider />
 
@@ -1319,6 +1409,246 @@ const PaymentPage: React.FC = () => {
           {toast.message}
         </Alert>
       </Snackbar>
+
+      {/* Terms of Service Modal */}
+      <Dialog
+        open={termsModalOpen}
+        onClose={() => setTermsModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        scroll="paper"
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            maxHeight: "80vh",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: theme.palette.primary.main,
+            color: "white",
+            fontWeight: "bold",
+            fontSize: "1.25rem",
+          }}
+        >
+          Điều khoản dịch vụ
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3 }}>
+          <Typography
+            variant="subtitle1"
+            sx={{ mb: 3, color: "text.secondary" }}
+          >
+            Cập nhật lần cuối: {new Date().toLocaleDateString("vi-VN")}
+          </Typography>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ color: theme.palette.primary.main, fontWeight: 600 }}
+            >
+              1. Điều khoản sử dụng
+            </Typography>
+            <Typography paragraph>
+              Bằng việc truy cập và sử dụng HMES, bạn đồng ý tuân thủ và chịu
+              ràng buộc bởi các điều khoản và điều kiện này. Nếu bạn không đồng
+              ý với bất kỳ phần nào trong các điều khoản này, bạn không được
+              phép sử dụng dịch vụ của chúng tôi.
+            </Typography>
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ color: theme.palette.primary.main, fontWeight: 600 }}
+            >
+              2. Tài khoản người dùng
+            </Typography>
+            <Typography paragraph>
+              Khi bạn tạo tài khoản với chúng tôi, bạn phải cung cấp thông tin
+              chính xác, đầy đủ và cập nhật. Bạn hoàn toàn chịu trách nhiệm về
+              việc bảo mật tài khoản của mình, bao gồm mật khẩu, và cho tất cả
+              các hoạt động xảy ra dưới tài khoản của bạn.
+            </Typography>
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ color: theme.palette.primary.main, fontWeight: 600 }}
+            >
+              3. Sử dụng dịch vụ
+            </Typography>
+            <Typography paragraph>
+              Bạn đồng ý sử dụng dịch vụ chỉ cho các mục đích hợp pháp và theo
+              cách không vi phạm quyền của bất kỳ bên thứ ba nào. Bạn đồng ý
+              không sử dụng dịch vụ của chúng tôi để:
+            </Typography>
+            <Box component="ul" sx={{ pl: 3, mb: 2 }}>
+              <Box component="li" sx={{ mb: 1 }}>
+                <Typography>
+                  Vi phạm bất kỳ luật hoặc quy định hiện hành nào
+                </Typography>
+              </Box>
+              <Box component="li" sx={{ mb: 1 }}>
+                <Typography>
+                  Gửi nội dung bất hợp pháp, xúc phạm, đe dọa hoặc độc hại
+                </Typography>
+              </Box>
+              <Box component="li" sx={{ mb: 1 }}>
+                <Typography>Phân phối virus hoặc mã độc hại khác</Typography>
+              </Box>
+              <Box component="li" sx={{ mb: 1 }}>
+                <Typography>
+                  Thu thập thông tin cá nhân của người dùng khác
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ color: theme.palette.primary.main, fontWeight: 600 }}
+            >
+              4. Thanh toán và hoàn tiền
+            </Typography>
+            <Typography paragraph>
+              Khi bạn mua sản phẩm hoặc đăng ký dịch vụ, bạn đồng ý thanh toán
+              đầy đủ các khoản phí được niêm yết. Tất cả các khoản thanh toán là
+              không hoàn lại trừ khi có quy định khác trong chính sách hoàn tiền
+              của chúng tôi.
+            </Typography>
+
+            <Typography
+              variant="subtitle2"
+              sx={{ fontWeight: 600, mb: 1, color: theme.palette.primary.dark }}
+            >
+              Chính sách hoàn tiền và hủy đơn hàng:
+            </Typography>
+            <Box component="ul" sx={{ pl: 3, mb: 2 }}>
+              <Box component="li" sx={{ mb: 1 }}>
+                <Typography>
+                  Hoàn tiền cho đơn hàng bị hủy sẽ được xử lý trong vòng 7 ngày
+                  làm việc.
+                </Typography>
+              </Box>
+              <Box component="li" sx={{ mb: 1 }}>
+                <Typography>
+                  Nếu khách hàng muốn hủy đơn hàng đã thanh toán, vui lòng gửi
+                  ticket hỗ trợ đến hệ thống.
+                </Typography>
+              </Box>
+              <Box component="li" sx={{ mb: 1 }}>
+                <Typography>
+                  Hoàn tiền cho các sản phẩm trả về đã thanh toán qua PayOs sẽ
+                  chỉ được xử lý sau khi HMES đã nhận và kiểm tra hàng hóa trả
+                  về.
+                </Typography>
+              </Box>
+              <Box component="li" sx={{ mb: 1 }}>
+                <Typography>
+                  Hoàn tiền chỉ áp dụng cho giá sản phẩm. Phí vận chuyển không
+                  được hoàn lại trong bất kỳ trường hợp nào.
+                </Typography>
+              </Box>
+              <Box component="li" sx={{ mb: 1 }}>
+                <Typography>
+                  Nếu khách hàng từ chối nhận hoặc không chấp nhận đơn hàng khi
+                  giao, họ vẫn phải chịu trách nhiệm về phí vận chuyển.
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ color: theme.palette.primary.main, fontWeight: 600 }}
+            >
+              5. Bảo hành và trách nhiệm pháp lý
+            </Typography>
+            <Typography paragraph>
+              Dịch vụ của chúng tôi được cung cấp "nguyên trạng" và "có sẵn" mà
+              không có bất kỳ bảo đảm nào, rõ ràng hay ngụ ý. Trong mọi trường
+              hợp, HMES sẽ không chịu trách nhiệm về bất kỳ thiệt hại trực tiếp,
+              gián tiếp, ngẫu nhiên, đặc biệt hoặc hậu quả nào phát sinh từ việc
+              sử dụng dịch vụ của chúng tôi.
+            </Typography>
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ color: theme.palette.primary.main, fontWeight: 600 }}
+            >
+              6. Quyền sở hữu trí tuệ
+            </Typography>
+            <Typography paragraph>
+              Dịch vụ và nội dung của nó, bao gồm nhưng không giới hạn ở văn
+              bản, đồ họa, logo, biểu tượng, hình ảnh, âm thanh và phần mềm, đều
+              thuộc sở hữu của HMES hoặc các nhà cung cấp nội dung và được bảo
+              vệ bởi luật sở hữu trí tuệ.
+            </Typography>
+          </Box>
+
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ color: theme.palette.primary.main, fontWeight: 600 }}
+            >
+              7. Sửa đổi điều khoản
+            </Typography>
+            <Typography paragraph>
+              Chúng tôi có thể sửa đổi các điều khoản này theo thời gian. Chúng
+              tôi sẽ thông báo cho bạn về các thay đổi quan trọng bằng cách gửi
+              thông báo đến địa chỉ email được liên kết với tài khoản của bạn
+              hoặc bằng cách đăng thông báo nổi bật trên trang web của chúng
+              tôi.
+            </Typography>
+          </Box>
+
+          <Box>
+            <Typography
+              variant="h6"
+              gutterBottom
+              sx={{ color: theme.palette.primary.main, fontWeight: 600 }}
+            >
+              8. Luật áp dụng
+            </Typography>
+            <Typography paragraph>
+              Các điều khoản này sẽ được điều chỉnh và giải thích theo luật pháp
+              Việt Nam, mà không liên quan đến xung đột các nguyên tắc pháp
+              luật.
+            </Typography>
+          </Box>
+        </DialogContent>
+
+        <DialogActions
+          sx={{ p: 3, bgcolor: alpha(theme.palette.grey[100], 0.5) }}
+        >
+          <Button
+            onClick={() => setTermsModalOpen(false)}
+            variant="contained"
+            color="primary"
+            sx={{
+              borderRadius: 2,
+              px: 4,
+              fontWeight: "medium",
+            }}
+          >
+            Đã hiểu
+          </Button>
+        </DialogActions>
+      </Dialog>
     </MotionContainer>
   );
 };

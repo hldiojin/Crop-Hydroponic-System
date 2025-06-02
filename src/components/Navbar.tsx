@@ -60,7 +60,9 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount, onLogout }) => {
       }}
     >
       <Container maxWidth="lg">
-        <Toolbar sx={{ py: 1, display: "flex", justifyContent: "space-between" }}>
+        <Toolbar
+          sx={{ py: 1, display: "flex", justifyContent: "space-between" }}
+        >
           {/* Logo and Navigation Links Group */}
           <Box sx={{ display: "flex", alignItems: "center" }}>
             {/* Logo */}
@@ -125,7 +127,7 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount, onLogout }) => {
                   mx: 0.5,
                 }}
               >
-                Nguyên liệu
+                Sản phẩm
               </Button>
             </Box>
           </Box>
