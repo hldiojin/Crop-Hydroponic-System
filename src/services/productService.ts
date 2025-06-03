@@ -24,6 +24,29 @@ interface DetailedProductResponse {
   };
 }
 
+// Interface for search parameters
+export interface SearchParams {
+  keyword?: string;
+  categoryId?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  pageIndex?: number;
+  pageSize?: number;
+}
+
+// Interface for search response
+export interface SearchProductsResponse {
+  statusCodes: number;
+  response: {
+    data: BaseProduct[];
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    pageSize: number;
+    lastPage: boolean;
+  };
+}
+
 // Helper function để đơn giản hóa xử lý response từ API
 const mapToDomainModel = (apiProduct: BaseProduct): Product => {
   return {
@@ -63,14 +86,63 @@ export const productService = {
     }
   },
 
-  // Get products by category ID
+  // New server-side search products method with pagination
+  searchProductsServer: async (
+    params: SearchParams
+  ): Promise<SearchProductsResponse> => {
+    try {
+      const queryParams = new URLSearchParams();
+
+      if (params.keyword?.trim()) {
+        queryParams.append("keyword", params.keyword.trim());
+      }
+      if (params.categoryId) {
+        queryParams.append("categoryId", params.categoryId);
+      }
+      if (params.minPrice !== undefined) {
+        queryParams.append("minPrice", params.minPrice.toString());
+      }
+      if (params.maxPrice !== undefined) {
+        queryParams.append("maxPrice", params.maxPrice.toString());
+      }
+      if (params.pageIndex !== undefined) {
+        queryParams.append("pageIndex", params.pageIndex.toString());
+      }
+      if (params.pageSize !== undefined) {
+        queryParams.append("pageSize", params.pageSize.toString());
+      }
+
+      const response = await axios.get<SearchProductsResponse>(
+        `${API_BASE_URL}/product/search?${queryParams.toString()}`
+      );
+
+      return response.data;
+    } catch (error) {
+      console.error("Error searching products:", error);
+      // Return empty result structure on error
+      return {
+        statusCodes: 500,
+        response: {
+          data: [],
+          currentPage: 1,
+          totalPages: 0,
+          totalItems: 0,
+          pageSize: 10,
+          lastPage: true,
+        },
+      };
+    }
+  },
+
+  // Get products by category ID using the search endpoint
   getByCategory: async (categoryId: string): Promise<Product[]> => {
     try {
-      // Dựa vào API của bạn, có thể cần điều chỉnh endpoint hoặc tham số
-      const response = await axios.get<ApiResponse<BaseProduct>>(
-        `${API_BASE_URL}/product?categoryId=${categoryId}`
-      );
-      return response.data.response.data.map(mapToDomainModel);
+      const searchResult = await productService.searchProductsServer({
+        categoryId,
+        pageIndex: 1,
+        pageSize: 100, // Get more products for category filtering
+      });
+      return searchResult.response.data.map(mapToDomainModel);
     } catch (error) {
       console.error(
         `Error fetching products for category ${categoryId}:`,
@@ -80,14 +152,15 @@ export const productService = {
     }
   },
 
-  // Search products by name or ID
+  // Legacy search products by name or ID (deprecated - use searchProductsServer instead)
   searchProducts: async (searchText: string): Promise<Product[]> => {
     try {
-      // Đây là endpoint giả định, bạn cần điều chỉnh theo API thực tế
-      const response = await axios.get<ApiResponse<BaseProduct>>(
-        `${API_BASE_URL}/product?search=${encodeURIComponent(searchText)}`
-      );
-      return response.data.response.data.map(mapToDomainModel);
+      const searchResult = await productService.searchProductsServer({
+        keyword: searchText,
+        pageIndex: 1,
+        pageSize: 100, // Get more products for search
+      });
+      return searchResult.response.data.map(mapToDomainModel);
     } catch (error) {
       console.error(
         `Error searching products with term "${searchText}":`,

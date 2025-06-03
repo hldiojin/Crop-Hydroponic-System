@@ -1,6 +1,6 @@
-import axios from 'axios';
+import axios from "axios";
 
-const API_BASE_URL = 'https://api.hmes.site/api';
+const API_BASE_URL = "https://api.hmes.site/api";
 
 export interface Category {
   id: string;
@@ -27,39 +27,61 @@ export interface CategoryResponse {
 export const categoryService = {
   getAll: async (): Promise<Category[]> => {
     try {
-      const response = await axios.get<CategoryResponse>(`${API_BASE_URL}/category`);
-      return response.data.response.data;
+      const response = await axios.get<CategoryResponse>(
+        `${API_BASE_URL}/category`
+      );
+      if (response.data.statusCodes === 200) {
+        return response.data.response.data;
+      }
+      return [];
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error("Error fetching categories:", error);
       return [];
     }
   },
 
-  // Helper function to flatten category hierarchy for easier selection
+  // Get only child categories (categories that can be selected)
+  getChildCategories: async (): Promise<Category[]> => {
+    try {
+      const categories = await categoryService.getAll();
+      return extractChildCategories(categories);
+    } catch (error) {
+      console.error("Error fetching child categories:", error);
+      return [];
+    }
+  },
+
+  // Helper function to flatten category hierarchy and get only leaf categories
   getAllFlattened: async (): Promise<Category[]> => {
     try {
       const categories = await categoryService.getAll();
-      return flattenCategories(categories);
+      return extractChildCategories(categories);
     } catch (error) {
-      console.error('Error fetching flattened categories:', error);
+      console.error("Error fetching flattened categories:", error);
       return [];
     }
-  }
+  },
 };
 
-// Helper function to flatten nested categories
-const flattenCategories = (categories: Category[]): Category[] => {
-  let result: Category[] = [];
+// Helper function to extract only child categories (leaf nodes)
+const extractChildCategories = (categories: Category[]): Category[] => {
+  let childCategories: Category[] = [];
 
   for (const category of categories) {
-    result.push(category);
-
+    // If this category has children, extract them
     if (category.children && category.children.length > 0) {
-      result = [...result, ...flattenCategories(category.children)];
+      // Recursively get children from nested structure
+      childCategories = [
+        ...childCategories,
+        ...extractChildCategories(category.children),
+      ];
+    } else {
+      // This is a leaf category (no children), add it to the list
+      childCategories.push(category);
     }
   }
 
-  return result;
+  return childCategories;
 };
 
 export default categoryService;

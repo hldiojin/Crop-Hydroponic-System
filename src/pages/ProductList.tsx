@@ -25,6 +25,7 @@ import {
   Snackbar,
   Alert,
   Skeleton,
+  Pagination,
 } from "@mui/material";
 import {
   FilterList as FilterListIcon,
@@ -36,18 +37,21 @@ import ProductCard from "../components/ProductCard";
 import { Product } from "../types/types";
 import NoProductsFound from "../components/NoProductsFound";
 import categoryService, { Category } from "../services/categoryService";
-import productService from "../services/productService";
+import productService, {
+  SearchParams,
+  SearchProductsResponse,
+} from "../services/productService";
 import { motion } from "framer-motion";
 import { Zoom, Collapse } from "@mui/material";
 
 interface Props {
-  products: Product[];
+  products?: Product[];
   onAddToCart: (product: Product) => void;
   onEdit: (product: Product) => void;
 }
 
 const ProductList: React.FC<Props> = ({
-  products: initialProducts,
+  products: initialProducts = [],
   onAddToCart,
   onEdit,
 }) => {
@@ -57,8 +61,7 @@ const ProductList: React.FC<Props> = ({
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [filteredProducts, setFilteredProducts] =
-    useState<Product[]>(initialProducts);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [searchText, setSearchText] = useState<string>("");
   const [activeFilters, setActiveFilters] = useState<{
@@ -66,9 +69,124 @@ const ProductList: React.FC<Props> = ({
   }>({
     category: false,
     search: false,
+    price: false,
   });
   const [filterCount, setFilterCount] = useState<number>(0);
+
+  // New pagination and search state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [minPrice, setMinPrice] = useState<number | undefined>();
+  const [maxPrice, setMaxPrice] = useState<number | undefined>();
   const [sortOrder, setSortOrder] = useState("nameAsc");
+  const [searchResponse, setSearchResponse] =
+    useState<SearchProductsResponse | null>(null);
+
+  // Extract unique product categories from initialProducts for backward compatibility
+  const productCategories = useMemo(() => {
+    const uniqueCategories = new Map<string, { id: string; name: string }>();
+
+    // Use filteredProducts from server search instead of initialProducts
+    filteredProducts.forEach((product) => {
+      if (product.categoryId && !uniqueCategories.has(product.categoryId)) {
+        uniqueCategories.set(product.categoryId, {
+          id: product.categoryId,
+          name: product.categoryName || "Unknown",
+        });
+      }
+    });
+
+    return Array.from(uniqueCategories.values());
+  }, [filteredProducts]); // Changed dependency from initialProducts to filteredProducts
+
+  // Update filter count when active filters change
+  useEffect(() => {
+    let count = 0;
+    if (activeFilters.category) count++;
+    if (activeFilters.search) count++;
+    if (activeFilters.price) count++;
+    setFilterCount(count);
+  }, [activeFilters]);
+
+  // Load categories on component mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      setCategoriesLoading(true);
+      try {
+        const fetchedCategories = await categoryService.getChildCategories();
+        setCategories(fetchedCategories);
+      } catch (error) {
+        console.error("Error loading categories:", error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
+  // Server-side search function
+  const performServerSearch = async (params: SearchParams = {}) => {
+    setProductsLoading(true);
+    try {
+      const searchParams: SearchParams = {
+        pageIndex: currentPage,
+        pageSize,
+        ...params,
+      };
+
+      // Add filters
+      if (selectedCategory && selectedCategory !== "all") {
+        searchParams.categoryId = selectedCategory;
+      }
+      if (searchText.trim()) {
+        searchParams.keyword = searchText.trim();
+      }
+      if (minPrice !== undefined) {
+        searchParams.minPrice = minPrice;
+      }
+      if (maxPrice !== undefined) {
+        searchParams.maxPrice = maxPrice;
+      }
+
+      const response = await productService.searchProductsServer(searchParams);
+
+      if (response.statusCodes === 200) {
+        setSearchResponse(response);
+        setFilteredProducts(
+          response.response.data.map((product) => ({ ...product }))
+        );
+        setCurrentPage(response.response.currentPage);
+        setTotalPages(response.response.totalPages);
+        setTotalItems(response.response.totalItems);
+
+        // Update active filters
+        setActiveFilters({
+          category: Boolean(selectedCategory && selectedCategory !== "all"),
+          search: Boolean(searchText.trim()),
+          price: Boolean(minPrice !== undefined || maxPrice !== undefined),
+        });
+      } else {
+        setFilteredProducts([]);
+        setTotalPages(1);
+        setTotalItems(0);
+      }
+    } catch (error) {
+      console.error("Error performing server search:", error);
+      setFilteredProducts([]);
+      setTotalPages(1);
+      setTotalItems(0);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  // Initial load with server search
+  useEffect(() => {
+    performServerSearch();
+  }, [currentPage, pageSize]);
 
   const handleSortChange = (event: SelectChangeEvent) => {
     const value = event.target.value;
@@ -92,227 +210,109 @@ const ProductList: React.FC<Props> = ({
     setFilteredProducts(sorted);
   };
 
-  // Extract unique product categories from initialProducts
-  const productCategories = useMemo(() => {
-    const uniqueCategories = new Map<string, { id: string; name: string }>();
-
-    initialProducts.forEach((product) => {
-      if (product.categoryId && !uniqueCategories.has(product.categoryId)) {
-        uniqueCategories.set(product.categoryId, {
-          id: product.categoryId,
-          name: product.categoryName || "Unknown",
-        });
-      }
-    });
-
-    return Array.from(uniqueCategories.values());
-  }, [initialProducts]);
-
-  // Update filter count when active filters change
-  useEffect(() => {
-    let count = 0;
-    if (activeFilters.category) count++;
-    if (activeFilters.search) count++;
-    setFilterCount(count);
-  }, [activeFilters]);
-
-  // Fetch categories when component mounts
-  useEffect(() => {
-    const fetchCategories = async () => {
-      setCategoriesLoading(true);
-      try {
-        const fetchedCategories = await categoryService.getAllFlattened();
-        setCategories(fetchedCategories);
-      } catch (error) {
-        console.error("Failed to fetch categories:", error);
-      } finally {
-        setCategoriesLoading(false);
-      }
-    };
-
-    fetchCategories();
-  }, []);
-
-  // Set initial products
-  useEffect(() => {
-    setFilteredProducts(initialProducts);
-  }, [initialProducts]);
-
-  // Hàm áp dụng tất cả bộ lọc
-  const applyAllFilters = async () => {
-    setProductsLoading(true);
-
-    try {
-      let result = initialProducts;
-
-      // Bước 1: Áp dụng bộ lọc danh mục nếu có
-      if (activeFilters.category && selectedCategory !== "all") {
-        // Filter locally first by categoryId
-        result = result.filter(
-          (product) => product.categoryId === selectedCategory
-        );
-
-        // If no results, try API
-        if (result.length === 0) {
-          result = await productService.getByCategory(selectedCategory);
-        }
-      }
-
-      // Bước 2: Áp dụng bộ lọc tìm kiếm nếu có
-      if (activeFilters.search && searchText.trim() !== "") {
-        // Luôn tìm kiếm local trước
-        result = productService.searchProductsLocally(result, searchText);
-
-        // Nếu không có kết quả và đang không lọc bằng danh mục, thử tìm kiếm từ API
-        if (
-          result.length === 0 &&
-          (!activeFilters.category || selectedCategory === "all")
-        ) {
-          result = await productService.searchProducts(searchText);
-        }
-      }
-
-      setFilteredProducts(result);
-    } catch (error) {
-      console.error("Error applying filters:", error);
-      // Reset về ban đầu nếu có lỗi
-      setFilteredProducts(initialProducts);
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
-  // Xử lý thay đổi danh mục - cập nhật và áp dụng ngay lập tức
-  const handleCategoryChange = async (event: SelectChangeEvent<string>) => {
-    const categoryId = event.target.value;
-    setSelectedCategory(categoryId);
-    setActiveFilters((prev) => ({ ...prev, category: categoryId !== "all" }));
-
-    // Áp dụng filter ngay lập tức
-    setProductsLoading(true);
-    try {
-      if (categoryId === "all") {
-        // Nếu chọn "All", chỉ áp dụng filter search nếu có
-        if (activeFilters.search && searchText.trim() !== "") {
-          let result = productService.searchProductsLocally(
-            initialProducts,
-            searchText
-          );
-          if (result.length === 0) {
-            result = await productService.searchProducts(searchText);
-          }
-          setFilteredProducts(result);
-        } else {
-          setFilteredProducts(initialProducts);
-        }
-      } else {
-        // Filter bằng categoryId
-        let result = initialProducts.filter(
-          (product) => product.categoryId === categoryId
-        );
-
-        // Nếu không có kết quả, thử API
-        if (result.length === 0) {
-          result = await productService.getByCategory(categoryId);
-        }
-
-        // Áp dụng thêm filter search nếu có
-        if (activeFilters.search && searchText.trim() !== "") {
-          result = productService.searchProductsLocally(result, searchText);
-        }
-
-        setFilteredProducts(result);
-      }
-    } catch (error) {
-      console.error("Error filtering by category:", error);
-      setFilteredProducts(initialProducts);
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
-  // Xử lý thay đổi thanh tìm kiếm
+  // Handle search text change
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(event.target.value);
   };
 
-  // Xử lý nút tìm kiếm
+  // Handle search button click
   const handleSearch = () => {
-    const hasSearchText = searchText.trim() !== "";
-    setActiveFilters((prev) => ({ ...prev, search: hasSearchText }));
-
-    // Áp dụng tất cả bộ lọc
-    if (hasSearchText || activeFilters.category) {
-      applyAllFilters();
-    } else {
-      setFilteredProducts(initialProducts);
-    }
+    setCurrentPage(1); // Reset to first page
+    performServerSearch();
   };
 
-  // Xử lý phím Enter trong ô tìm kiếm
+  // Handle enter key press in search field
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.key === "Enter") {
       handleSearch();
     }
   };
 
-  // Xóa tất cả bộ lọc
+  // Handle category change
+  const handleCategoryChange = async (event: SelectChangeEvent<string>) => {
+    const categoryId = event.target.value;
+    setSelectedCategory(categoryId);
+    setCurrentPage(1); // Reset to first page
+
+    // Perform search with new category
+    await performServerSearch({
+      categoryId: categoryId !== "all" ? categoryId : undefined,
+    });
+  };
+
+  // Handle page change
+  const handlePageChange = (
+    event: React.ChangeEvent<unknown>,
+    page: number
+  ) => {
+    setCurrentPage(page);
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (event: SelectChangeEvent<number>) => {
+    const newPageSize = Number(event.target.value);
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page
+  };
+
+  // Handle price filter change
+  const handlePriceFilterChange = () => {
+    setCurrentPage(1); // Reset to first page
+    performServerSearch();
+  };
+
+  // Clear all filters
   const clearAllFilters = () => {
     setSelectedCategory("all");
     setSearchText("");
+    setMinPrice(undefined);
+    setMaxPrice(undefined);
+    setCurrentPage(1);
     setActiveFilters({
       category: false,
       search: false,
+      price: false,
     });
-    setFilteredProducts(initialProducts);
+
+    // Perform search with cleared filters
+    performServerSearch({});
   };
 
-  // Xóa bộ lọc danh mục
+  // Clear category filter
   const clearCategoryFilter = () => {
     setSelectedCategory("all");
-    setActiveFilters((prev) => ({ ...prev, category: false }));
-
-    // Áp dụng lại chỉ filter search nếu có
-    if (activeFilters.search && searchText.trim() !== "") {
-      setTimeout(() => applyAllFilters(), 0);
-    } else {
-      setFilteredProducts(initialProducts);
-    }
+    setCurrentPage(1);
+    performServerSearch({ categoryId: undefined });
   };
 
-  // Xóa bộ lọc tìm kiếm
+  // Clear search filter
   const clearSearchFilter = () => {
     setSearchText("");
-    setActiveFilters((prev) => ({ ...prev, search: false }));
+    setCurrentPage(1);
+    performServerSearch({ keyword: undefined });
+  };
 
-    // Áp dụng lại chỉ filter category nếu có
-    if (activeFilters.category && selectedCategory !== "all") {
-      setTimeout(() => {
-        setProductsLoading(true);
-        const result = initialProducts.filter(
-          (product) => product.categoryId === selectedCategory
-        );
-        setFilteredProducts(result);
-        setProductsLoading(false);
-      }, 0);
-    } else {
-      setFilteredProducts(initialProducts);
-    }
+  // Clear price filter
+  const clearPriceFilter = () => {
+    setMinPrice(undefined);
+    setMaxPrice(undefined);
+    setCurrentPage(1);
+    performServerSearch({ minPrice: undefined, maxPrice: undefined });
   };
 
   // Get the selected category name for display in the filter chip
   const getSelectedCategoryName = () => {
     if (selectedCategory === "all") return "All";
 
-    // First check in product categories
+    // Find in categories from API
+    const category = categories.find((cat) => cat.id === selectedCategory);
+    if (category) return category.name;
+
+    // Fallback to product categories for backward compatibility
     const productCategory = productCategories.find(
       (cat) => cat.id === selectedCategory
     );
-    if (productCategory) return productCategory.name;
-
-    // Fallback to categories from API
-    const category = categories.find((cat) => cat.id === selectedCategory);
-    return category?.name || selectedCategory;
+    return productCategory?.name || selectedCategory;
   };
 
   return (
@@ -393,7 +393,7 @@ const ProductList: React.FC<Props> = ({
               Products
             </Typography>
             <Chip
-              label={`${filteredProducts.length} product(s) found`}
+              label={`${totalItems} product(s) found`}
               color="default"
               variant="outlined"
               size="small"
@@ -421,7 +421,7 @@ const ProductList: React.FC<Props> = ({
 
         <Grid container spacing={2} alignItems="flex-start">
           {/* Category Filter */}
-          <Grid item xs={12} sm={6} md={5} lg={5}>
+          <Grid item xs={12} sm={6} md={3} lg={3}>
             <FormControl fullWidth>
               <InputLabel id="category-filter-label">
                 Filter by Category
@@ -454,7 +454,7 @@ const ProductList: React.FC<Props> = ({
                 }}
               >
                 <MenuItem value="all">Tất cả danh mục</MenuItem>
-                {productCategories.map((category) => (
+                {categories.map((category) => (
                   <MenuItem key={category.id} value={category.id}>
                     {category.name}
                   </MenuItem>
@@ -464,7 +464,7 @@ const ProductList: React.FC<Props> = ({
           </Grid>
 
           {/* Search Filter */}
-          <Grid item xs={12} sm={6} md={5} lg={5}>
+          <Grid item xs={12} sm={6} md={3} lg={3}>
             <TextField
               fullWidth
               label="Search by ID or Name"
@@ -510,13 +510,49 @@ const ProductList: React.FC<Props> = ({
             />
           </Grid>
 
+          {/* Price Filter */}
+          <Grid item xs={12} sm={6} md={3} lg={3}>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                label="Min Price"
+                type="number"
+                size="small"
+                value={minPrice || ""}
+                onChange={(e) =>
+                  setMinPrice(
+                    e.target.value ? Number(e.target.value) : undefined
+                  )
+                }
+                InputProps={{
+                  inputProps: { min: 0 },
+                }}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                label="Max Price"
+                type="number"
+                size="small"
+                value={maxPrice || ""}
+                onChange={(e) =>
+                  setMaxPrice(
+                    e.target.value ? Number(e.target.value) : undefined
+                  )
+                }
+                InputProps={{
+                  inputProps: { min: 0 },
+                }}
+                sx={{ flex: 1 }}
+              />
+            </Box>
+          </Grid>
+
           {/* Search Button - now stacks properly on smaller screens */}
           <Grid
             item
             xs={12}
-            sm={12}
-            md={2}
-            lg={2}
+            sm={6}
+            md={3}
+            lg={3}
             sx={{
               display: "flex",
               alignItems: { xs: "stretch", md: "center" },
@@ -527,7 +563,7 @@ const ProductList: React.FC<Props> = ({
               fullWidth
               variant="contained"
               onClick={handleSearch}
-              disabled={categoriesLoading || searchText.trim() === ""}
+              disabled={categoriesLoading}
               startIcon={<SearchIcon />}
               sx={{
                 height: { xs: "48px", md: "56px" },
@@ -542,7 +578,9 @@ const ProductList: React.FC<Props> = ({
           </Grid>
         </Grid>
         {/* Active Filters Display */}
-        {(activeFilters.category || activeFilters.search) && (
+        {(activeFilters.category ||
+          activeFilters.search ||
+          activeFilters.price) && (
           <Collapse in={true} timeout={300}>
             <Box
               sx={{
@@ -614,24 +652,86 @@ const ProductList: React.FC<Props> = ({
                 />
               )}
 
+              {activeFilters.price && (
+                <Chip
+                  label={`Price: ${minPrice || 0} - ${maxPrice || "∞"} VND`}
+                  onDelete={clearPriceFilter}
+                  color="info"
+                  size="small"
+                  sx={{
+                    fontWeight: 500,
+                    "& .MuiChip-deleteIcon": {
+                      color: theme.palette.info.main,
+                    },
+                    "&:hover": {
+                      boxShadow: `0 0 0 2px ${alpha(
+                        theme.palette.info.main,
+                        0.2
+                      )}`,
+                    },
+                    transition: "all 0.2s",
+                  }}
+                />
+              )}
+
               <Button
-                size="small"
                 variant="text"
+                size="small"
                 onClick={clearAllFilters}
+                startIcon={<ClearIcon />}
                 sx={{
                   ml: "auto",
+                  color: theme.palette.text.secondary,
                   "&:hover": {
-                    backgroundColor: alpha(theme.palette.error.main, 0.1),
+                    bgcolor: alpha(theme.palette.error.main, 0.1),
                     color: theme.palette.error.main,
                   },
                 }}
-                startIcon={<ClearIcon fontSize="small" />}
               >
                 Clear All
               </Button>
             </Box>
           </Collapse>
         )}
+
+        {/* Pagination and Page Size Controls */}
+        <Box
+          sx={{
+            mt: 2,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Show:
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 80 }}>
+              <Select
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                displayEmpty
+              >
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={20}>20</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+              </Select>
+            </FormControl>
+            <Typography variant="body2" color="text.secondary">
+              products per page
+            </Typography>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary">
+            Showing{" "}
+            {filteredProducts.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}{" "}
+            to {Math.min(currentPage * pageSize, totalItems)} of {totalItems}{" "}
+            products
+          </Typography>
+        </Box>
       </Paper>
 
       {/* Results Section */}
@@ -700,11 +800,11 @@ const ProductList: React.FC<Props> = ({
                   Products
                 </Typography>
                 <Chip
-                  label={`${filteredProducts.length} product(s) found`}
+                  label={`${totalItems} product(s) found`}
                   color="default"
                   variant="outlined"
                   size="small"
-                  sx={{ fontWeight: 500 }}
+                  sx={{ fontWeight: 500, ml: 2 }}
                 />
               </Box>
               <Grid container spacing={3}>
@@ -731,6 +831,29 @@ const ProductList: React.FC<Props> = ({
                   </Zoom>
                 ))}
               </Grid>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    mt: 4,
+                    pt: 2,
+                    borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  }}
+                >
+                  <Pagination
+                    count={totalPages}
+                    page={currentPage}
+                    onChange={handlePageChange}
+                    color="primary"
+                    size="large"
+                    showFirstButton
+                    showLastButton
+                  />
+                </Box>
+              )}
             </div>
           </Fade>
         ) : (

@@ -32,6 +32,7 @@ import {
   DialogContent,
   DialogActions,
   Stack,
+  Pagination,
 } from "@mui/material";
 import {
   ShoppingCart,
@@ -51,7 +52,11 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { deviceService, Device } from "../services/deviceService";
 import { Product } from "../types/types";
-import productService from "../services/productService";
+import productService, {
+  SearchParams,
+  SearchProductsResponse,
+} from "../services/productService";
+import categoryService, { Category } from "../services/categoryService";
 import parse from "html-react-parser";
 
 import {
@@ -349,6 +354,7 @@ const DeviceSelectionPage: React.FC = () => {
 
   const [devices, setDevices] = useState<Device[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<Device[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<
     Record<string, boolean>
@@ -356,6 +362,7 @@ const DeviceSelectionPage: React.FC = () => {
   const [expandedDevice, setExpandedDevice] = useState<string[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [deviceQuantities, setDeviceQuantities] = useState<
     Record<string, number>
   >({});
@@ -363,7 +370,6 @@ const DeviceSelectionPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [showAllProducts, setShowAllProducts] = useState<boolean>(false);
   const [sortOrder, setSortOrder] = useState<string>("nameAsc");
   const [openProductDetails, setOpenProductDetails] = useState<boolean>(false);
   const [selectedProductDetails, setSelectedProductDetails] =
@@ -372,11 +378,21 @@ const DeviceSelectionPage: React.FC = () => {
     useState<boolean>(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
 
-  // Extract unique product categories from products (same logic as ProductList)
+  // New server-side search state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [minPrice, setMinPrice] = useState<number | undefined>();
+  const [maxPrice, setMaxPrice] = useState<number | undefined>();
+  const [searchResponse, setSearchResponse] =
+    useState<SearchProductsResponse | null>(null);
+
+  // Extract unique product categories from search results
   const productCategories = useMemo(() => {
     const uniqueCategories = new Map<string, { id: string; name: string }>();
 
-    products.forEach((product) => {
+    filteredProducts.forEach((product) => {
       if (product.categoryId && !uniqueCategories.has(product.categoryId)) {
         uniqueCategories.set(product.categoryId, {
           id: product.categoryId,
@@ -386,7 +402,7 @@ const DeviceSelectionPage: React.FC = () => {
     });
 
     return Array.from(uniqueCategories.values());
-  }, [products]);
+  }, [filteredProducts]);
 
   // Fetch devices on component mount
   useEffect(() => {
@@ -408,36 +424,145 @@ const DeviceSelectionPage: React.FC = () => {
         setLoadingDevices(false);
       }
     };
+
+    const fetchCategories = async () => {
+      setLoadingCategories(true);
+      try {
+        const fetchedCategories = await categoryService.getChildCategories();
+        setCategories(fetchedCategories);
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
     localStorage.removeItem("backLocation"); // Clear current order ID on page load
     fetchDevices();
+    fetchCategories();
   }, []);
 
   // Fetch products when a device is selected
   useEffect(() => {
-    if (selectedDevice) {
-      const fetchProducts = async () => {
-        setLoadingProducts(true);
-        try {
-          // In a real app, you might want to fetch products related to the selected device
-          // For now, we'll just fetch all products
-          const fetchedProducts = await productService.getAll();
-          setProducts(fetchedProducts);
-          fetchedProducts.forEach((product: Product) => {
-            setQuantities((prev) => ({
-              ...prev,
-              [product.id]: 1, // Initialize quantity for each product
-            }));
-          });
-        } catch (error) {
-          console.error("Failed to fetch products:", error);
-        } finally {
-          setLoadingProducts(false);
-        }
-      };
-
-      fetchProducts();
+    if (selectedDevice.length > 0) {
+      performProductSearch();
     }
   }, [selectedDevice]);
+
+  // Server-side product search function
+  const performProductSearch = async (params: SearchParams = {}) => {
+    setLoadingProducts(true);
+    try {
+      const searchParams: SearchParams = {
+        pageIndex: currentPage,
+        pageSize,
+        ...params,
+      };
+
+      // Add filters - use passed params first, then fall back to current state
+      const effectiveCategoryId =
+        "categoryId" in params ? params.categoryId : selectedCategory;
+      const effectiveKeyword =
+        "keyword" in params ? params.keyword : searchQuery.trim();
+      const effectiveMinPrice =
+        "minPrice" in params ? params.minPrice : minPrice;
+      const effectiveMaxPrice =
+        "maxPrice" in params ? params.maxPrice : maxPrice;
+
+      if (effectiveCategoryId) {
+        searchParams.categoryId = effectiveCategoryId;
+      }
+      if (effectiveKeyword) {
+        searchParams.keyword = effectiveKeyword;
+      }
+      if (effectiveMinPrice !== undefined) {
+        searchParams.minPrice = effectiveMinPrice;
+      }
+      if (effectiveMaxPrice !== undefined) {
+        searchParams.maxPrice = effectiveMaxPrice;
+      }
+
+      const response = await productService.searchProductsServer(searchParams);
+
+      if (response.statusCodes === 200) {
+        setSearchResponse(response);
+        const products = response.response.data.map((product) => ({
+          ...product,
+        }));
+        setFilteredProducts(products);
+        setProducts(products); // Keep for compatibility
+        setCurrentPage(response.response.currentPage);
+        setTotalPages(response.response.totalPages);
+        setTotalItems(response.response.totalItems);
+
+        // Initialize quantities for new products
+        products.forEach((product: Product) => {
+          setQuantities((prev) => ({
+            ...prev,
+            [product.id]: prev[product.id] || 1, // Keep existing or set to 1
+          }));
+        });
+      } else {
+        setFilteredProducts([]);
+        setProducts([]);
+        setTotalPages(1);
+        setTotalItems(0);
+      }
+    } catch (error) {
+      console.error("Error performing product search:", error);
+      setFilteredProducts([]);
+      setProducts([]);
+      setTotalPages(1);
+      setTotalItems(0);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  // Handle page change
+  const handlePageChange = (
+    event: React.ChangeEvent<unknown>,
+    page: number
+  ) => {
+    setCurrentPage(page);
+  };
+
+  // Initial product load with server search when page or pageSize changes
+  useEffect(() => {
+    if (selectedDevice.length > 0) {
+      performProductSearch();
+    }
+  }, [currentPage, pageSize]);
+
+  // Handle search and filter changes
+  const handleSearchQueryChange = (value: string) => {
+    setSearchQuery(value);
+  };
+
+  const handleCategoryFilterChange = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    setCurrentPage(1); // Reset to first page
+    performProductSearch({ categoryId: categoryId || undefined });
+  };
+
+  const handleSearchClick = () => {
+    setCurrentPage(1); // Reset to first page
+    performProductSearch();
+  };
+
+  const clearAllProductFilters = () => {
+    setSelectedCategory("");
+    setSearchQuery("");
+    setMinPrice(undefined);
+    setMaxPrice(undefined);
+    setCurrentPage(1);
+    performProductSearch({
+      categoryId: undefined,
+      keyword: undefined,
+      minPrice: undefined,
+      maxPrice: undefined,
+    });
+  };
 
   const handleDeviceQuantityChange = (deviceId: string, change: number) => {
     setDeviceQuantities((prev) => {
@@ -524,56 +649,6 @@ const DeviceSelectionPage: React.FC = () => {
     localStorage.setItem("currentOrderId", orderResponse.response.data);
     navigate(`/checkout/${orderResponse.response.data}/shipping`);
   };
-
-  // Filter products
-  useEffect(() => {
-    const filterProducts = () => {
-      let filtered = products;
-
-      if (selectedCategory) {
-        filtered = filtered.filter(
-          (product) => product.categoryId === selectedCategory
-        );
-      }
-
-      if (searchQuery) {
-        filtered = filtered.filter(
-          (product) =>
-            product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (product.description &&
-              product.description
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase())) ||
-            product.id.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-      }
-
-      // Apply sorting
-      filtered = [...filtered].sort((a, b) => {
-        switch (sortOrder) {
-          case "nameAsc":
-            return a.name.localeCompare(b.name);
-          case "nameDesc":
-            return b.name.localeCompare(a.name);
-          case "priceAsc":
-            return (a.price || 0) - (b.price || 0);
-          case "priceDesc":
-            return (b.price || 0) - (a.price || 0);
-          default:
-            return 0;
-        }
-      });
-
-      setFilteredProducts(filtered);
-    };
-
-    filterProducts();
-  }, [products, selectedCategory, searchQuery, sortOrder]);
-
-  // Initialize filteredProducts when products load
-  useEffect(() => {
-    setFilteredProducts(products);
-  }, [products]);
 
   const handleProductDetails = async (
     product: Product,
@@ -1009,7 +1084,7 @@ const DeviceSelectionPage: React.FC = () => {
                         Tìm kiếm và lọc sản phẩm
                       </Typography>
                       <Chip
-                        label={`${filteredProducts.length} sản phẩm`}
+                        label={`${totalItems} sản phẩm`}
                         color="primary"
                         variant="outlined"
                         size="small"
@@ -1019,13 +1094,13 @@ const DeviceSelectionPage: React.FC = () => {
 
                     <Grid container spacing={2} alignItems="center">
                       {/* Category Filter */}
-                      <Grid item xs={12} sm={6} md={4}>
+                      <Grid item xs={12} sm={6} md={3}>
                         <FormControl fullWidth size="small">
                           <InputLabel>Lọc theo danh mục</InputLabel>
                           <Select
                             value={selectedCategory}
                             onChange={(e) =>
-                              setSelectedCategory(e.target.value)
+                              handleCategoryFilterChange(e.target.value)
                             }
                             label="Lọc theo danh mục"
                             startAdornment={
@@ -1033,9 +1108,10 @@ const DeviceSelectionPage: React.FC = () => {
                                 <CategoryIcon color="action" />
                               </InputAdornment>
                             }
+                            disabled={loadingCategories}
                           >
                             <MenuItem value="">Tất cả danh mục</MenuItem>
-                            {productCategories.map((category) => (
+                            {categories.map((category) => (
                               <MenuItem key={category.id} value={category.id}>
                                 {category.name}
                               </MenuItem>
@@ -1045,14 +1121,21 @@ const DeviceSelectionPage: React.FC = () => {
                       </Grid>
 
                       {/* Search Bar */}
-                      <Grid item xs={12} sm={6} md={4}>
+                      <Grid item xs={12} sm={6} md={3}>
                         <TextField
                           fullWidth
                           size="small"
                           label="Tìm kiếm theo tên, mô tả hoặc ID"
                           value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onChange={(e) =>
+                            handleSearchQueryChange(e.target.value)
+                          }
                           placeholder="Nhập từ khóa tìm kiếm..."
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                              handleSearchClick();
+                            }
+                          }}
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
@@ -1063,7 +1146,10 @@ const DeviceSelectionPage: React.FC = () => {
                               <InputAdornment position="end">
                                 <IconButton
                                   size="small"
-                                  onClick={() => setSearchQuery("")}
+                                  onClick={() => {
+                                    handleSearchQueryChange("");
+                                    handleSearchClick();
+                                  }}
                                 >
                                   <ClearIcon fontSize="small" />
                                 </IconButton>
@@ -1073,40 +1159,72 @@ const DeviceSelectionPage: React.FC = () => {
                         />
                       </Grid>
 
-                      {/* Sort Dropdown */}
-                      <Grid item xs={12} sm={12} md={4}>
-                        <FormControl fullWidth size="small">
-                          <InputLabel>Sắp xếp theo</InputLabel>
-                          <Select
-                            value={sortOrder}
-                            onChange={(e) => setSortOrder(e.target.value)}
-                            label="Sắp xếp theo"
-                          >
-                            <MenuItem value="nameAsc">Tên (A-Z)</MenuItem>
-                            <MenuItem value="nameDesc">Tên (Z-A)</MenuItem>
-                            <MenuItem value="priceAsc">
-                              Giá (Thấp - Cao)
-                            </MenuItem>
-                            <MenuItem value="priceDesc">
-                              Giá (Cao - Thấp)
-                            </MenuItem>
-                          </Select>
-                        </FormControl>
+                      {/* Price Filter */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <Box sx={{ display: "flex", gap: 1 }}>
+                          <TextField
+                            label="Giá tối thiểu"
+                            type="number"
+                            size="small"
+                            value={minPrice || ""}
+                            onChange={(e) =>
+                              setMinPrice(
+                                e.target.value
+                                  ? Number(e.target.value)
+                                  : undefined
+                              )
+                            }
+                            InputProps={{
+                              inputProps: { min: 0 },
+                            }}
+                            sx={{ flex: 1 }}
+                          />
+                          <TextField
+                            label="Giá tối đa"
+                            type="number"
+                            size="small"
+                            value={maxPrice || ""}
+                            onChange={(e) =>
+                              setMaxPrice(
+                                e.target.value
+                                  ? Number(e.target.value)
+                                  : undefined
+                              )
+                            }
+                            InputProps={{
+                              inputProps: { min: 0 },
+                            }}
+                            sx={{ flex: 1 }}
+                          />
+                        </Box>
+                      </Grid>
+
+                      {/* Search Button */}
+                      <Grid item xs={12} sm={6} md={3}>
+                        <Button
+                          fullWidth
+                          variant="contained"
+                          onClick={handleSearchClick}
+                          startIcon={<SearchIcon />}
+                          size="small"
+                          sx={{
+                            height: "40px",
+                          }}
+                        >
+                          Tìm kiếm
+                        </Button>
                       </Grid>
                     </Grid>
 
                     {/* Clear Filters */}
                     {(selectedCategory ||
                       searchQuery ||
-                      sortOrder !== "nameAsc") && (
+                      minPrice !== undefined ||
+                      maxPrice !== undefined) && (
                       <Box sx={{ mt: 2 }}>
                         <Button
                           size="small"
-                          onClick={() => {
-                            setSelectedCategory("");
-                            setSearchQuery("");
-                            setSortOrder("nameAsc");
-                          }}
+                          onClick={clearAllProductFilters}
                           startIcon={<ClearIcon />}
                         >
                           Đặt lại tất cả bộ lọc
@@ -1430,10 +1548,7 @@ const DeviceSelectionPage: React.FC = () => {
                     </Paper>
                   ) : (
                     <Grid container spacing={3} sx={{ mt: 0.5 }}>
-                      {(showAllProducts
-                        ? filteredProducts
-                        : filteredProducts.slice(0, 8)
-                      ).map((product, index) => (
+                      {filteredProducts.map((product, index) => (
                         <Grid
                           item
                           key={product.id}
@@ -1711,8 +1826,8 @@ const DeviceSelectionPage: React.FC = () => {
                     </Grid>
                   )}
 
-                  {/* Show More/Show Less Button */}
-                  {filteredProducts.length > 8 && (
+                  {/* Pagination */}
+                  {totalPages > 1 && (
                     <Box
                       sx={{
                         display: "flex",
@@ -1725,22 +1840,32 @@ const DeviceSelectionPage: React.FC = () => {
                         )}`,
                       }}
                     >
-                      <Button
-                        variant="outlined"
+                      <Pagination
+                        count={totalPages}
+                        page={currentPage}
+                        onChange={handlePageChange}
                         color="primary"
-                        onClick={() => setShowAllProducts(!showAllProducts)}
-                        sx={{
-                          px: 4,
-                          py: 1,
-                          borderRadius: 2,
-                          fontWeight: 500,
-                          textTransform: "none",
-                        }}
-                      >
-                        {showAllProducts
-                          ? `Ẩn bớt sản phẩm`
-                          : `Xem thêm ${filteredProducts.length - 8} sản phẩm`}
-                      </Button>
+                        size="medium"
+                        showFirstButton
+                        showLastButton
+                      />
+                    </Box>
+                  )}
+
+                  {/* Page Info */}
+                  {totalItems > 0 && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        mt: 2,
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        Hiển thị {(currentPage - 1) * pageSize + 1} đến{" "}
+                        {Math.min(currentPage * pageSize, totalItems)} trong
+                        tổng số {totalItems} sản phẩm
+                      </Typography>
                     </Box>
                   )}
                 </Box>
