@@ -116,7 +116,7 @@ const Navbar: React.FC<NavbarProps> = ({ cartItemsCount, onLogout }) => {
               </Button>
               <Button
                 component={Link}
-                to="/nutrients"
+                to="/products"
                 sx={{
                   color: "#2e7d32",
                   px: 2,

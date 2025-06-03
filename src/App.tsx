@@ -409,7 +409,7 @@ const MainContent: React.FC<{
         <Route path="/checkout/confirmation" element={<OrderConfirmation />} />
 
         <Route
-          path="/nutrients"
+          path="/products"
           element={
             <NutrientsPage
               onAddToCart={handleAddToCart}
