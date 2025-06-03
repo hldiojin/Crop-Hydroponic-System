@@ -27,6 +27,7 @@ import {
   Skeleton,
   Snackbar,
   Alert,
+  Pagination,
 } from "@mui/material";
 import {
   Science,
@@ -37,7 +38,10 @@ import {
 } from "@mui/icons-material";
 import ProductCard from "../components/ProductCard";
 import { Product } from "../types/types";
-import productService from "../services/productService";
+import productService, {
+  SearchParams,
+  SearchProductsResponse,
+} from "../services/productService";
 import NoProductsFound from "../components/NoProductsFound";
 import categoryService, { Category } from "../services/categoryService";
 
@@ -46,16 +50,13 @@ interface Props {
   onEdit: (product: Product) => void;
 }
 
-const NutrientsPage: React.FC<Props> = ({
-  onAddToCart,
-  onEdit,
-}) => {
+const NutrientsPage: React.FC<Props> = ({ onAddToCart, onEdit }) => {
   const theme = useTheme();
   const [nutrients, setNutrients] = useState<Product[]>([]);
   const [filteredNutrients, setFilteredNutrients] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -66,16 +67,27 @@ const NutrientsPage: React.FC<Props> = ({
   }>({
     category: false,
     search: false,
+    price: false,
   });
   const [filterCount, setFilterCount] = useState<number>(0);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // Extract unique product categories
+  // New pagination and search state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [minPrice, setMinPrice] = useState<number | undefined>();
+  const [maxPrice, setMaxPrice] = useState<number | undefined>();
+  const [searchResponse, setSearchResponse] =
+    useState<SearchProductsResponse | null>(null);
+
+  // Extract unique product categories from server results
   const nutrientCategories = useMemo(() => {
     const uniqueCategories = new Map<string, { id: string; name: string }>();
 
-    nutrients.forEach((product) => {
+    filteredNutrients.forEach((product) => {
       if (product.categoryId && !uniqueCategories.has(product.categoryId)) {
         uniqueCategories.set(product.categoryId, {
           id: product.categoryId,
@@ -85,13 +97,14 @@ const NutrientsPage: React.FC<Props> = ({
     });
 
     return Array.from(uniqueCategories.values());
-  }, [nutrients]);
+  }, [filteredNutrients]);
 
   // Update filter count when active filters change
   useEffect(() => {
     let count = 0;
     if (activeFilters.category) count++;
     if (activeFilters.search) count++;
+    if (activeFilters.price) count++;
     setFilterCount(count);
   }, [activeFilters]);
 
@@ -100,7 +113,7 @@ const NutrientsPage: React.FC<Props> = ({
     const fetchCategories = async () => {
       setCategoriesLoading(true);
       try {
-        const fetchedCategories = await categoryService.getAllFlattened();
+        const fetchedCategories = await categoryService.getChildCategories();
         setCategories(fetchedCategories);
       } catch (error) {
         console.error("Failed to fetch categories:", error);
@@ -112,24 +125,79 @@ const NutrientsPage: React.FC<Props> = ({
     fetchCategories();
   }, []);
 
-  // Fetch nutrients data
-  useEffect(() => {
-    const fetchNutrients = async () => {
-      try {
-        setLoading(true);
-        const nutrientProducts = await productService.getNutrients();
-        setNutrients(nutrientProducts);
-        setFilteredNutrients(nutrientProducts);
-      } catch (err) {
-        console.error("Error fetching nutrients:", err);
-        setError("Failed to load nutrient products.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Server-side search function
+  const performServerSearch = async (params: SearchParams = {}) => {
+    setProductsLoading(true);
+    try {
+      const searchParams: SearchParams = {
+        pageIndex: currentPage,
+        pageSize,
+        ...params,
+      };
 
-    fetchNutrients();
-  }, []);
+      // Add filters - use passed params first, then fall back to current state
+      const effectiveCategoryId =
+        "categoryId" in params ? params.categoryId : selectedCategory;
+      const effectiveKeyword =
+        "keyword" in params ? params.keyword : searchText.trim();
+      const effectiveMinPrice =
+        "minPrice" in params ? params.minPrice : minPrice;
+      const effectiveMaxPrice =
+        "maxPrice" in params ? params.maxPrice : maxPrice;
+
+      if (effectiveCategoryId && effectiveCategoryId !== "all") {
+        searchParams.categoryId = effectiveCategoryId;
+      }
+      if (effectiveKeyword) {
+        searchParams.keyword = effectiveKeyword;
+      }
+      if (effectiveMinPrice !== undefined) {
+        searchParams.minPrice = effectiveMinPrice;
+      }
+      if (effectiveMaxPrice !== undefined) {
+        searchParams.maxPrice = effectiveMaxPrice;
+      }
+
+      const response = await productService.searchProductsServer(searchParams);
+
+      if (response.statusCodes === 200) {
+        setSearchResponse(response);
+        setFilteredNutrients(
+          response.response.data.map((product) => ({ ...product }))
+        );
+        setCurrentPage(response.response.currentPage);
+        setTotalPages(response.response.totalPages);
+        setTotalItems(response.response.totalItems);
+
+        // Update active filters based on effective values
+        setActiveFilters({
+          category: Boolean(
+            effectiveCategoryId && effectiveCategoryId !== "all"
+          ),
+          search: Boolean(effectiveKeyword),
+          price: Boolean(
+            effectiveMinPrice !== undefined || effectiveMaxPrice !== undefined
+          ),
+        });
+      } else {
+        setFilteredNutrients([]);
+        setTotalPages(1);
+        setTotalItems(0);
+      }
+    } catch (error) {
+      console.error("Error performing server search:", error);
+      setFilteredNutrients([]);
+      setTotalPages(1);
+      setTotalItems(0);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  // Initial load with server search
+  useEffect(() => {
+    performServerSearch();
+  }, [currentPage, pageSize]);
 
   // Sorting function
   const handleSortChange = (event: SelectChangeEvent) => {
@@ -154,109 +222,16 @@ const NutrientsPage: React.FC<Props> = ({
     setFilteredNutrients(sorted);
   };
 
-  // Apply all filters
-  const applyAllFilters = async () => {
-    setProductsLoading(true);
-
-    try {
-      let result = nutrients;
-
-      // Apply category filter if active
-      if (activeFilters.category && selectedCategory !== "all") {
-        // Filter locally by categoryId
-        result = result.filter(
-          (product) => product.categoryId === selectedCategory
-        );
-
-        // If no results, try API
-        if (result.length === 0) {
-          const categoryProducts = await productService.getByCategory(
-            selectedCategory
-          );
-          // Only take nutrient products
-          result = categoryProducts.filter((p) => p.type === "nutrient");
-        }
-      }
-
-      // Apply search filter if active
-      if (activeFilters.search && searchText.trim() !== "") {
-        // Search locally first
-        result = productService.searchProductsLocally(result, searchText);
-
-        // If no results and not filtering by category, try API
-        if (
-          result.length === 0 &&
-          (!activeFilters.category || selectedCategory === "all")
-        ) {
-          const searchResults = await productService.searchProducts(searchText);
-          // Only take nutrient products
-          result = searchResults.filter((p) => p.type === "nutrient");
-        }
-      }
-
-      setFilteredNutrients(result);
-    } catch (error) {
-      console.error("Error applying filters:", error);
-      // Reset to initial nutrients if error
-      setFilteredNutrients(nutrients);
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
   // Handle category change
   const handleCategoryChange = async (event: SelectChangeEvent<string>) => {
     const categoryId = event.target.value;
     setSelectedCategory(categoryId);
-    setActiveFilters((prev) => ({ ...prev, category: categoryId !== "all" }));
+    setCurrentPage(1); // Reset to first page
 
-    // Apply filter immediately
-    setProductsLoading(true);
-    try {
-      if (categoryId === "all") {
-        // If "All" selected, only apply search filter if active
-        if (activeFilters.search && searchText.trim() !== "") {
-          let result = productService.searchProductsLocally(
-            nutrients,
-            searchText
-          );
-          if (result.length === 0) {
-            const searchResults = await productService.searchProducts(
-              searchText
-            );
-            result = searchResults.filter((p) => p.type === "nutrient");
-          }
-          setFilteredNutrients(result);
-        } else {
-          setFilteredNutrients(nutrients);
-        }
-      } else {
-        // Filter by categoryId
-        let result = nutrients.filter(
-          (product) => product.categoryId === categoryId
-        );
-
-        // If no results, try API
-        if (result.length === 0) {
-          const categoryProducts = await productService.getByCategory(
-            categoryId
-          );
-          result = categoryProducts.filter((p) => p.type === "nutrient");
-        }
-
-        // Apply search filter if active
-        if (activeFilters.search && searchText.trim() !== "") {
-          result = productService.searchProductsLocally(result, searchText);
-        }
-
-        setFilteredNutrients(result);
-      }
-    } catch (error) {
-      console.error("Error filtering by category:", error);
-      setFilteredNutrients(nutrients);
-    } finally {
-      setProductsLoading(false);
-    }
+    // Perform search with new category
+    await performServerSearch({
+      categoryId: categoryId !== "all" ? categoryId : undefined,
+    });
   };
 
   // Handle search text change
@@ -266,81 +241,89 @@ const NutrientsPage: React.FC<Props> = ({
 
   // Handle search button click
   const handleSearch = () => {
-    const hasSearchText = searchText.trim() !== "";
-    setActiveFilters((prev) => ({ ...prev, search: hasSearchText }));
-
-    // Apply all filters
-    if (hasSearchText || activeFilters.category) {
-      applyAllFilters();
-    } else {
-      setFilteredNutrients(nutrients);
-    }
+    setCurrentPage(1); // Reset to first page
+    performServerSearch();
   };
 
-  // Handle Enter key in search field
+  // Handle enter key press in search field
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.key === "Enter") {
       handleSearch();
     }
   };
 
+  // Handle page change
+  const handlePageChange = (
+    event: React.ChangeEvent<unknown>,
+    page: number
+  ) => {
+    setCurrentPage(page);
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (event: SelectChangeEvent<number>) => {
+    const newPageSize = Number(event.target.value);
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page
+  };
+
   // Clear all filters
   const clearAllFilters = () => {
     setSelectedCategory("all");
     setSearchText("");
+    setMinPrice(undefined);
+    setMaxPrice(undefined);
+    setCurrentPage(1);
     setActiveFilters({
       category: false,
       search: false,
+      price: false,
     });
-    setFilteredNutrients(nutrients);
+
+    // Perform search with cleared filters - explicitly pass undefined values
+    performServerSearch({
+      categoryId: undefined,
+      keyword: undefined,
+      minPrice: undefined,
+      maxPrice: undefined,
+    });
   };
 
   // Clear category filter
   const clearCategoryFilter = () => {
     setSelectedCategory("all");
-    setActiveFilters((prev) => ({ ...prev, category: false }));
-
-    // Apply only search filter if active
-    if (activeFilters.search && searchText.trim() !== "") {
-      setTimeout(() => applyAllFilters(), 0);
-    } else {
-      setFilteredNutrients(nutrients);
-    }
+    setCurrentPage(1);
+    performServerSearch({ categoryId: undefined });
   };
 
   // Clear search filter
   const clearSearchFilter = () => {
     setSearchText("");
-    setActiveFilters((prev) => ({ ...prev, search: false }));
-
-    // Apply only category filter if active
-    if (activeFilters.category && selectedCategory !== "all") {
-      setTimeout(() => {
-        setProductsLoading(true);
-        const result = nutrients.filter(
-          (product) => product.categoryId === selectedCategory
-        );
-        setFilteredNutrients(result);
-        setProductsLoading(false);
-      }, 0);
-    } else {
-      setFilteredNutrients(nutrients);
-    }
+    setCurrentPage(1);
+    performServerSearch({ keyword: undefined });
   };
 
-  // Get selected category name for display
+  // Clear price filter
+  const clearPriceFilter = () => {
+    setMinPrice(undefined);
+    setMaxPrice(undefined);
+    setCurrentPage(1);
+    performServerSearch({ minPrice: undefined, maxPrice: undefined });
+  };
+
+  // Get the selected category name for display in the filter chip
   const getSelectedCategoryName = () => {
     if (selectedCategory === "all") return "All";
 
-    // Check in nutrient categories
+    // Find in categories from API
+    const apiCategory = categories.find((cat) => cat.id === selectedCategory);
+    if (apiCategory) return apiCategory.name;
+
+    // Fallback to nutrient categories for backward compatibility
     const nutrientCategory = nutrientCategories.find(
       (cat) => cat.id === selectedCategory
     );
-    if (nutrientCategory) return nutrientCategory.name;
-
-    // Fallback to categories from API
-    const category = categories.find((cat) => cat.id === selectedCategory);
-    return category?.name || selectedCategory;
+    return nutrientCategory?.name || selectedCategory;
   };
 
   if (loading) {
@@ -438,7 +421,7 @@ const NutrientsPage: React.FC<Props> = ({
               Dinh dưỡng
             </Typography>
             <Chip
-              label={`${filteredNutrients.length} vật phẩm được tìm thấy`}
+              label={`${totalItems} vật phẩm được tìm thấy`}
               color="default"
               variant="outlined"
               size="small"
@@ -466,7 +449,7 @@ const NutrientsPage: React.FC<Props> = ({
 
         <Grid container spacing={2} alignItems="flex-start">
           {/* Category Filter */}
-          <Grid item xs={12} sm={6} md={5} lg={5}>
+          <Grid item xs={12} sm={6} md={3} lg={3}>
             <FormControl fullWidth>
               <InputLabel id="category-filter-label">
                 Lọc theo danh mục
@@ -499,7 +482,7 @@ const NutrientsPage: React.FC<Props> = ({
                 }}
               >
                 <MenuItem value="all">Tất cả danh mục</MenuItem>
-                {nutrientCategories.map((category) => (
+                {categories.map((category) => (
                   <MenuItem key={category.id} value={category.id}>
                     {category.name}
                   </MenuItem>
@@ -509,7 +492,7 @@ const NutrientsPage: React.FC<Props> = ({
           </Grid>
 
           {/* Search Filter */}
-          <Grid item xs={12} sm={6} md={5} lg={5}>
+          <Grid item xs={12} sm={6} md={3} lg={3}>
             <TextField
               fullWidth
               label="Tìm kiếm theo tên"
@@ -555,13 +538,49 @@ const NutrientsPage: React.FC<Props> = ({
             />
           </Grid>
 
+          {/* Price Filter */}
+          <Grid item xs={12} sm={6} md={3} lg={3}>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                label="Giá tối thiểu"
+                type="number"
+                size="small"
+                value={minPrice || ""}
+                onChange={(e) =>
+                  setMinPrice(
+                    e.target.value ? Number(e.target.value) : undefined
+                  )
+                }
+                InputProps={{
+                  inputProps: { min: 0 },
+                }}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                label="Giá tối đa"
+                type="number"
+                size="small"
+                value={maxPrice || ""}
+                onChange={(e) =>
+                  setMaxPrice(
+                    e.target.value ? Number(e.target.value) : undefined
+                  )
+                }
+                InputProps={{
+                  inputProps: { min: 0 },
+                }}
+                sx={{ flex: 1 }}
+              />
+            </Box>
+          </Grid>
+
           {/* Search Button */}
           <Grid
             item
             xs={12}
-            sm={12}
-            md={2}
-            lg={2}
+            sm={6}
+            md={3}
+            lg={3}
             sx={{
               display: "flex",
               alignItems: { xs: "stretch", md: "center" },
@@ -572,7 +591,7 @@ const NutrientsPage: React.FC<Props> = ({
               fullWidth
               variant="contained"
               onClick={handleSearch}
-              disabled={categoriesLoading || searchText.trim() === ""}
+              disabled={categoriesLoading}
               startIcon={<SearchIcon />}
               sx={{
                 height: { xs: "48px", md: "56px" },
@@ -588,7 +607,9 @@ const NutrientsPage: React.FC<Props> = ({
         </Grid>
 
         {/* Active Filters Display */}
-        {(activeFilters.category || activeFilters.search) && (
+        {(activeFilters.category ||
+          activeFilters.search ||
+          activeFilters.price) && (
           <Collapse in={true} timeout={300}>
             <Box
               sx={{
@@ -660,6 +681,28 @@ const NutrientsPage: React.FC<Props> = ({
                 />
               )}
 
+              {activeFilters.price && (
+                <Chip
+                  label={`Giá: ${minPrice || 0} - ${maxPrice || "∞"} VND`}
+                  onDelete={clearPriceFilter}
+                  color="info"
+                  size="small"
+                  sx={{
+                    fontWeight: 500,
+                    "& .MuiChip-deleteIcon": {
+                      color: theme.palette.info.main,
+                    },
+                    "&:hover": {
+                      boxShadow: `0 0 0 2px ${alpha(
+                        theme.palette.info.main,
+                        0.2
+                      )}`,
+                    },
+                    transition: "all 0.2s",
+                  }}
+                />
+              )}
+
               <Button
                 size="small"
                 variant="text"
@@ -678,6 +721,47 @@ const NutrientsPage: React.FC<Props> = ({
             </Box>
           </Collapse>
         )}
+
+        {/* Pagination and Page Size Controls */}
+        <Box
+          sx={{
+            mt: 2,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Hiển thị:
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 80 }}>
+              <Select
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                displayEmpty
+              >
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={20}>20</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+              </Select>
+            </FormControl>
+            <Typography variant="body2" color="text.secondary">
+              sản phẩm mỗi trang
+            </Typography>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary">
+            Hiển thị{" "}
+            {filteredNutrients.length > 0
+              ? (currentPage - 1) * pageSize + 1
+              : 0}{" "}
+            đến {Math.min(currentPage * pageSize, totalItems)} của {totalItems}{" "}
+            sản phẩm
+          </Typography>
+        </Box>
       </Paper>
 
       {/* Results Section */}
@@ -746,7 +830,7 @@ const NutrientsPage: React.FC<Props> = ({
                   Sản phẩm dinh dưỡng
                 </Typography>
                 <Chip
-                  label={`${filteredNutrients.length} vật phẩm được tìm thấy`}
+                  label={`${totalItems} vật phẩm được tìm thấy`}
                   color="default"
                   variant="outlined"
                   size="small"
@@ -779,6 +863,46 @@ const NutrientsPage: React.FC<Props> = ({
                   </Zoom>
                 ))}
               </Grid>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    mt: 4,
+                    pt: 2,
+                    borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  }}
+                >
+                  <Pagination
+                    count={totalPages}
+                    page={currentPage}
+                    onChange={handlePageChange}
+                    color="primary"
+                    size="large"
+                    showFirstButton
+                    showLastButton
+                  />
+                </Box>
+              )}
+
+              {/* Page Info */}
+              {totalItems > 0 && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    mt: 2,
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    Hiển thị {(currentPage - 1) * pageSize + 1} đến{" "}
+                    {Math.min(currentPage * pageSize, totalItems)} trong tổng số{" "}
+                    {totalItems} sản phẩm
+                  </Typography>
+                </Box>
+              )}
             </div>
           </Fade>
         ) : (

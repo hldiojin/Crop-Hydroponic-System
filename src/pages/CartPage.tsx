@@ -624,7 +624,7 @@ const CartPage: React.FC<CartPageProps> = ({
         }}
       >
         <IconButton
-          onClick={() => navigate("/devices")}
+          onClick={() => navigate("/products")}
           sx={{
             mr: 2,
             bgcolor: alpha(theme.palette.primary.main, 0.1),
