@@ -70,6 +70,7 @@ import {
 import { deviceService, Device } from "../services/deviceService";
 import { response } from "express";
 import NotFoundPage from "./NotFoundPage";
+import { AxiosError } from "axios";
 
 // Create properly typed motion components to fix TypeScript errors
 const MotionCard = motion(Card);
@@ -238,7 +239,7 @@ const PaymentPage: React.FC = () => {
             } else if (
               orderResponse.statusCodes == 400 &&
               orderResponse.message ==
-                "Không tìm thấy địa chỉ mặc định cho người dùng."
+              "Không tìm thấy địa chỉ mặc định cho người dùng."
             ) {
               setToast({
                 open: true,
@@ -436,14 +437,27 @@ const PaymentPage: React.FC = () => {
             // Navigate to confirmation page
             navigate("/checkout/confirmation");
           } else {
-            throw new Error("Failed to process COD transaction");
+            throw new Error(transactionResponse.response.message);
           }
         } catch (error) {
-          console.error("COD transaction failed:", error);
-          setFormErrors({
-            paymentMethod:
-              "Không thể xử lý thanh toán tiền mặt. Vui lòng thử lại.",
-          });
+          console.error(
+            "COD transaction error:",
+            error instanceof AxiosError ? error.response?.data.message : error
+          );
+          if (error instanceof AxiosError && error.response?.data.message.includes("không đủ số lượng")) {
+            setFormErrors({
+              paymentMethod:
+                "Sản phẩm không đủ số lượng để thanh toán. Đang quay về trang chủ...",
+            });
+            setTimeout(() => {
+              navigate("/");
+            }, 3000);
+          } else {
+            setFormErrors({
+              paymentMethod:
+                error instanceof AxiosError ? error.response?.data.message : error,
+            });
+          }
         }
       }
       // For PayOS payment method
@@ -466,14 +480,27 @@ const PaymentPage: React.FC = () => {
             // Redirect to PayOS payment page
             window.location.href = paymentUrl;
           } else {
-            throw new Error("Failed to get payment URL");
+            throw new Error(paymentUrl.response.data.message);
           }
         } catch (transactionError) {
-          console.error("PayOS transaction error:", transactionError);
-          setFormErrors({
-            paymentMethod:
-              "Không thể tạo giao dịch thanh toán. Vui lòng thử một phương thức thanh toán khác.",
-          });
+          console.error(
+            "PayOS transaction error:",
+            transactionError instanceof AxiosError ? transactionError.response?.data.message : transactionError
+          );
+          if (transactionError instanceof AxiosError && transactionError.response?.data.message.includes("không đủ số lượng")) {
+            setFormErrors({
+              paymentMethod:
+                "Sản phẩm không đủ số lượng để thanh toán. Đang quay về trang chủ...",
+            });
+            setTimeout(() => {
+              navigate("/");
+            }, 3000);
+          } else {
+            setFormErrors({
+              paymentMethod:
+                transactionError instanceof AxiosError ? transactionError.response?.data.message : transactionError,
+            });
+          }
         }
       }
     } catch (error) {
@@ -657,8 +684,8 @@ const PaymentPage: React.FC = () => {
                 index === 0
                   ? () => navigate("/cart")
                   : index === 1
-                  ? () => navigate(`/checkout/${orderId}/shipping`)
-                  : undefined
+                    ? () => navigate(`/checkout/${orderId}/shipping`)
+                    : undefined
               }
             >
               <Box
@@ -792,9 +819,9 @@ const PaymentPage: React.FC = () => {
                         boxShadow:
                           formData.paymentMethod === method.id
                             ? `0 4px 12px ${alpha(
-                                theme.palette.primary.main,
-                                0.2
-                              )}`
+                              theme.palette.primary.main,
+                              0.2
+                            )}`
                             : "0 2px 8px rgba(0,0,0,0.05)",
                         transition: "all 0.2s ease",
                       }}
@@ -1250,78 +1277,78 @@ const PaymentPage: React.FC = () => {
                   {Object.entries(selectedDevices).some(
                     ([_, quantity]) => quantity > 0
                   ) && (
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        bgcolor: alpha(theme.palette.background.default, 0.5),
-                      }}
-                    >
-                      <Typography
-                        variant="subtitle2"
-                        fontWeight="bold"
-                        sx={{ mb: 2 }}
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: alpha(theme.palette.background.default, 0.5),
+                        }}
                       >
-                        Thiết bị đã chọn
-                      </Typography>
+                        <Typography
+                          variant="subtitle2"
+                          fontWeight="bold"
+                          sx={{ mb: 2 }}
+                        >
+                          Thiết bị đã chọn
+                        </Typography>
 
-                      <Stack spacing={2}>
-                        {Object.entries(selectedDevices)
-                          .filter(([_, quantity]) => quantity > 0)
-                          .map(([deviceId, quantity]) => {
-                            const device = devices.find(
-                              (d) => d.id === deviceId
-                            );
-                            return (
-                              <Box
-                                key={deviceId}
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "flex-start",
-                                  gap: 2,
-                                  minHeight: "auto",
-                                }}
-                              >
-                                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                                  <Typography
-                                    variant="body2"
-                                    sx={{
-                                      wordWrap: "break-word",
-                                      overflowWrap: "break-word",
-                                      hyphens: "auto",
-                                      lineHeight: 1.4,
-                                    }}
-                                  >
-                                    {device?.name}{" "}
-                                    <Typography
-                                      component="span"
-                                      color="text.secondary"
-                                      sx={{ whiteSpace: "nowrap" }}
-                                    >
-                                      x{quantity}
-                                    </Typography>
-                                  </Typography>
-                                </Box>
-                                <Typography
-                                  variant="body2"
-                                  fontWeight="medium"
+                        <Stack spacing={2}>
+                          {Object.entries(selectedDevices)
+                            .filter(([_, quantity]) => quantity > 0)
+                            .map(([deviceId, quantity]) => {
+                              const device = devices.find(
+                                (d) => d.id === deviceId
+                              );
+                              return (
+                                <Box
+                                  key={deviceId}
                                   sx={{
-                                    flexShrink: 0,
-                                    textAlign: "right",
-                                    minWidth: "fit-content",
-                                    whiteSpace: "nowrap",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    gap: 2,
+                                    minHeight: "auto",
                                   }}
                                 >
-                                  {(device?.price || 0) * quantity} VND
-                                </Typography>
-                              </Box>
-                            );
-                          })}
-                      </Stack>
-                    </Paper>
-                  )}
+                                  <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        wordWrap: "break-word",
+                                        overflowWrap: "break-word",
+                                        hyphens: "auto",
+                                        lineHeight: 1.4,
+                                      }}
+                                    >
+                                      {device?.name}{" "}
+                                      <Typography
+                                        component="span"
+                                        color="text.secondary"
+                                        sx={{ whiteSpace: "nowrap" }}
+                                      >
+                                        x{quantity}
+                                      </Typography>
+                                    </Typography>
+                                  </Box>
+                                  <Typography
+                                    variant="body2"
+                                    fontWeight="medium"
+                                    sx={{
+                                      flexShrink: 0,
+                                      textAlign: "right",
+                                      minWidth: "fit-content",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {(device?.price || 0) * quantity} VND
+                                  </Typography>
+                                </Box>
+                              );
+                            })}
+                        </Stack>
+                      </Paper>
+                    )}
 
                   <Divider />
 
