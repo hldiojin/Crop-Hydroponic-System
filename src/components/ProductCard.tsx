@@ -112,6 +112,11 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit }) => {
   };
 
   const handleAddToCart = () => {
+    // Check if product is out of stock
+    if (product.amount <= 0) {
+      return;
+    }
+
     if (!isAuthenticated) {
       navigate("/login", {
         state: {
@@ -273,6 +278,21 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit }) => {
             {product.price.toLocaleString()} VND
           </Typography>
 
+          {/* Stock Status */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Chip
+              label={product.amount > 0 ? "Còn hàng" : "Hết hàng"}
+              color={product.amount > 0 ? "success" : "error"}
+              size="small"
+              sx={{ fontWeight: "medium" }}
+            />
+            {product.amount > 0 && (
+              <Typography variant="body2" color="text.secondary">
+                {product.amount} sản phẩm
+              </Typography>
+            )}
+          </Box>
+
           <Typography
             variant="body2"
             color="text.secondary"
@@ -304,6 +324,7 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit }) => {
             onClick={handleAddToCart}
             startIcon={<ShoppingCart />}
             size="large"
+            disabled={product.amount <= 0}
             sx={{
               width: "100%",
               marginLeft: "0px !important",
@@ -316,9 +337,18 @@ const ProductCard: React.FC<Props> = ({ product, onAddToCart, onEdit }) => {
                 transform: "scale(1.02)",
               },
               transition: "all 0.2s",
+              ...(product.amount <= 0 && {
+                bgcolor: "grey.300",
+                color: "text.disabled",
+                "&:hover": {
+                  bgcolor: "grey.300",
+                  transform: "none",
+                  boxShadow: 2,
+                },
+              }),
             }}
           >
-            Thêm vào giỏ hàng
+            {product.amount > 0 ? "Thêm vào giỏ hàng" : "Hết hàng"}
           </Button>
         </CardActions>
       </Card>

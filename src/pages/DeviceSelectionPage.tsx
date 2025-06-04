@@ -33,6 +33,8 @@ import {
   DialogActions,
   Stack,
   Pagination,
+  Alert,
+  Snackbar,
 } from "@mui/material";
 import {
   ShoppingCart,
@@ -388,6 +390,10 @@ const DeviceSelectionPage: React.FC = () => {
   const [searchResponse, setSearchResponse] =
     useState<SearchProductsResponse | null>(null);
 
+  // Add states for error handling
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false);
+
   // Extract unique product categories from search results
   const productCategories = useMemo(() => {
     const uniqueCategories = new Map<string, { id: string; name: string }>();
@@ -611,43 +617,80 @@ const DeviceSelectionPage: React.FC = () => {
   const handleCheckout = async () => {
     if (!selectedDevice.length) return;
 
-    const selectedDevicesObj: Record<string, number> = {};
-    selectedDevice.forEach((device) => {
-      selectedDevicesObj[device.id] = 1;
-    });
+    setIsCheckingOut(true);
+    setCheckoutError(null);
 
-    const selectedProductsList = products
-      .filter((product) => selectedProducts[product.id])
-      .map((product) => ({
-        productId: product.id,
-        productName: product.name,
-        unitPrice: product.price,
-        quantity: 1,
-        productImage: product.mainImage,
-      }));
+    try {
+      const selectedDevicesObj: Record<string, number> = {};
+      selectedDevice.forEach((device) => {
+        selectedDevicesObj[device.id] = 1;
+      });
 
-    const orderData = {
-      products: selectedProductsList.map((product) => ({
-        id: product.productId,
-        unitPrice: product.unitPrice,
-        quantity: quantities[product.productId] || 1,
-      })),
-      devices: selectedDevice.map((device) => ({
-        id: device.id,
-        unitPrice: device.price,
-        quantity: deviceQuantities[device.id] || 1,
-      })),
-    };
+      const selectedProductsList = products
+        .filter((product) => selectedProducts[product.id])
+        .map((product) => ({
+          productId: product.id,
+          productName: product.name,
+          unitPrice: product.price,
+          quantity: 1,
+          productImage: product.mainImage,
+        }));
 
-    const orderResponse = await submitOrder(orderData);
-    if (orderResponse.statusCodes != 200) {
-      console.error("Failed to submit order:", orderResponse);
-      return;
+      const orderData = {
+        products: selectedProductsList.map((product) => ({
+          id: product.productId,
+          unitPrice: product.unitPrice,
+          quantity: quantities[product.productId] || 1,
+        })),
+        devices: selectedDevice.map((device) => ({
+          id: device.id,
+          unitPrice: device.price,
+          quantity: deviceQuantities[device.id] || 1,
+        })),
+      };
+
+      const orderResponse = await submitOrder(orderData);
+
+      if (orderResponse.statusCodes === 200) {
+        localStorage.setItem("backLocation", "/devices");
+        localStorage.setItem("currentOrderId", orderResponse.response.data);
+        navigate(`/checkout/${orderResponse.response.data}/shipping`);
+      } else if (orderResponse.statusCodes === 400) {
+        // Handle out-of-stock error
+        const apiErrorMessage =
+          orderResponse.message || "Có lỗi xảy ra khi tạo đơn hàng";
+        const supportMessage =
+          "Vui lòng thử lại sau hoặc gửi yêu cầu hỗ trợ về mua hàng đến hệ thống.";
+        const fullErrorMessage = `${apiErrorMessage}\n\n${supportMessage}`;
+        setCheckoutError(fullErrorMessage);
+      } else {
+        console.error("Failed to submit order:", orderResponse);
+        const supportMessage =
+          "Vui lòng thử lại sau hoặc gửi yêu cầu hỗ trợ về mua hàng đến hệ thống.";
+        setCheckoutError(`Không thể tạo đơn hàng.\n\n${supportMessage}`);
+      }
+    } catch (error) {
+      console.error("Order creation failed:", error);
+      if (
+        error &&
+        typeof error === "object" &&
+        "statusCodes" in error &&
+        error.statusCodes === 400
+      ) {
+        const apiErrorMessage =
+          (error as any).message || "Có lỗi xảy ra khi tạo đơn hàng";
+        const supportMessage =
+          "Vui lòng thử lại sau hoặc gửi yêu cầu hỗ trợ về mua hàng đến hệ thống.";
+        const fullErrorMessage = `${apiErrorMessage}\n\n${supportMessage}`;
+        setCheckoutError(fullErrorMessage);
+      } else {
+        const supportMessage =
+          "Vui lòng thử lại sau hoặc gửi yêu cầu hỗ trợ về mua hàng đến hệ thống.";
+        setCheckoutError(`Không thể tạo đơn hàng.\n\n${supportMessage}`);
+      }
+    } finally {
+      setIsCheckingOut(false);
     }
-
-    localStorage.setItem("backLocation", "/devices");
-    localStorage.setItem("currentOrderId", orderResponse.response.data);
-    navigate(`/checkout/${orderResponse.response.data}/shipping`);
   };
 
   const handleProductDetails = async (
@@ -1883,7 +1926,14 @@ const DeviceSelectionPage: React.FC = () => {
                   color="primary"
                   size="large"
                   onClick={handleCheckout}
-                  endIcon={<ArrowForward />}
+                  disabled={isCheckingOut}
+                  endIcon={
+                    isCheckingOut ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <ArrowForward />
+                    )
+                  }
                   variants={buttonVariants}
                   whileHover="hover"
                   whileTap="tap"
@@ -1899,13 +1949,38 @@ const DeviceSelectionPage: React.FC = () => {
                     letterSpacing: "0.5px",
                   }}
                 >
-                  Tiếp tục thanh toán
+                  {isCheckingOut ? "Đang xử lý..." : "Tiếp tục thanh toán"}
                 </MotionButton>
               </Box>
             </Box>
           </Fade>
         )}
       </MotionContainer>
+
+      {/* Add error snackbar for checkout errors */}
+      <Snackbar
+        open={!!checkoutError}
+        autoHideDuration={8000}
+        onClose={() => setCheckoutError(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{ mt: 8 }}
+      >
+        <Alert
+          onClose={() => setCheckoutError(null)}
+          severity="error"
+          variant="filled"
+          sx={{
+            width: "100%",
+            maxWidth: 600,
+            "& .MuiAlert-message": {
+              whiteSpace: "pre-line",
+              textAlign: "left",
+            },
+          }}
+        >
+          {checkoutError}
+        </Alert>
+      </Snackbar>
 
       {/* Product Details Dialog */}
       <Dialog

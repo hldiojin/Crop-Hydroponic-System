@@ -22,6 +22,7 @@ import {
   Alert,
   useMediaQuery,
   Checkbox,
+  Snackbar,
 } from "@mui/material";
 import {
   Add,
@@ -87,6 +88,10 @@ const CartPage: React.FC<CartPageProps> = ({
     {}
   );
   const [selectAll, setSelectAll] = useState<boolean>(false);
+
+  // Add states for error handling
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false);
 
   // Tính toán tổng tiền dựa trên các sản phẩm được chọn
   const selectedSubtotal = cartDetails
@@ -247,17 +252,14 @@ const CartPage: React.FC<CartPageProps> = ({
 
   // Hàm xử lý khi nhấn "Proceed to Checkout"
   const handleProceedToCheckout = async () => {
+    setIsCheckingOut(true);
+    setCheckoutError(null);
+
     try {
       // Lọc các sản phẩm được chọn
       const selectedProducts = cartDetails.filter(
         (item) => selectedItems[item.id]
       );
-
-      // Lưu danh sách sản phẩm được chọn vào localStorage
-      // localStorage.setItem(
-      //   "selectedCartDetails",
-      //   JSON.stringify(selectedProducts)
-      // );
 
       // Prepare order data
       const orderData = {
@@ -293,13 +295,39 @@ const CartPage: React.FC<CartPageProps> = ({
 
         // Chuyển đến trang shipping
         navigate(`/checkout/${orderId}/shipping`);
+      } else if (orderResponse && orderResponse.statusCodes === 400) {
+        // Handle out-of-stock error
+        const apiErrorMessage =
+          orderResponse.message || "Có lỗi xảy ra khi tạo đơn hàng";
+        const supportMessage =
+          "Vui lòng thử lại sau hoặc gửi yêu cầu hỗ trợ về mua hàng đến hệ thống.";
+        const fullErrorMessage = `${apiErrorMessage}\n\n${supportMessage}`;
+        setCheckoutError(fullErrorMessage);
       } else {
         throw new Error("Failed to create order");
       }
     } catch (error) {
       console.error("Order creation failed:", error);
-      // Show error to user
-      alert("Failed to create order. Please try again.");
+      // Check if error is from API response with specific structure
+      if (
+        error &&
+        typeof error === "object" &&
+        "statusCodes" in error &&
+        error.statusCodes === 400
+      ) {
+        const apiErrorMessage =
+          (error as any).message || "Có lỗi xảy ra khi tạo đơn hàng";
+        const supportMessage =
+          "Vui lòng thử lại sau hoặc gửi yêu cầu hỗ trợ về mua hàng đến hệ thống.";
+        const fullErrorMessage = `${apiErrorMessage}\n\n${supportMessage}`;
+        setCheckoutError(fullErrorMessage);
+      } else {
+        const supportMessage =
+          "Vui lòng thử lại sau hoặc gửi yêu cầu hỗ trợ về mua hàng đến hệ thống.";
+        setCheckoutError(`Không thể tạo đơn hàng.\n\n${supportMessage}`);
+      }
+    } finally {
+      setIsCheckingOut(false);
     }
   };
 
@@ -1171,7 +1199,7 @@ const CartPage: React.FC<CartPageProps> = ({
                   size="large"
                   startIcon={<Payment />}
                   onClick={handleProceedToCheckout}
-                  disabled={selectedCount === 0}
+                  disabled={selectedCount === 0 || isCheckingOut}
                   whileHover={{
                     scale: 1.02,
                     boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
@@ -1185,9 +1213,20 @@ const CartPage: React.FC<CartPageProps> = ({
                     boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
                   }}
                 >
-                  {selectedCount > 0
-                    ? `Checkout (${selectedCount} sản phẩm)`
-                    : "Chọn sản phẩm để thanh toán"}
+                  {isCheckingOut ? (
+                    <>
+                      <CircularProgress
+                        size={20}
+                        color="inherit"
+                        sx={{ mr: 1 }}
+                      />
+                      Đang xử lý...
+                    </>
+                  ) : selectedCount > 0 ? (
+                    `Checkout (${selectedCount} sản phẩm)`
+                  ) : (
+                    "Chọn sản phẩm để thanh toán"
+                  )}
                 </MotionButton>
 
                 {/* Payment methods - Updated */}
@@ -1396,6 +1435,31 @@ const CartPage: React.FC<CartPageProps> = ({
               })}
           </Paper>
         )}
+
+      {/* Add error snackbar for checkout errors */}
+      <Snackbar
+        open={!!checkoutError}
+        autoHideDuration={8000}
+        onClose={() => setCheckoutError(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        sx={{ mt: 8 }}
+      >
+        <Alert
+          onClose={() => setCheckoutError(null)}
+          severity="error"
+          variant="filled"
+          sx={{
+            width: "100%",
+            maxWidth: 600,
+            "& .MuiAlert-message": {
+              whiteSpace: "pre-line",
+              textAlign: "left",
+            },
+          }}
+        >
+          {checkoutError}
+        </Alert>
+      </Snackbar>
     </MotionContainer>
   );
 };

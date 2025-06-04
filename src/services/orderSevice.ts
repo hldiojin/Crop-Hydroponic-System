@@ -109,8 +109,16 @@ export const submitOrder = async (orderData: OrderData): Promise<any> => {
       localStorage.setItem("authToken", newToken);
     }
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error submitting order:", error);
+
+    // If the error has a response (meaning the server responded with an error status)
+    // return the response data so the component can handle the error message
+    if (error.response && error.response.data) {
+      return error.response.data;
+    }
+
+    // For other types of errors (network issues, etc.), throw the error
     throw error;
   }
 };
@@ -143,7 +151,7 @@ export const getCODBilling = async (orderId: string): Promise<any> => {
     console.error(`Error fetching COD billing for order ${orderId}:`, error);
     throw error;
   }
-}
+};
 
 export const cancelOrder = async (orderId: string): Promise<any> => {
   try {
@@ -154,8 +162,7 @@ export const cancelOrder = async (orderId: string): Promise<any> => {
       localStorage.setItem("authToken", newToken);
     }
     return response.data;
-  }
-  catch (error) {
+  } catch (error) {
     console.error(`Error cancelling order ${orderId}:`, error);
     throw error;
   }
@@ -204,7 +211,10 @@ export const updateOrderAddress = async (
   userAddressId: string
 ): Promise<any> => {
   try {
-    const response = await api.put(`/order/change-address`, { orderId, userAddressId });
+    const response = await api.put(`/order/change-address`, {
+      orderId,
+      userAddressId,
+    });
     var newToken = response.headers["new-access-token"];
     if (newToken != null) {
       const newToken = response.headers["new-access-token"];
@@ -215,22 +225,25 @@ export const updateOrderAddress = async (
     console.error("Error updating order address:", error);
     throw error;
   }
-}
+};
 
-export const changeDefaultAddress = async (userAddressId: string): Promise<any> => {
+export const changeDefaultAddress = async (
+  userAddressId: string
+): Promise<any> => {
   try {
-    const response = await api.put(`/useraddress/address/default/${userAddressId}`);
+    const response = await api.put(
+      `/useraddress/address/default/${userAddressId}`
+    );
     var newToken = response.headers["new-access-token"];
     if (newToken != null) {
       localStorage.setItem("authToken", newToken);
     }
     return response.data;
   } catch (error) {
-
     console.error("Error changing default address:", error);
     throw error;
   }
-}
+};
 
 export const deleteAddress = async (id: string): Promise<any> => {
   try {
@@ -241,15 +254,20 @@ export const deleteAddress = async (id: string): Promise<any> => {
     }
     return response.data;
   } catch (error) {
-
     console.error("Error changing default address:", error);
     throw error;
   }
-}
+};
 
-export const editAddress = async (userAddressId: string, addressData: EditShippingFormData): Promise<any> => {
+export const editAddress = async (
+  userAddressId: string,
+  addressData: EditShippingFormData
+): Promise<any> => {
   try {
-    const response = await api.put(`/useraddress/${userAddressId}`, addressData);
+    const response = await api.put(
+      `/useraddress/${userAddressId}`,
+      addressData
+    );
     var newToken = response.headers["new-access-token"];
     if (newToken != null) {
       localStorage.setItem("authToken", newToken);
@@ -259,7 +277,7 @@ export const editAddress = async (userAddressId: string, addressData: EditShippi
     console.error("Error editing address:", error);
     throw error;
   }
-}
+};
 
 export const processCodTransaction = async (orderId: string): Promise<any> => {
   try {
