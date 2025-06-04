@@ -29,12 +29,13 @@ export interface DeviceItemResponse {
   statusCodes: number;
   response: {
     data: DeviceItem[];
-  }
+  };
 }
 
 export interface DeviceItem {
   id: string;
   name: string;
+  serial: string;
   isActive: boolean;
   isOnline: boolean;
   status: string;
@@ -70,5 +71,5 @@ export const deviceService = {
       console.error("Error fetching devices:", error);
       throw error;
     }
-  }
+  },
 };
