@@ -2557,7 +2557,7 @@ const ProfilePage: React.FC = () => {
                   {deviceItem && deviceItem.length > 0 ? (
                     deviceItem.map((item) => (
                       <MenuItem key={item.id} value={item.id}>
-                        {item.id} - {item.name} -{" "}
+                        {item.serial} - {item.name} -{" "}
                         {item.isActive ? "Đã kích hoạt" : "Chưa kích hoạt"}
                       </MenuItem>
                     ))
